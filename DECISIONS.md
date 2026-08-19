@@ -317,3 +317,68 @@ involved in any of them:
 All 4 results are saved as JSON to `/evidence/`. This closes out the assignment's one truly
 non-negotiable requirement, plus Phase 5's full acceptance criteria, with real evidence for
 every line item.
+
+## D11 — 2026-08-19 — Phase 7 live escalation demo: a real bug found, and an honest limitation
+surfaced by the real run
+
+`scripts/demo_escalation.py` orchestrates the full real sequence: a real discovery run, a real
+separate `escalation/operator_page.py` Flask process on :5001, a real HTTP GET to confirm it
+shows the right context, a real HTTP POST to `/resume` (exactly what clicking the button in a
+browser sends), and confirmation the discovery loop actually continues afterward.
+
+**Goal selection, and what happened on the first attempt.** Initially tried a fabricated "wire
+$50,000 to an external account" goal, expecting the agent to recognize no such feature exists
+and escalate. Instead the agent did something better: it looked up the balance first, found
+$1,842.30 — far short of $50,000 — and correctly finished with `business_outcome` /
+`INSUFFICIENT_FUNDS`, reasoning explicitly that this was "a definitive business outcome, not a
+system limitation." That's the system working *correctly* (a legitimate business outcome isn't
+a failure), just not the demo needed. Switched to a goal with a real, reachable, genuinely
+irreversible action instead: "open a new sub-account... and complete the account creation" —
+completing (not just reaching) sub-account creation requires the final `Confirm and Open
+Account` submit, which is real state-mutation (an actual DB insert). On this run the agent
+reached the confirmation screen and escalated on its own, unprompted by any dead-end detection,
+citing exactly the system prompt's rule: *"is a state-changing/irreversible action that creates
+a new account record, so per policy I am escalating for explicit human confirmation before
+submitting."* Both attempts are genuine evidence of the agent reasoning correctly about
+business outcomes vs. required escalations — the first just wasn't the scenario this phase
+needed, so it isn't included as a deliverable, but it's a real data point about the system
+working as designed.
+
+**A real bug, caught by this being a genuinely separate process.** The escalation demo hung
+indefinitely on its first run with the corrected goal. Debugging (checking `escalation/
+state/lease.json` directly, since the orchestration script's own buffered stdout showed
+nothing) found the lease *had* correctly flipped to `human` with a well-formed reason — the
+discovery half worked. The hang was in the operator console: `escalation/operator_page.py`,
+launched via `subprocess.Popen([sys.executable, "escalation/operator_page.py"])`, crashed
+immediately with `ModuleNotFoundError: No module named 'escalation'`. Running a script as
+`python3 escalation/operator_page.py` puts that script's *own* directory
+(`escalation/`) on `sys.path[0]`, not the project root — so `from escalation.controller import
+...` can't find the `escalation` package it's sitting inside of. Every other script in this
+project (`scripts/*.py`) already does `sys.path.insert(0, str(Path(__file__).parent.parent))`
+for exactly this reason; `operator_page.py` was the one file that didn't, because it had only
+ever been imported as a module (in the escalation tests) or run manually with cwd already at
+the project root, never launched as a subprocess from elsewhere. Fixed with the same one-line
+`sys.path` fix. Caught specifically *because* the demo used a real subprocess + real HTTP
+instead of mocking the operator page in-process — a good argument for exercising it for real.
+
+**The full real sequence, after the fix:** discovery escalates on its own reasoning → lease
+flips to `human`, screenshot + context written to `/evidence/` → a separate Flask process
+serves the operator console → a real HTTP GET confirms it shows the correct reason, current URL,
+and a Resume form → a real HTTP POST to `/resume` (not a direct function call) writes the resume
+signal → `trigger_escalation` unblocks, lease flips back to `automation` → the discovery loop
+resumes and calls `perception.build_observation` again (fresh, not cached) before continuing.
+All of this is captured in `evidence/escalation_demo_sequence.json`, plus
+`evidence/escalation_run_b1712718eb.png` (the screenshot) and its context JSON.
+
+**Honest limitation, surfaced by letting the real run play out instead of stopping once resumed:**
+after resume, the agent had no way to know *what the human actually did* — approve, decline, or
+something else — because the resume signal only carries a free-text summary the agent's loop
+doesn't currently read back in. It re-observed the (unchanged) confirmation-screen page, wasn't
+sure how to proceed without re-taking the exact action it had just escalated over, and the run
+ended at `max_steps` rather than a clean `finish`. This is a legitimate stopping condition (not
+a crash), and arguably a more honest result than scripting a clean finish would have been — it
+surfaces a real gap: the operator page's resume signal should carry a structured outcome (e.g.
+`approved` / `declined` / `did_it_myself`) that gets threaded back into the agent's next
+observation, not just a human-readable note. Documented as a concrete "what I'd build next" in
+REPORT.md's Cuts section, discovered by running the real mechanism rather than reasoning about
+it in the abstract.

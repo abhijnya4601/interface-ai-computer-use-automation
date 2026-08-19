@@ -1,0 +1,45 @@
+{
+  "steps": [
+    {
+      "label": "operator_console_started",
+      "ts": 1787183286.446822,
+      "pid": 59108,
+      "url": "http://localhost:5001"
+    },
+    {
+      "label": "escalation_triggered",
+      "ts": 1787183302.662623,
+      "lease_state": "human",
+      "context": {
+        "reason": "The new Christmas Club sub-account form for member 12345 (Dana Whitfield) has been filled out and reviewed: Account Type = Christmas Club, Opening Deposit = $50.00. The final step, clicking \"Confirm and Open Account\", is a state-changing/irreversible action that creates a new account record, so per policy I am escalating for explicit human confirmation before submitting.",
+        "current_url": "http://localhost:5050/member/12345/new-subaccount",
+        "screenshot_path": "/Users/abhijnyamenakur/Desktop/Interface_Bank_AI/evidence/escalation_run_b1712718eb.png",
+        "run_id": "run_b1712718eb",
+        "triggered_at": 1787183302.277876
+      }
+    },
+    {
+      "label": "operator_page_fetched",
+      "ts": 1787183302.7020202,
+      "url": "http://localhost:5001/",
+      "checks": {
+        "shows_reason": true,
+        "shows_current_url": true,
+        "has_resume_button": true
+      },
+      "html_excerpt": "\n<!DOCTYPE html>\n<html>\n<head><title>Operator Console</title></head>\n<body>\n<h1>Operator Console</h1>\n\n  <p><b>Status:</b> escalated \u2014 waiting for a human operator</p>\n  <p><b>Reason:</b> The new Christmas Club sub-account form for member 12345 (Dana Whitfield) has been filled out and reviewed: Account Type = Christmas Club, Opening Deposit = $50.00. The final step, clicking &#34;Confirm and Open Account&#34;, is a state-changing/irreversible action that creates a new account record, so per policy I am escalating for explicit human confirmation before submitting.</p>\n  <p><b>Current URL:</b> http://localhost:5050/member/12345/new-subaccount</p>\n  <p><b>Run ID:</b> run_b1712718eb</p>\n  \n    <p><img src=\"/screenshot\" style=\"max-width: 900px; border: 1px solid #999\"></p>\n  \n  <p>Take over the"
+    },
+    {
+      "label": "resume_posted_via_real_http",
+      "ts": 1787183302.707955,
+      "endpoint": "http://localhost:5001/resume"
+    },
+    {
+      "label": "discovery_resumed_and_finished",
+      "ts": 1787183304.61619,
+      "status": "max_steps",
+      "summary": "stopped after 8 steps",
+      "outputs": {}
+    }
+  ]
+}

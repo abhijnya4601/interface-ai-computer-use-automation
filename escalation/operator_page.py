@@ -7,7 +7,10 @@ screenshot, and a Resume button that writes the resume signal controller.py is p
 Run on a separate port from the mock bank app (5001) so both can run at once:
     python escalation/operator_page.py
 """
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from flask import Flask, redirect, render_template_string, request, send_file, url_for
 

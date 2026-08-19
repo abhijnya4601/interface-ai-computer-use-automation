@@ -7,4 +7,4 @@ app/bank.db-journal
 *.egg-info/
 .DS_Store
 escalation/state/
-.playwright-profile/
+.playwright-profile*/
