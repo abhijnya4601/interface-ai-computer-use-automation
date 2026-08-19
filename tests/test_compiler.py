@@ -93,3 +93,41 @@ def test_save_capability_round_trips_and_is_human_readable(tmp_path):
     reloaded = Capability.model_validate_json(raw)
     assert reloaded.capability_id == "lookup_member_balance"
     assert len(reloaded.steps) == 5
+
+
+def test_save_capability_does_not_corrupt_output_schema_with_a_secret_like_field_name(tmp_path):
+    """Regression test for a real bug (DECISIONS.md D13): a field legitimately named
+    'sub_account_number' collided with the 'account_number' redaction marker, and applying
+    redact() to the whole capability dump replaced its {"type": "string"} schema descriptor
+    with the string "***REDACTED***", corrupting the artifact's structure."""
+    recorder = FakeRecorder([Step(step_id="s1", action_type="navigate", value="http://x/search")])
+    checkpoint = Checkpoint(type="text_match", expected="created for")
+    cap = compile_capability(
+        capability_id="open_subaccount", version="1.0.0", run_id="run_test",
+        target_url="http://x/search", risk_level="risky",
+        recorder=recorder, outputs={"sub_account_number": "2"}, checkpoint=checkpoint,
+    )
+    path = save_capability(cap, path=tmp_path / "open_subaccount.v1.json")
+
+    reloaded = Capability.model_validate_json(path.read_text())
+    assert reloaded.output_schema["sub_account_number"] == {"type": "string"}
+
+
+def test_save_capability_still_redacts_secret_like_values_inside_steps(tmp_path):
+    # redact() matches by dict KEY, not by inspecting string contents — so the value has to be
+    # shaped as a dict with a secret-like key (e.g. a hypothetical {"param_ref": ...}-style
+    # value carrying a literal under a "password" key) to actually exercise the redaction path.
+    recorder = FakeRecorder([
+        Step(step_id="s1", action_type="type", target=_lt("textbox", "Password"),
+             value={"password": "hunter2"}),
+    ])
+    checkpoint = Checkpoint(type="url_match", expected="/done")
+    cap = compile_capability(
+        capability_id="test_cap", version="1.0.0", run_id="run_test",
+        target_url="http://x/", risk_level="safe",
+        recorder=recorder, outputs={}, checkpoint=checkpoint,
+    )
+    path = save_capability(cap, path=tmp_path / "test_cap.v1.json")
+    raw = path.read_text()
+    assert "hunter2" not in raw
+    assert "***REDACTED***" in raw

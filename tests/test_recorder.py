@@ -92,6 +92,30 @@ def test_typed_value_matching_goal_becomes_param_ref():
     assert step.value == {"param_ref": "member_id"}
 
 
+def test_typed_value_that_merely_appears_as_a_goal_substring_is_not_misdetected():
+    """Regression test for a real bug (DECISIONS.md D13): a $50 deposit amount typed while
+    recording a goal like "...member 12345 with a $50 opening deposit..." must NOT be tagged as
+    the member_id param just because "50" is also a substring of the goal text."""
+    rec = Recorder(goal="Open a new sub-account for member 12345 with a $50 opening deposit.")
+    page = FakePage({("textbox", "Opening Deposit ($)"): 1})
+    step = rec.record_type("textbox", "Opening Deposit ($)", "50", page)
+    assert step.value == "50"
+
+
+def test_member_id_typed_into_a_different_field_is_still_detected_correctly():
+    rec = Recorder(goal="Open a new sub-account for member 12345 with a $50 opening deposit.")
+    page = FakePage({("textbox", "Search (ID / name)"): 1})
+    step = rec.record_type("textbox", "Search (ID / name)", "12345", page)
+    assert step.value == {"param_ref": "member_id"}
+
+
+def test_goal_with_no_member_id_pattern_never_tags_a_param_ref():
+    rec = Recorder(goal="Search for the term 50 and click Go.")
+    page = FakePage({("textbox", "q"): 1})
+    step = rec.record_type("textbox", "q", "50", page)
+    assert step.value == "50"
+
+
 def test_typed_value_not_in_goal_stays_a_literal():
     rec = _recorder()
     page = FakePage({("textbox", "Nickname"): 1})

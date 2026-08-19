@@ -16,18 +16,30 @@ Two things worth understanding about the design:
    asks for: if a capability starts needing tier 2/3 more often across successive replays, that's
    a free signal the underlying UI has drifted, with zero extra infrastructure.
 
-2. **Parameter detection is a deliberate scope cut**, not an oversight: a value is tagged
-   `{"param_ref": "member_id"}` instead of kept as a literal if it appears verbatim in the
-   original goal string. This only works because both of this project's capabilities have
-   exactly one varying input (a member ID) — a general system would need either the LLM to name
-   its own parameters or a real slot-filling NLP step. Called out explicitly in REPORT.md's Cuts
-   section, not silently limited.
+2. **Parameter detection is a deliberate scope cut**, not an oversight: the member ID is
+   extracted from the goal once via a fixed pattern (`member <digits>`), and a typed/extracted
+   value is tagged `{"param_ref": "member_id"}` only if it *exactly equals* that extracted
+   value. This only works because both of this project's capabilities have exactly one varying
+   input (a member ID) — a general system would need either the LLM to name its own parameters
+   or a real slot-filling NLP step. Called out explicitly in REPORT.md's Cuts section, not
+   silently limited.
+
+   Earlier this used a blind "does this literal appear anywhere in the goal string" substring
+   check instead of an exact match against the extracted ID — that produced a real bug (see
+   DECISIONS.md D13): recording `open_subaccount` for the goal "...member 12345 with a $50
+   opening deposit...", the deposit amount "50" is *also* a substring of the goal (inside
+   "$50"), so it got tagged `{"param_ref": "member_id"}` too. Replaying with a different
+   member_id would then have typed the member_id into the deposit field. Matching only the
+   goal's actual extracted ID, exactly, closes that hole.
 """
 from __future__ import annotations
+
+import re
 
 from artifact.schema import LocatorTarget, Step
 
 _PARAM_NAME = "member_id"  # see module docstring — the only varying input across both capabilities
+_MEMBER_ID_RE = re.compile(r"member\s+(\d+)", re.IGNORECASE)
 
 
 class Recorder:
@@ -36,6 +48,8 @@ class Recorder:
         self.steps: list[Step] = []
         self.tier_log: list[dict] = []
         self._counter = 0
+        match = _MEMBER_ID_RE.search(goal)
+        self._member_id_value = match.group(1) if match else None
 
     def _next_step_id(self) -> str:
         self._counter += 1
@@ -103,7 +117,7 @@ class Recorder:
     # ---- parameter detection ---------------------------------------------------------------
 
     def _maybe_param_ref(self, value: str) -> dict | str:
-        if value and str(value) in self.goal:
+        if self._member_id_value and str(value) == self._member_id_value:
             return {"param_ref": _PARAM_NAME}
         return value
 

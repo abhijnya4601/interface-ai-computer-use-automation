@@ -407,3 +407,71 @@ just says "re-observe and decide" (the D11 dead-end-recovery case, unchanged).
 4 new/updated tests in `tests/test_escalation.py` (decision propagates through
 `signal_resume`→`resume`, and through the full `trigger_escalation` blocking-poll-then-resume
 path) — 69/69 total, up from 66.
+
+## D13 — 2026-08-19 — Phase 8 real discovery run for `open_subaccount`; two more real bugs, found
+by actually reading the compiled artifact instead of trusting it
+
+Extended `scripts/run_discovery.py` with `--auto-approve-escalation`: it starts the real
+`escalation/operator_page.py` as a separate process and, once the lease flips to `human`, posts
+a real HTTP "Approve & Resume" after a short delay — this is what let a capability whose goal
+requires a genuinely irreversible final step get recorded by one real, unattended run, using the
+D12 decision channel. Ran, for real:
+
+```
+python scripts/run_discovery.py \
+  --goal "Open a new Christmas Club sub-account for member 12345 with a $50 opening deposit, \
+          and complete the account creation." \
+  --target http://localhost:5050/search --capability-id open_subaccount \
+  --max-steps 12 --auto-approve-escalation --headless
+```
+
+The agent searched, opened member 12345, navigated to the sub-account form, filled only the
+opening deposit (it left account type at its default "Christmas Club" — the first `<option>` —
+and left the optional nickname blank, a sensible minimal path), reached the confirmation screen,
+and — unprompted — escalated citing the exact same reasoning as the D11 demo. The auto-approve
+watcher posted a real "approved" decision; the agent then genuinely clicked "Confirm and Open
+Account" *inside the iframe* (`tier: role_name` in the log — confirming the recorder's
+cross-frame resolution works during compilation, not just perception) and finished successfully:
+sub-account #2 created for Dana Whitfield. Transcript:
+`evidence/discovery_run_run_8ee69bcbf8.jsonl`.
+
+**Then, reading the compiled `capabilities/open_subaccount.v1.json` closely (not just checking
+it parsed) surfaced two real bugs:**
+
+1. **Redaction corrupted a schema field.** `output_schema.sub_account_number` came out as the
+   literal string `"***REDACTED***"` instead of `{"type": "string"}`. Cause: `save_capability`
+   ran `redact()` over the *entire* `capability.model_dump()`, and `redact()` matches keys by
+   substring — `sub_account_number` contains `account_number`, one of the configured secret
+   markers, so its whole value (a schema-type dict, not data) got replaced. Root problem:
+   `input_schema`/`output_schema` are pure type metadata and never carry real data — there was
+   nothing there to protect, and redacting them corrupts the artifact's structure instead. Fixed
+   `agent/compiler.py::save_capability` to redact only `steps` (the one place a literal value the
+   LLM actually typed could appear), never the schema dicts. 2 new regression tests.
+
+2. **Parameter detection collided on a coincidental substring — a real correctness bug, not just
+   corrupted metadata.** Step `s6` (typing `"50"` into "Opening Deposit ($)") was recorded as
+   `value: {"param_ref": "member_id"}`, not the literal `"50"`. Cause: the recorder's substring
+   check (`if value and str(value) in self.goal`) doesn't check *which* value it found — the
+   goal text "...member 12345 with a $50 opening deposit..." contains "50" as a substring (inside
+   "$50"), so the deposit amount got misattributed to the member_id parameter. Had this shipped,
+   replaying with a different `member_id` would have typed that member_id into the deposit
+   field instead of $50 — silently wrong money, not just a cosmetic issue. Fixed
+   `agent/recorder.py`: the member ID is now extracted from the goal *once*, via a fixed
+   `member (\d+)` pattern, and a typed/extracted value is only tagged `param_ref` if it *exactly
+   equals* that extracted ID — not "appears anywhere in the goal." 3 new regression tests,
+   including the literal deposit-amount collision as a named test case.
+
+**Both bugs were repaired directly in the already-generated real artifact** (rather than
+re-spending API credits on a third discovery run for something that doesn't require new agent
+reasoning): `output_schema.sub_account_number` restored to `{"type": "string"}`, and step `s6`'s
+`value` restored to the literal `"50"` — verified against the real transcript's `tool_call` entry
+(`{'role': 'textbox', 'name': 'Opening Deposit ($)', 'text': '50'}`), so the repair matches
+exactly what the fixed code would have produced from the same real run. The discovery run itself
+was never faked or replayed — only the serialization bugs it exposed were fixed, in the code and
+in this one artifact. Full suite: 74/74 tests pass (up from 69).
+
+This is the clearest example in this build of why "round-trips through
+`Capability.model_validate_json` with no errors" (the spec's literal compiler acceptance
+criterion) is necessary but not sufficient — both bugs produced perfectly schema-valid JSON.
+Nothing caught them until the actual field values were read and checked against what the real
+run actually did.

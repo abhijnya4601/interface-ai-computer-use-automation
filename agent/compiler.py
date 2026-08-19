@@ -146,10 +146,23 @@ def compile_capability(
 
 
 def save_capability(capability: Capability, path: Path | None = None) -> Path:
+    """
+    Serializes and writes the capability, running `redact()` only over `steps` — never over
+    `input_schema`/`output_schema`. Those two are pure type metadata (e.g. `{"type": "string"}`),
+    never actual data, so there is nothing in them to redact; running redact() over the whole
+    `model_dump()` corrupted a real artifact once (DECISIONS.md D13): a field legitimately named
+    `sub_account_number` matched the `account_number` secret-key marker, and redact() replaced
+    its entire schema-type dict with the string "***REDACTED***" — silently breaking the
+    artifact's structural validity, not protecting any actual secret (there was never a real
+    account number value anywhere near it, just a type declaration). `steps` is the one place a
+    literal, potentially-sensitive value could actually appear (a `Step.value` the LLM typed),
+    so that's the only part that goes through redact().
+    """
     if path is None:
         major = capability.version.split(".")[0]
         path = CAPABILITIES_DIR / f"{capability.capability_id}.v{major}.json"
     path.parent.mkdir(exist_ok=True)
-    redacted = redact(capability.model_dump())
-    path.write_text(json.dumps(redacted, indent=2, default=str))
+    dumped = capability.model_dump()
+    dumped["steps"] = redact(dumped["steps"])
+    path.write_text(json.dumps(dumped, indent=2, default=str))
     return path
