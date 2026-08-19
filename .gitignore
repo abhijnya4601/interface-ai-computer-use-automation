@@ -6,4 +6,4 @@ app/bank.db-journal
 .env
 *.egg-info/
 .DS_Store
-escalation/resume.signal
+escalation/state/

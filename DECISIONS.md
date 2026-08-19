@@ -194,3 +194,38 @@ the iframe confirmation screen, confirmed a synthetic `{role: "Iframe", ...}` no
 AND `{role: "button", name: "Confirm and Open Account"}` is reachable through it. All 4 checks
 PASS with real output (captured above). Phase 1 is done — this is the first genuinely
 browser-verified phase in this build, not just unit-tested logic.
+
+## D8 — 2026-08-19 — Phases 2-4 built (tools, discovery loop, recorder, compiler); two real
+bugs found and fixed by a pre-flight smoke test before spending API credits
+
+Built `agent/tools.py` (the 6 tools + Playwright execution, role/name resolution across frames),
+`agent/discovery.py` (the observe→decide→act loop, all 3 stopping conditions, escalation wiring),
+`agent/recorder.py` (3-tier locator builder + param-ref detection, 9/9 offline tests using fake
+Playwright-shaped stand-ins), and `agent/compiler.py` (Capability assembly + declared business
+outcomes, 5/5 offline tests).
+
+Before spending real Anthropic API credits on the required discovery run, wrote
+`scripts/smoke_test_discovery.py` — a scripted-fake-LLM-client harness that drives the *real*
+loop mechanics (real Chromium, real Flask app, real guardrail_check, real Recorder) through the
+exact lookup_member_balance action sequence, so the loop's plumbing could be verified without
+needing Claude to cooperate. This caught two real bugs on the first run:
+
+1. `guardrail_check` was being applied to the `finish` tool call and rejecting it —
+   `action type 'finish' is not in allowed_actions [...]`. `finish`/`escalate` are loop-control
+   signals (no URL, no page interaction), not page actions, so they're now exempt from the
+   page-action allowlist check in `discovery.py`. (They still can't let the *agent* act outside
+   the allowlist — every actual click/type/navigate/extract that led up to them was already
+   checked.)
+2. The recorder was building each step's locator *after* calling the executor, so for a click
+   that navigates the page (e.g. clicking "View"), `build_locator` counted role="link"
+   name="View" matches on the page it had just navigated *to* (the member detail page, which
+   has zero "View" links) instead of the page it acted *on* — it fell back to a spurious tier-3
+   text locator every time. Fixed by recording (building the locator) before executing, on every
+   action branch, with the freshly-built Step popped back off `recorder.steps` if execution then
+   fails, so a failed action never gets baked into the compiled artifact.
+
+After both fixes, the smoke test passes cleanly: 5 steps recorded (1 auto-navigate + 4 scripted
+actions), the typed member_id correctly tagged as `{"param_ref": "member_id"}`, every locator
+resolved at tier 1 (role_name) — no tier-3 fallback warnings — and the transcript captured both
+`llm_response` and `tool_call` entries. This is exactly the kind of bug a from-scratch build
+should catch *before* the one non-negotiable real run, not during it.
