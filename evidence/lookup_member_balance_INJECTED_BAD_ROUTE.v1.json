@@ -1,0 +1,187 @@
+{
+  "capability_id": "lookup_member_balance",
+  "version": "1.0.0",
+  "created_from_run_id": "run_672cff25c0",
+  "target": {
+    "app_name": "mock-core-banking",
+    "entry_point": "http://localhost:5050/search",
+    "surface_type": "legacy_web"
+  },
+  "risk_level": "safe",
+  "input_schema": {
+    "member_id": {
+      "type": "string",
+      "description": "the member id to use for this run"
+    }
+  },
+  "output_schema": {
+    "member_id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "savings_balance": {
+      "type": "string"
+    }
+  },
+  "checkpoint": {
+    "type": "element_present",
+    "locator": {
+      "role": "rowheader",
+      "name": "Savings Balance"
+    },
+    "expected": "present"
+  },
+  "steps": [
+    {
+      "step_id": "s1",
+      "action_type": "navigate",
+      "target": null,
+      "value": "http://localhost:5050/this-route-does-not-exist",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s2",
+      "action_type": "type",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "textbox",
+          "name": "Search (ID / name)"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Search (ID / name)"
+          }
+        ],
+        "reasoning": "role='textbox' name='Search (ID / name)' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": {
+        "param_ref": "member_id"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s3",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "button",
+          "name": "Go"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Go"
+          }
+        ],
+        "reasoning": "role='button' name='Go' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s4",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "link",
+          "name": "View"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "View"
+          }
+        ],
+        "reasoning": "role='link' name='View' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": [
+        {
+          "condition": "page contains 'No results.'",
+          "classification": "business_outcome",
+          "code": "MEMBER_NOT_FOUND",
+          "handling": "search returned no matching row for this member_id; there is no 'View' link to click through \u2014 treat as not found rather than a broken locator"
+        }
+      ]
+    },
+    {
+      "step_id": "s5",
+      "action_type": "extract",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "rowheader",
+          "name": "Savings Balance"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Savings Balance"
+          }
+        ],
+        "reasoning": "role='rowheader' name='Savings Balance' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": "savings_balance",
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": [
+        {
+          "condition": "page contains 'Access denied. This account is restricted'",
+          "classification": "business_outcome",
+          "code": "PERMISSION_DENIED",
+          "handling": "member exists but the account is locked; balance is not shown on this page"
+        },
+        {
+          "condition": "page contains 'No member record found'",
+          "classification": "business_outcome",
+          "code": "MEMBER_NOT_FOUND",
+          "handling": "member record does not exist at this URL"
+        }
+      ]
+    }
+  ]
+}

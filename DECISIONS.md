@@ -266,3 +266,54 @@ Also added `tests/test_replay.py` (13/13 pass) for the pure helper functions
 (`_resolve_value`, `_extract_quoted_substring`, `_outcome_to_result`, `_verify_checkpoint`) using
 fake page/context stand-ins, so the branching logic has offline coverage independent of the live
 smoke test. Full suite: 66/66 tests pass.
+
+## D10 — 2026-08-19 — THE real discovery run (non-negotiable requirement) — completed successfully
+
+User provided a real `ANTHROPIC_API_KEY` (initial key had zero credit balance — user added
+credits, capped at $2). Cost check before spending: Sonnet 5 is $2/$10 per 1M input/output
+tokens under intro pricing through 2026-08-31 (today), and the loop is ~5 LLM turns for this
+capability — comfortably inside the $2 cap even accounting for the second capability and a
+short escalation demo. Key stored only in a gitignored `.env` (never committed, never printed in
+full in any command output — verified `git check-ignore -v .env` before use).
+
+Ran, for real, against the real running Flask app:
+
+```
+python scripts/run_discovery.py \
+  --goal "Look up member 12345 and read their current savings balance." \
+  --target http://localhost:5050/search \
+  --capability-id lookup_member_balance --headless
+```
+
+Result: **succeeded on the first attempt** — no hand-holding, no hardcoded step sequence (the
+smoke-test investment in D8 paid off here: the only unknown left was Claude's own tool-use
+decisions, and those worked). Every one of the 5 tool calls (type/click/click/extract/finish)
+came from a real Anthropic API response reasoning over a real observation; the transcript
+(`evidence/discovery_run_run_672cff25c0.jsonl`, 17 lines: 1 navigate + 5 observations + 5
+llm_response + 5 tool_call + 1 finish) is the record of that. Final answer: member 12345 / Dana
+Whitfield / $1,842.30 — matches the seed data exactly. All 4 located steps resolved at locator
+tier 1 (role_name) — consistent with the recorder smoke test, since this app's role+name pairs
+are unique by design.
+
+The compiled `capabilities/lookup_member_balance.v1.json` round-trips through
+`Capability.model_validate_json`, every locator carries a real `reasoning` string, the typed
+`member_id` param was correctly detected via substring match against the goal, and
+`agent/compiler.py`'s declared `expected_outcomes` (MEMBER_NOT_FOUND on the View-link step,
+MEMBER_NOT_FOUND + PERMISSION_DENIED on the extract step) are attached exactly as designed.
+
+**Then replayed the real (not hand-authored) capability for all 4 required scenarios**, no LLM
+involved in any of them:
+
+1. `member_id=23456` (never used during discovery) → `success`, `savings_balance: "$5.02"` —
+   genuine parameterization, not a replay of literally-recorded values.
+2. `member_id=88888` (not seeded) → `business_outcome` / `MEMBER_NOT_FOUND` — not a crash.
+3. `member_id=99999` (locked) → `business_outcome` / `PERMISSION_DENIED`.
+4. A tampered copy of the real capability with step `s1`'s navigate URL pointed at
+   `/this-route-does-not-exist` → `hard_failure`, `failure_detail` populated with `step_id: s2`,
+   the expected element, "no element resolved," and a real saved screenshot. The tampered
+   capability itself is saved to
+   `evidence/lookup_member_balance_INJECTED_BAD_ROUTE.v1.json` for reproducibility.
+
+All 4 results are saved as JSON to `/evidence/`. This closes out the assignment's one truly
+non-negotiable requirement, plus Phase 5's full acceptance criteria, with real evidence for
+every line item.
