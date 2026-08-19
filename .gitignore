@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+app/bank.db
+app/bank.db-journal
+.env
+*.egg-info/
+.DS_Store
+escalation/resume.signal

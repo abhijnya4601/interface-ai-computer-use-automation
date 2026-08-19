@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head><title>Core Banking — Member Search</title></head>
+<body>
+<div class="pg-wrap">
+  <table class="lyt-t1"><tr><td class="lyt-c1">
+    <h1>Member Search</h1>
+    <table class="frm-t1">
+      <tr>
+        <td class="fld-lbl"><label for="q">Search (ID / name)</label></td>
+        <td class="fld-in">
+          <form method="POST" action="/search">
+            <input type="text" id="q" name="q" value="{{ query }}">
+            <button type="submit">Go</button>
+          </form>
+        </td>
+      </tr>
+    </table>
+
+    {% if results is not none %}
+    <table class="tbl-c3" border="1">
+      <thead>
+        <tr><th scope="col">Member ID</th><th scope="col">Name</th><th scope="col">Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for m in results %}
+        <tr>
+          <td class="tbl-c1">{{ m.member_id }}</td>
+          <td class="tbl-c2">{{ m.last_name }}, {{ m.first_name }}</td>
+          <td class="tbl-c3"><a href="/member/{{ m.member_id }}">View</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="msg-empty">No results.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </td></tr></table>
+</div>
+</body>
+</html>

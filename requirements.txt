@@ -1,0 +1,6 @@
+flask>=3.0
+pydantic>=2.6
+playwright>=1.42
+pyyaml>=6.0
+anthropic>=0.40
+pytest>=8.0

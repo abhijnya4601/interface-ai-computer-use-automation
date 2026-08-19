@@ -1,0 +1,18 @@
+# Safety allowlist — loaded once at process startup, checked before every action in
+# BOTH the discovery loop and the replay engine. Anything outside this raises
+# GuardrailViolation and halts; there is no silent skip.
+
+allowed_domains:
+  - "localhost:5050"
+
+allowed_actions:
+  - click
+  - type
+  - navigate
+  - extract
+  - select
+  - wait_for
+
+# Explicit route-level denylist, checked even for an otherwise-allowed domain/action.
+# Empty for the mock app; a real deployment would list admin/bulk-operation routes here.
+blocked_routes: []

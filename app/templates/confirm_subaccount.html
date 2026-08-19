@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head><title>Confirm Details</title></head>
+<body>
+<div class="frm-inner">
+<table class="tbl-c2" border="1">
+  <tbody>
+    <tr><th scope="row">Member</th><td>{{ member.first_name }} {{ member.last_name }} ({{ member.member_id }})</td></tr>
+    <tr><th scope="row">Account Type</th><td>{{ account_type }}</td></tr>
+    <tr><th scope="row">Nickname</th><td>{{ nickname }}</td></tr>
+    <tr><th scope="row">Opening Deposit</th><td>${{ "%.2f"|format(deposit_cents / 100) }}</td></tr>
+  </tbody>
+</table>
+<form method="POST" action="/member/{{ member.member_id }}/new-subaccount/submit" target="_parent">
+  <input type="hidden" name="account_type" value="{{ account_type }}">
+  <input type="hidden" name="nickname" value="{{ nickname }}">
+  <input type="hidden" name="deposit_cents" value="{{ deposit_cents }}">
+  <button type="submit">Confirm and Open Account</button>
+</form>
+</div>
+</body>
+</html>

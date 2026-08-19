@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head><title>New Sub-Account</title></head>
+<body>
+<div class="pg-wrap">
+<h1>Open New Sub-Account — Member {{ member.member_id }}</h1>
+<form method="POST" action="/member/{{ member.member_id }}/new-subaccount">
+<table class="frm-t2">
+  <tr>
+    <td class="fld-lbl"><label for="account_type">Account Type</label></td>
+    <td class="fld-in">
+      <select id="account_type" name="account_type">
+        <option value="christmas_club">Christmas Club</option>
+        <option value="vacation_club">Vacation Club</option>
+        <option value="general_savings">General Savings</option>
+      </select>
+    </td>
+  </tr>
+  <tr>
+    <td class="fld-lbl"><label for="nickname">Nickname</label></td>
+    <td class="fld-in"><input type="text" id="nickname" name="nickname"></td>
+  </tr>
+  <tr>
+    <td class="fld-lbl"><label for="opening_deposit">Opening Deposit ($)</label></td>
+    <td class="fld-in"><input type="text" id="opening_deposit" name="opening_deposit" value="0"></td>
+  </tr>
+</table>
+<button type="submit">Continue</button>
+</form>
+</div>
+</body>
+</html>
