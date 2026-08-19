@@ -33,12 +33,16 @@ TEMPLATE = """
     <p><img src="/screenshot" style="max-width: 900px; border: 1px solid #999"></p>
   {% endif %}
   <p>Take over the live browser window now (it is still open — this is the same session the
-     automation was driving, not a new one), perform whatever manual step is needed, then click
-     Resume below.</p>
+     automation was driving, not a new one) if you need to. Then record what you decided and
+     resume: Approve if the agent should go ahead with the risky action it paused on, Decline if
+     it should not, or plain Resume if this was a stuck/dead-end recovery where approve/decline
+     doesn't apply (you fixed something manually and it should just carry on).</p>
   <form method="POST" action="/resume">
-    <label for="summary">What did you do? (recorded as evidence)</label><br>
+    <label for="summary">What did you do / decide? (recorded as evidence)</label><br>
     <textarea id="summary" name="summary" rows="3" cols="60"></textarea><br>
-    <button type="submit">Resume automation</button>
+    <button type="submit" name="decision" value="approved">Approve &amp; Resume</button>
+    <button type="submit" name="decision" value="declined">Decline &amp; Resume</button>
+    <button type="submit" name="decision" value="">Resume (no decision needed)</button>
   </form>
 {% else %}
   <p>No escalation is currently active. Automation is in control.</p>
@@ -64,7 +68,10 @@ def screenshot():
 
 @app.route("/resume", methods=["POST"])
 def resume_route():
-    signal_resume(human_actions_summary=request.form.get("summary", ""))
+    signal_resume(
+        human_actions_summary=request.form.get("summary", ""),
+        decision=request.form.get("decision") or None,
+    )
     return redirect(url_for("index"))
 
 

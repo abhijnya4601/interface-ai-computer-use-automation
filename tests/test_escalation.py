@@ -88,12 +88,49 @@ def test_trigger_escalation_raises_timeout_if_never_resumed():
         controller.trigger_escalation("stuck", page, run_id="never", poll_interval_s=0.05, max_wait_s=0.2)
 
 
-def test_resume_clears_context_and_signal_file():
+def test_resume_clears_signal_file_and_carries_no_decision_when_none_given():
     controller._write_lease(Lease(state="human", context={"reason": "x"}))
     controller.RESUME_SIGNAL_PATH.parent.mkdir(exist_ok=True)
     controller.RESUME_SIGNAL_PATH.write_text("{}")
 
     lease = controller.resume()
     assert lease.state == "automation"
-    assert lease.context == {}
+    assert lease.context["decision"] is None
     assert not controller.RESUME_SIGNAL_PATH.exists()
+
+
+def test_signal_resume_approved_decision_carries_through_to_resume():
+    controller._write_lease(Lease(state="human", context={"reason": "risky step pending"}))
+    controller.signal_resume(human_actions_summary="looks fine, go ahead", decision="approved")
+
+    lease = controller.resume()
+    assert lease.context["decision"] == "approved"
+    assert lease.context["human_actions_summary"] == "looks fine, go ahead"
+
+
+def test_signal_resume_declined_decision_carries_through_to_resume():
+    controller._write_lease(Lease(state="human", context={"reason": "risky step pending"}))
+    controller.signal_resume(human_actions_summary="do not proceed", decision="declined")
+
+    lease = controller.resume()
+    assert lease.context["decision"] == "declined"
+
+
+def test_trigger_escalation_return_value_carries_the_operator_decision():
+    page = FakePage()
+    results = {}
+
+    def _do_escalation():
+        results["lease"] = controller.trigger_escalation(
+            "risky step needs confirmation", page, run_id="decision_test",
+            poll_interval_s=0.05, max_wait_s=5,
+        )
+
+    thread = threading.Thread(target=_do_escalation)
+    thread.start()
+    time.sleep(0.2)
+    controller.signal_resume(human_actions_summary="approved after review", decision="approved")
+    thread.join(timeout=5)
+
+    assert results["lease"].context["decision"] == "approved"
+    assert results["lease"].context["human_actions_summary"] == "approved after review"

@@ -264,11 +264,30 @@ def run_discovery(
             elif name == "escalate":
                 reason = tool_input.get("reason", "model requested escalation")
                 _log({"type": "escalate_requested", "reason": reason})
-                trigger_escalation(reason, page, run_id=run_id)
-                _log({"type": "escalation_resumed"})
+                lease = trigger_escalation(reason, page, run_id=run_id)
+                decision = lease.context.get("decision")
+                human_note = lease.context.get("human_actions_summary", "")
+                _log({"type": "escalation_resumed", "decision": decision, "human_note": human_note})
                 recent_hashes.clear()
-                last_action_result = "escalation resumed — re-observing current state"
-                tool_result_content = "human resumed the session; re-observe and continue"
+                if decision == "approved":
+                    last_action_result = (
+                        f"escalation resumed — a human APPROVED your request "
+                        f"({human_note or 'no additional note'}). You now have explicit "
+                        "authorization to proceed with the action you paused on."
+                    )
+                elif decision == "declined":
+                    last_action_result = (
+                        f"escalation resumed — a human DECLINED your request "
+                        f"({human_note or 'no additional note'}). Do NOT take that action. "
+                        "Call finish with success=false (or an appropriate business outcome) "
+                        "explaining that a human declined."
+                    )
+                else:
+                    last_action_result = (
+                        f"escalation resumed — human note: {human_note or '(none)'}. "
+                        "Re-observe the current state before deciding what to do next."
+                    )
+                tool_result_content = last_action_result
 
             else:
                 raise ToolExecutionError(f"unknown tool {name!r}")

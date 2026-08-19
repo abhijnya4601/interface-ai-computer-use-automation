@@ -105,18 +105,47 @@ def resume() -> Lease:
     re-observe the page itself — callers (discovery.py / replay/engine.py) must call
     perception.build_observation() again after resume() returns, rather than reusing whatever
     they had cached before escalation, since the human may have changed the page state.
+
+    The resume signal's `decision` and `human_actions_summary` (what the operator actually
+    chose/did) are carried forward into the fresh lease's context, even though `state` is back
+    to "automation" — this is the caller's only way to learn what the human decided, since the
+    lease is the one piece of shared state both sides read. Without this, a resumed discovery
+    loop has no way to tell "approved, proceed" apart from "declined, don't" (see DECISIONS.md
+    D11/D12) and would have to guess.
     """
-    lease = Lease(state="automation", context={})
-    _write_lease(lease)
+    decision = None
+    human_actions_summary = ""
     if RESUME_SIGNAL_PATH.exists():
+        try:
+            signal_data = json.loads(RESUME_SIGNAL_PATH.read_text())
+            decision = signal_data.get("decision")
+            human_actions_summary = signal_data.get("human_actions_summary", "")
+        except (json.JSONDecodeError, OSError):
+            pass
         RESUME_SIGNAL_PATH.unlink()
-    print("[escalation] lease -> automation. Caller must re-observe before continuing.")
+
+    lease = Lease(
+        state="automation",
+        context={"decision": decision, "human_actions_summary": human_actions_summary},
+    )
+    _write_lease(lease)
+    print(f"[escalation] lease -> automation (decision={decision!r}). "
+          "Caller must re-observe before continuing.")
     return lease
 
 
-def signal_resume(human_actions_summary: str = "") -> None:
-    """Called by the operator page (Phase 7) when a human clicks 'Resume'."""
+def signal_resume(human_actions_summary: str = "", decision: str | None = None) -> None:
+    """
+    Called by the operator page (Phase 7) when a human clicks Resume. `decision` is one of
+    "approved" (go ahead with whatever the agent was about to do), "declined" (don't — the
+    agent should stop or find another path), or None (plain "I fixed something manually,
+    continue" — the dead-end-recovery case, where approve/decline doesn't apply).
+    """
     STATE_DIR.mkdir(exist_ok=True)
     RESUME_SIGNAL_PATH.write_text(
-        json.dumps({"human_actions_summary": human_actions_summary, "resumed_at": time.time()})
+        json.dumps({
+            "human_actions_summary": human_actions_summary,
+            "decision": decision,
+            "resumed_at": time.time(),
+        })
     )

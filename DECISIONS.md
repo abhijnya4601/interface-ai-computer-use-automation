@@ -382,3 +382,28 @@ surfaces a real gap: the operator page's resume signal should carry a structured
 observation, not just a human-readable note. Documented as a concrete "what I'd build next" in
 REPORT.md's Cuts section, discovered by running the real mechanism rather than reasoning about
 it in the abstract.
+
+## D12 — 2026-08-19 — Closed the D11 gap: resume now carries a structured decision
+
+D11 flagged that the resume signal only carried a free-text note, so a resumed agent couldn't
+tell "approved, go ahead" from "declined, don't." This isn't just a nice-to-have — it directly
+blocks Phase 8, because `open_subaccount`'s discovery goal needs the agent to actually reach and
+click the final "Confirm and Open Account" submit for the compiled artifact to have a real submit
+step for replay to execute (see D13). Without a way to signal approval back to the agent, there's
+no way to get that step recorded by a genuine live run.
+
+Fix: `signal_resume(human_actions_summary, decision)` now accepts `decision: "approved" |
+"declined" | None` (`None` for the plain dead-end-recovery case, where approve/decline doesn't
+apply). `resume()` reads the decision out of the resume signal before deleting it and carries it
+forward into the fresh (state="automation") lease's `context` — the lease is the only piece of
+state both the discovery loop and the operator page share, so it's the natural channel.
+`escalation/operator_page.py` now shows three buttons (Approve & Resume / Decline & Resume /
+Resume — no decision needed) instead of one generic Resume. `agent/discovery.py`'s `escalate`
+handling now branches on `lease.context.get("decision")`: `"approved"` tells the model it has
+explicit authorization to proceed with the paused action; `"declined"` tells it not to and to
+conclude the run (finish with success=false or an appropriate outcome) rather than retry; `None`
+just says "re-observe and decide" (the D11 dead-end-recovery case, unchanged).
+
+4 new/updated tests in `tests/test_escalation.py` (decision propagates through
+`signal_resume`→`resume`, and through the full `trigger_escalation` blocking-poll-then-resume
+path) — 69/69 total, up from 66.
