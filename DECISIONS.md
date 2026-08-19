@@ -229,3 +229,40 @@ actions), the typed member_id correctly tagged as `{"param_ref": "member_id"}`, 
 resolved at tier 1 (role_name) — no tier-3 fallback warnings — and the transcript captured both
 `llm_response` and `tool_call` entries. This is exactly the kind of bug a from-scratch build
 should catch *before* the one non-negotiable real run, not during it.
+
+## D9 — 2026-08-19 — Phase 5 (replay engine) built and verified against the real app
+
+`replay/engine.py` implements `replay(capability, params, confirm=False, headless=True) ->
+Result` per the contract: no LLM anywhere in it, 3-tier locator resolution (mirrors the
+recorder's tiers, using the declared `nth` for structural targets and the declared `fallbacks`
+before falling back further to a bare text match), `wait_policy` retries only for steps tagged
+`retry_on: transient_load`, capability-level checkpoint verification, and every declared
+`expected_outcomes` condition evaluated as a literal substring check against `page.content()` —
+never guessed, never LLM-judged. `replay()` owns its own Playwright browser lifecycle (launch
+per call) rather than requiring a pre-existing page, so it's a plausible thing an AI agent calls
+directly as a production tool.
+
+One deliberate design point worth flagging: a step's expected_outcomes are checked in two
+places — when the step's own locator/action fails (e.g. "View" link doesn't exist because the
+search returned no rows), AND after a step succeeds (e.g. the extract step's locator DOES
+resolve nothing because the locked-member page never renders the balance table row at all, so
+resolution fails there too — same code path). Both paths converge on the same
+`_check_expected_outcomes` call, so there's exactly one place classification logic lives.
+
+Verified with `scripts/smoke_test_replay.py` (real Chromium, real Flask app, a hand-authored
+Capability matching exactly what `agent/compiler.py` would produce) — all 4 required scenarios
+pass with real output:
+1. success with member_id=23456 (never used to author the capability) — genuine parameterization
+2. member_id=88888 (not seeded) → `business_outcome` / `MEMBER_NOT_FOUND`, not a crash
+3. member_id=99999 (locked) → `business_outcome` / `PERMISSION_DENIED`
+4. capability's entry point pointed at a nonexistent route → `hard_failure` with populated
+   `failure_detail` (step_id, expected, observed) and a real screenshot saved to `/evidence/`
+
+(That screenshot was deleted afterward — it's smoke-test output against a hand-authored fixture,
+not the deliverable evidence; the real replay evidence in `/evidence/` will come from replaying
+the capability actually compiled from the real discovery run, per scripts/run_replay.py.)
+
+Also added `tests/test_replay.py` (13/13 pass) for the pure helper functions
+(`_resolve_value`, `_extract_quoted_substring`, `_outcome_to_result`, `_verify_checkpoint`) using
+fake page/context stand-ins, so the branching logic has offline coverage independent of the live
+smoke test. Full suite: 66/66 tests pass.
