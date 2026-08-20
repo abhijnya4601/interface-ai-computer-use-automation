@@ -7,7 +7,7 @@ versioned, reusable **capability** artifact, and that artifact is replayed **det
 and a human-in-the-loop escalation/handoff path.
 
 See [`REPORT.md`](REPORT.md) for the design write-up and [`DECISIONS.md`](DECISIONS.md) for a
-running log of every non-obvious decision (including three real bugs found while building this,
+running log of every non-obvious decision (including several real bugs found while building this,
 with what broke and how they were fixed).
 
 ## 1. Setup
@@ -65,6 +65,9 @@ The parts that need a real browser and/or a real LLM:
   `DECISIONS.md` D16), `scripts/smoke_test_operator_auth.py` (live integration test for the
   operator console's authentication — see `DECISIONS.md` D18). These exist specifically to
   validate mechanics without spending API credits — see `DECISIONS.md` D8.
+- **No browser, no API key:** `python3 scripts/demo_encryption_at_rest.py` proves the
+  encryption-at-rest module (`guardrails/encryption.py`, D19) works end to end against a real
+  file on disk — generates a throwaway key if `EVIDENCE_ENCRYPTION_KEY` isn't set in `.env`.
 - **Needs a real browser AND a real API key:** `scripts/run_discovery.py` and anything under
   "demo path" below. This is the one part of the system that has to be real — see `REPORT.md`.
 

@@ -655,3 +655,40 @@ the lease provably stays in `state: human` afterward — it cannot be used to sn
 through.
 
 91/91 tests pass (91 = 80 + 4 domain-separation + 7 operator-auth).
+
+## D19 — 2026-08-20 — Reconsidered encryption at rest: it IS fixable, built it for real
+
+User pushed back on D18's "encryption at rest is a documented cut, a hardcoded key would be
+theater" reasoning by asking directly: can't that last one be fixed? Re-examined the reasoning
+and found it was too conservative. The actual objection was never "a key in a local file is
+inherently theater" — it's specifically that a key baked into *source code* would be. A key
+sourced from `EVIDENCE_ENCRYPTION_KEY` in `.env` is the exact same trust model this project
+already uses for `ANTHROPIC_API_KEY` and `OPERATOR_PASSWORD` (D18) — treating that as acceptable
+for two secrets and "theater" for a third was an inconsistent standard, not a principled one.
+
+Built `guardrails/encryption.py`: `encrypt_at_rest`/`decrypt_at_rest` using `cryptography`'s
+`Fernet` (AES-128-CBC + HMAC-SHA256, authenticated — tampering is detected, not silently
+accepted) — a real, vetted library, never custom crypto. `generate_key()` for setup.
+Fail-closed, matching the operator console's D18 posture: both functions raise
+`EncryptionKeyMissing` rather than silently writing plaintext if no key is configured.
+
+The one real constraint that shapes where this gets applied: the assignment requires `/evidence/`
+to stay human-readable so reviewers can actually check it. Encrypting this repo's own deliverable
+evidence would defeat that requirement, not serve compliance — so this is deliberately NOT wired
+into `agent/compiler.py::save_capability` or the evidence-writing paths in `scripts/run_discovery.
+py`/`replay/engine.py`. Instead, proved the capability is real and working via
+`scripts/demo_encryption_at_rest.py`, run for real: writes a customer-shaped record (member name
++ balance) to an actual file, confirms neither value — nor even valid JSON structure — survives
+on disk, then decrypts it back byte-for-byte identical. This is the thing a real deployment's
+evidence/capability write paths would call; here it exists to prove the capability rather than
+be wired into the submission's own reviewable output.
+
+7 new offline tests (`tests/test_encryption.py`): round-trip, ciphertext genuinely doesn't
+contain the plaintext, fails closed with no key configured (both directions), wrong key raises
+`InvalidToken` rather than decrypting into garbage, and bit-flip tampering is detected (Fernet's
+authentication, not just its encryption). 98/98 tests pass.
+
+Honest limitation, stated plainly rather than glossed over: one static key, no rotation, no
+per-tenant/per-record keys, no HSM-backed custody. This is a credible first step toward real
+encryption at rest, not a finished KMS — that remains genuinely out of scope for a take-home, and
+is named explicitly as "what I'd build next" in REPORT.md rather than left implicit.

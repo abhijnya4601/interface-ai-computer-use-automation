@@ -127,43 +127,37 @@ navigation is blocked and the transcript saved to `/evidence/`.
 to execute past confirmation without explicit `confirm=True`, checked before the browser
 launches.
 
-`redact(obj)` runs two passes: by **key** (`{ssn, account_number, password, token}`,
-case-insensitive substring — deliberately *not* applied to `input_schema`/`output_schema`, after
-`account_number` collided with a legitimately-named `sub_account_number` field and corrupted its
-type descriptor instead of protecting real data, D13), and by **value shape** (D17: an SSN or
-card/routing-number-like digit run is masked regardless of what key it's under — closes the gap
-where a secret sitting in an unrelated field, e.g. a free-text log line, would sail past a
-key-only check). Value-shape matching is deliberately narrow: verified against 1,000 random
-SHA256 hashes and every real transcript entry in this build with zero false positives, and it
-does **not** flag a name or a currency-formatted balance — those aren't secret-*shaped*, and
-blanket-redacting them would break the system's actual purpose (a capability's job can be to
-*return* a customer's balance to the calling agent; that's legitimate business data, not a leak).
-Full PII detection (a name, an address) remains an explicit cut — that's a much harder,
-false-positive-prone NLP problem.
+`redact(obj)` runs two passes: by **key** (`{ssn, account_number, password, token}`, substring —
+deliberately *not* applied to `input_schema`/`output_schema`, after `account_number` collided
+with a legitimately-named `sub_account_number` field and corrupted its type descriptor instead of
+protecting real data, D13), and by **value shape** (D17: an SSN or card-number-like digit run is
+masked regardless of key name, closing the gap where a secret in an unrelated field would sail
+past a key-only check — verified against 1,000 random SHA256 hashes with zero false positives,
+and deliberately does *not* flag a name or a currency-formatted balance, since those legitimately
+belong in a capability's declared outputs). Full PII detection remains an explicit cut.
 
-The compliance frame that actually applies to a US bank is **GLBA** (the Safeguards Rule) plus
-general state/consumer privacy law, not HIPAA (healthcare-specific). Two follow-on gaps this
-prompted (D18) were closed with real, verified fixes rather than left as write-up caveats:
+The compliance frame that actually applies to a US bank is **GLBA** (the Safeguards Rule), not
+HIPAA (healthcare-specific). Three follow-on gaps this raised were closed with real, verified
+fixes rather than left as write-up caveats:
 
-- **Discovery must never touch production data** — every discovery turn sends observed page
-  content to a third-party LLM, so this is now an *enforced* control, not a convention: `guardrail_
-  check` takes `phase="discovery"|"replay"` and checks a separate, stricter `discovery_allowed_
-  domains` list. Adding a production domain to the general allowlist (for replay, which never
-  calls the LLM) does not automatically permit discovery there.
+- **Discovery must never touch production data** (every turn sends page content to a third-party
+  LLM) — now *enforced*, not a convention: `guardrail_check(phase="discovery"|"replay")` checks a
+  separate, stricter `discovery_allowed_domains` list. A production domain added to the general
+  allowlist for replay (which never calls the LLM) does not automatically permit discovery there.
 - **The operator console had zero authentication** — the single most safety-critical gap, since
-  whoever can reach it could approve an irreversible financial action. Now requires HTTP Basic
-  Auth (fail-secure: a random credential is generated and printed if none is configured, never
-  silently open). Verified live, not just unit-tested: `scripts/smoke_test_operator_auth.py`
-  launches the real subprocess and confirms an unauthenticated `/resume` is rejected AND the
-  lease provably stays untouched afterward.
-
-**Left as a documented gap, deliberately**: encryption at rest for `/evidence/` and `capabilities/`.
-A hardcoded local key would be security theater without real key management — worse than being
-honest that this needs actual KMS infrastructure, which a take-home shouldn't build. This build's
-evidence contains a seeded, synthetic member's name and balance in plaintext — safe here
-specifically *because* it's fake; a real deployment needs that data encrypted, access-controlled,
-and retention-windowed, never committed permanently to a public repo the way this assignment's
-`/evidence/` requirement does for demonstration purposes.
+  whoever could reach it could approve an irreversible financial action. Now requires HTTP Basic
+  Auth, fail-secure (a random credential is generated and printed if none is configured). Verified
+  live: `scripts/smoke_test_operator_auth.py` launches the real subprocess and confirms an
+  unauthenticated `/resume` is rejected AND the lease provably stays untouched afterward.
+- **Encryption at rest** — `guardrails/encryption.py`, real authenticated encryption
+  (`cryptography`'s `Fernet`; never custom crypto), keyed from `EVIDENCE_ENCRYPTION_KEY` in
+  `.env` — the same trust model already used for `ANTHROPIC_API_KEY`/`OPERATOR_PASSWORD`, not a
+  hardcoded key. Verified for real via `scripts/demo_encryption_at_rest.py`: writes a
+  customer-shaped record to an actual file, confirms nothing (not even valid JSON) survives on
+  disk, decrypts it back byte-for-byte. Deliberately **not** applied to this repo's own
+  `/evidence/`/`capabilities/`, since the assignment requires those stay reviewable — in a real
+  deployment those write paths would call this module. Honest limit: one static key, no rotation,
+  no HSM custody — a real KMS is the credible next step, not one to build from scratch here.
 
 ## 7. Cuts
 
@@ -178,16 +172,17 @@ and retention-windowed, never committed permanently to a public repo the way thi
 - **`redact()`'s value-shape pass covers SSN/card-number shapes only (D17)**, not full PII (a
   name, an address) — that needs NLP-grade entity detection, a much harder, false-positive-prone
   problem, deliberately out of scope.
-- **Encryption at rest** (D18) — the one compliance gap left as a genuine cut rather than faked;
-  see Safety above for why a hardcoded local key would be worse than admitting this needs real
-  key-management infrastructure.
+- **Encryption at rest is built (D19) but not applied to this repo's own `/evidence/`** — the
+  capability is real and tested (`guardrails/encryption.py`), deliberately not wired into this
+  submission's evidence writes since the assignment requires those to stay reviewable. Remaining
+  honest limit: one static key, no rotation, no HSM custody — a real KMS is the credible next step.
 - **Tier-2 structural locator is simplified** ("first match in DOM order," not a richer
   relative-position description) — real but only exercised via fake match counts in
   `tests/test_recorder.py`, since this app's own role+name pairs are unique by design.
 - **MCP capability-server stretch goal**: not attempted — time went instead into verifying every
-  core requirement's full outcome matrix live (both capabilities × all 4 replay scenarios, a
-  live escalation demo, three real bugs found and fixed) rather than adding a new surface on top
-  of a less-verified core.
+  core requirement's full outcome matrix live (both capabilities × all 4 replay scenarios, a live
+  escalation demo, several real bugs found and fixed — see `DECISIONS.md`) rather than adding a
+  new surface on top of a less-verified core.
 - **What I'd build next**: the base+patch tenant model made concrete against a second app
-  variant; a richer tier-2 locator description; real encryption-at-rest with proper key
-  management for `/evidence/` and `capabilities/`.
+  variant; a richer tier-2 locator description; a real KMS (rotation, envelope encryption,
+  audit-logged key access) in place of `EVIDENCE_ENCRYPTION_KEY`'s single static key.
