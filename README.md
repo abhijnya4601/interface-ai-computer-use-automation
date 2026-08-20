@@ -76,23 +76,33 @@ The parts that need a real browser and/or a real LLM:
 
 ## 3. Demo path
 
-**Headless vs. headed — what you'll actually see.** Every `run_discovery.py` command below
-includes `--headless`, meaning no browser window opens — the agent runs invisibly and you only
-see status printed to your terminal. **Drop `--headless` from any command if you want to watch
-the real Chromium window do the work live** — that's the more interesting way to first see this
-run. `run_replay.py` is headless by default too; add `--headed` to it if you want to watch a
-replay instead of just reading its printed result.
+Two things to know before running anything below: whether you'll see a browser window, and how
+a risky action gets approved.
 
-**Handling escalation — three ways, pick one per run:**
-1. **`--auto-approve-escalation`** — fully unattended; a background process approves it for you
-   after a short delay. Used below wherever a command needs to complete without you (e.g.
-   recording the risky capability once, non-interactively).
-2. **`--open-console-on-escalation`** (recommended for trying this yourself) — starts the
-   operator console for you and opens it in your browser the instant the run actually escalates,
-   so you can click Approve/Decline live without hunting for a port or missing the moment. This
-   is what "Testing human-in-the-loop escalation yourself" below uses.
-3. **Neither flag** — the run blocks and waits. Start `escalation/operator_page.py` yourself in
-   a separate terminal beforehand if you want to approve it manually without the auto-open.
+**Headless vs. headed — where the browser goes.**
+
+| Command | Default | To watch it live instead |
+|---|---|---|
+| `run_discovery.py` | headless — every command below passes `--headless`; no window opens, you just see terminal output | remove `--headless` from the command |
+| `run_replay.py` | headless — no flag needed | add `--headed` |
+
+Headless is what every command below uses, since it's faster to run. Drop it the first time you
+try this, though — watching the real Chromium window click through the mock bank is the more
+interesting way to see it work.
+
+**The operator console — what it is, and when you need it.** A few goals change real data (open
+an account, file a dispute) — the agent stops and waits for a human to approve before it commits
+that step. The **operator console** is the local page a human uses to see the pending action and
+click Approve or Decline: `http://localhost:5001`. It only matters for runs that actually
+escalate; most goals below never touch it.
+
+Pick one of these three per run:
+
+| Flag | What happens |
+|---|---|
+| `--auto-approve-escalation` | Fully unattended — a background process approves it for you after a short delay. No console needed. |
+| `--open-console-on-escalation` (recommended, to try this yourself) | The console starts and pops open in your browser the instant the run escalates — nothing to set up. |
+| *(neither flag)* | The run just blocks and waits. Start it yourself first: `python3 escalation/operator_page.py` in a separate terminal, then open `http://localhost:5001` by hand once it escalates. |
 
 **Terminal 1 — start the mock bank app:**
 
