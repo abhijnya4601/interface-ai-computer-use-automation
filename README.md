@@ -81,14 +81,15 @@ a risky action gets approved.
 
 **Headless vs. headed — where the browser goes.**
 
-| Command | Default | To watch it live instead |
+| Command | Default | To switch it |
 |---|---|---|
-| `run_discovery.py` | headless — every command below passes `--headless`; no window opens, you just see terminal output | remove `--headless` from the command |
+| `run_discovery.py` | headed unless `--headless` is passed — no window means faster runs, but nothing to watch | add `--headless` |
 | `run_replay.py` | headless — no flag needed | add `--headed` |
 
-Headless is what every command below uses, since it's faster to run. Drop it the first time you
-try this, though — watching the real Chromium window click through the mock bank is the more
-interesting way to see it work.
+The very first `run_discovery.py` example below leaves `--headless` off on purpose, so you can
+watch the real Chromium window click through the mock bank the first time. Every example after
+that adds `--headless` back, since by then you already know what it looks like and headless is
+faster.
 
 **The operator console — what it is, and when you need it.** A few goals change real data (open
 an account, file a dispute) — the agent stops and waits for a human to approve before it commits
