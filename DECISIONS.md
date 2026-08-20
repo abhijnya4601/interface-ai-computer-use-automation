@@ -568,3 +568,46 @@ Notable: this bug was invisible to every automated demo run in this build (`demo
 comfortably inside the 300s budget. It only surfaced once an actual human used the actual UI at
 actual human speed, which is exactly the kind of thing "at least one genuine run" catches that a
 scripted stand-in cannot.
+
+## D17 — 2026-08-20 — Value-shape redaction, and correcting the compliance framing (GLBA, not HIPAA)
+
+User asked about HIPAA compliance. Corrected: HIPAA is healthcare-specific (protected health
+information); the framework that actually applies to a US bank is **GLBA** (the Safeguards Rule),
+plus general state/consumer privacy law — the assignment itself already frames this correctly as
+"regulated financial data," not HIPAA. Worth stating precisely since citing the wrong regulation
+in front of reviewers would read as a miss regardless of how solid the underlying engineering is.
+
+The substantive question underneath — "what the artifact sees shouldn't go out either" — was a
+real, concrete gap, confirmed by checking an actual evidence file: `evidence/discovery_run_
+672cff25c0.jsonl` contains `"Dana Whitfield"` and `"$1842.30"` in plaintext, committed to the
+public repo. Harmless here (synthetic seed data), but if this exact code ran against a real bank,
+that log would contain a real customer's real name and balance, permanently, in plaintext.
+
+Important nuance worked through before changing anything: the name and balance are **not** a
+redaction bug in the usual sense — `lookup_member_balance`'s entire job is to return that balance
+to the calling agent, so it legitimately belongs in `Result.outputs`. Blanket-redacting names or
+currency-formatted values would break the system's actual purpose. The real, narrower gap:
+`redact()` only ever matched by *key name* (`ssn`, `password`, etc.) — a secret sitting in an
+unrelated, innocuously-named field (a free-text log line, an observation payload) would sail
+through untouched, regardless of its shape.
+
+Fixed: added a second redaction pass in `guardrails/policy.py`, `_contains_structured_secret`,
+matching SSN (`###-##-####`) and card/routing-number-shaped digit runs (13-19 digits, optional
+space/dash separators) in string *values*, independent of key name. Deliberately narrow — these
+two shapes are distinctive enough to flag with very low false-positive risk; this is explicitly
+not a general PII scanner (a name isn't secret-*shaped*, full NLP-based PII detection stays a cut).
+
+Verified the false-positive risk directly rather than assuming it away: ran `redact()` against
+every real entry in an actual discovery transcript (0/17 changed) and against 1,000 randomly
+generated SHA256 hashes (0/1000 falsely flagged) — the pattern's `\b` word-boundary anchors only
+fire at genuine token edges, not mid-hash, since a hex string's letters (a-f) break word-boundary
+continuity, so a 13+ digit-only run essentially never survives inside one by chance. Also
+confirmed directly that member IDs, currency-formatted balances, and customer names are correctly
+left untouched (5 new tests in `tests/test_guardrails.py`, 80/80 total pass).
+
+Also updated `REPORT.md`'s Safety section to name the redaction improvement, the corrected GLBA
+framing, and an honest remaining gap: this build persists full transcripts to `/evidence/`
+indefinitely (required for the assignment's demonstration), but a real deployment would need
+those treated as regulated data at rest — encryption, access control, a retention window — not
+committed permanently to a public repo. That's a deployment/ops policy, not new infrastructure to
+build here.

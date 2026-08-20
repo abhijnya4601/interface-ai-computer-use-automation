@@ -12,14 +12,21 @@ Two independent responsibilities, both graded requirements:
    premature-infrastructure the assignment explicitly says not to build.
 
 2. Redaction (`redact`) — applied uniformly to anything before it touches disk: evidence logs,
-   discovery transcripts, and the compiled artifact itself. Strips/masks any key that looks like
-   a secret or raw PII, case-insensitively, recursively through nested dicts/lists. The mock app
-   never actually produces ssn/account_number/password/token values, but the function must exist
-   and be demonstrably wired in regardless — this is graded on presence and correct wiring, not
-   on whether the demo data happens to trigger it.
+   discovery transcripts, and the compiled artifact itself. Two independent passes:
+     - by KEY (`ssn`, `account_number`, `password`, `token` — case-insensitive substring): catches
+       a secret regardless of its shape, but only if the field is *named* like a secret.
+     - by VALUE SHAPE (`_STRUCTURED_SECRET_PATTERNS`): catches an SSN or a card/routing number
+       even sitting inside an innocuously-named field (a real observation payload, a free-text
+       log line) that the key-based pass would miss. Deliberately narrow — an SSN's `###-##-####`
+       shape and a 13-19-digit run are distinctive enough to flag with very low false-positive
+       risk; this is NOT a general PII scanner (a customer's name or a dollar-formatted balance
+       is not secret-shaped in this sense, and legitimately belongs in a capability's declared
+       outputs — see REPORT.md's Safety section on why blanket value-redaction would break the
+       system's actual purpose). Full NLP-based PII detection remains an explicit cut.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -28,6 +35,11 @@ import yaml
 ALLOWLIST_PATH = Path(__file__).parent / "allowlist.yaml"
 
 _REDACT_KEY_SUBSTRINGS = ("ssn", "account_number", "password", "token")
+
+_STRUCTURED_SECRET_PATTERNS = (
+    re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),  # SSN: 123-45-6789
+    re.compile(r"\b(?:\d[ -]?){13,19}\b"),  # card/routing-number-shaped digit run
+)
 
 
 class GuardrailViolation(Exception):
@@ -99,11 +111,17 @@ def check_risk_confirmation(risk_level: str, confirm: bool) -> None:
         )
 
 
+def _contains_structured_secret(value: str) -> bool:
+    return any(pattern.search(value) for pattern in _STRUCTURED_SECRET_PATTERNS)
+
+
 def redact(obj):
     """
-    Recursively redact anything under a key that looks like a secret or raw PII
-    (ssn, account_number, password, token — case-insensitive substring match). Returns a new
-    object; never mutates the input. Applied uniformly before ANYTHING is written to disk.
+    Recursively redact (a) anything under a key that looks like a secret or raw PII (ssn,
+    account_number, password, token — case-insensitive substring match), and (b) any string
+    value that itself matches a structured-secret shape (SSN, card/routing-number-like digit
+    run), regardless of what key it's under. Returns a new object; never mutates the input.
+    Applied uniformly before ANYTHING is written to disk.
     """
     if isinstance(obj, dict):
         result = {}
@@ -116,4 +134,6 @@ def redact(obj):
         return result
     if isinstance(obj, list):
         return [redact(item) for item in obj]
+    if isinstance(obj, str) and _contains_structured_secret(obj):
+        return "***REDACTED (structured secret pattern)***"
     return obj

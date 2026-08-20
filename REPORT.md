@@ -131,13 +131,28 @@ navigation is blocked and the transcript saved to `/evidence/`.
 to execute past confirmation without explicit `confirm=True`, checked before the browser
 launches.
 
-`redact(obj)` masks any dict key matching `{ssn, account_number, password, token}`
-(case-insensitive substring), recursively, applied to transcripts, guardrail-violation evidence,
-and the `steps` portion of a compiled capability — deliberately *not* `input_schema`/
-`output_schema`, after the `account_number` marker collided with a legitimately-named
-`sub_account_number` field and corrupted its type descriptor instead of protecting real data
-(D13). **Limit**: matching is by key name, not by scanning values for secret-shaped content — a
-secret embedded in free text wouldn't be caught (cut below).
+`redact(obj)` runs two passes: by **key** (`{ssn, account_number, password, token}`,
+case-insensitive substring — deliberately *not* applied to `input_schema`/`output_schema`, after
+`account_number` collided with a legitimately-named `sub_account_number` field and corrupted its
+type descriptor instead of protecting real data, D13), and by **value shape** (D17: an SSN or
+card/routing-number-like digit run is masked regardless of what key it's under — closes the gap
+where a secret sitting in an unrelated field, e.g. a free-text log line, would sail past a
+key-only check). Value-shape matching is deliberately narrow: verified against 1,000 random
+SHA256 hashes and every real transcript entry in this build with zero false positives, and it
+does **not** flag a name or a currency-formatted balance — those aren't secret-*shaped*, and
+blanket-redacting them would break the system's actual purpose (a capability's job can be to
+*return* a customer's balance to the calling agent; that's legitimate business data, not a leak).
+Full PII detection (a name, an address) remains an explicit cut — that's a much harder,
+false-positive-prone NLP problem.
+
+The compliance frame that actually applies to a US bank is **GLBA** (the Safeguards Rule) plus
+general state/consumer privacy law, not HIPAA (healthcare-specific). One real gap this build is
+explicit about rather than pretending to solve: discovery transcripts necessarily capture
+whatever a real customer's real data looked like mid-reasoning (this build's evidence contains a
+seeded, synthetic member's name and balance in plaintext — safe here specifically *because* it's
+fake). In a real deployment, evidence/observability data is itself regulated data at rest and
+would need encryption, access control, and a retention window — never committed permanently to
+a public repo the way this assignment's `/evidence/` requirement does for demonstration purposes.
 
 ## 7. Cuts
 
@@ -148,8 +163,13 @@ secret embedded in free text wouldn't be caught (cut below).
   slot-filler. Deliberate, and it's exactly what produced a real bug (D13): an earlier
   blind-substring version misattributed a $50 deposit to `member_id` because "50" also appeared
   in the goal text. Now only tags `param_ref` on an exact match to the extracted ID.
-- **`redact()` matches by key, not value content** — a production version would want a secondary
-  pass scanning for secret-shaped substrings independent of key names.
+- **`redact()`'s value-shape pass covers SSN/card-number shapes only (D17)**, not full PII (a
+  name, an address) — that needs NLP-grade entity detection, a much harder, false-positive-prone
+  problem, deliberately out of scope.
+- **No evidence-at-rest retention policy** — this build persists full transcripts to `/evidence/`
+  indefinitely (required for the assignment's demonstration). A real deployment needs encryption,
+  access control, and a retention window on that data — a deployment/ops concern, not something
+  to build infrastructure for here.
 - **Tier-2 structural locator is simplified** ("first match in DOM order," not a richer
   relative-position description) — real but only exercised via fake match counts in
   `tests/test_recorder.py`, since this app's own role+name pairs are unique by design.

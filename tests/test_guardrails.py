@@ -59,8 +59,8 @@ def test_redact_recurses_into_nested_structures():
     raw = {"step": {"value": {"password": "hunter2"}, "notes": ["token=abc"]}}
     out = redact(raw)
     assert out["step"]["value"]["password"] == "***REDACTED***"
-    # list items aren't dict keys, so string content inside a list is left alone —
-    # redact only masks by *key*, never scans string values for secret-shaped substrings.
+    # "token=abc" isn't SSN/card-number-shaped, so the value pass leaves it alone — the key-based
+    # pass doesn't apply here either, since the key is "notes", not "token".
     assert out["step"]["notes"] == ["token=abc"]
 
 
@@ -68,3 +68,39 @@ def test_redact_does_not_mutate_input():
     raw = {"password": "hunter2"}
     redact(raw)
     assert raw["password"] == "hunter2"
+
+
+# ---- structured-secret value redaction (regardless of key name) ------------------------------
+
+def test_redact_masks_ssn_shaped_value_under_an_unrelated_key():
+    raw = {"notes": "caller confirmed SSN is 123-45-6789 on file"}
+    out = redact(raw)
+    assert "123-45-6789" not in out["notes"]
+    assert "REDACTED" in out["notes"]
+
+
+def test_redact_masks_card_number_shaped_value_inside_a_list():
+    raw = {"log_lines": ["charged card 4111 1111 1111 1111 successfully"]}
+    out = redact(raw)
+    assert "4111 1111 1111 1111" not in out["log_lines"][0]
+
+
+def test_redact_does_not_flag_a_short_member_id():
+    raw = {"member_id": "12345"}
+    out = redact(raw)
+    assert out["member_id"] == "12345"
+
+
+def test_redact_does_not_flag_a_currency_formatted_balance():
+    raw = {"savings_balance": "$1,842.30"}
+    out = redact(raw)
+    assert out["savings_balance"] == "$1,842.30"
+
+
+def test_redact_does_not_flag_a_customer_name():
+    """Names aren't secret-shaped and legitimately belong in a capability's declared outputs
+    (see guardrails/policy.py's module docstring) — full PII-name detection is an explicit,
+    documented cut, not something value-shape redaction attempts."""
+    raw = {"member_name": "Dana Whitfield"}
+    out = redact(raw)
+    assert out["member_name"] == "Dana Whitfield"
