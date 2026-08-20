@@ -1,6 +1,6 @@
 # /evidence/ — what's here and where to start
 
-This directory has grown to 70 files across many discovery/replay/escalation runs made while
+This directory has grown to 74 files across many discovery/replay/escalation runs made while
 building and hardening this system (`../DECISIONS.md` has the full story behind each one). If
 you're reviewing rather than exploring everything, start with the four files below — a real,
 end-to-end, traceable example: one discovery run, the artifact it compiled, a clean replay, and a

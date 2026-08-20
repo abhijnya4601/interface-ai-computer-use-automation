@@ -156,15 +156,26 @@ def run_discovery(
                       "observable state change")
             _log({"type": "dead_end", "reason": reason})
             escalation_started = time.monotonic()
-            trigger_escalation(reason, page, run_id=run_id)
+            lease = trigger_escalation(reason, page, run_id=run_id)
             # A human can reasonably take minutes to review and decide; that thinking time must
             # not burn the run's own wall-clock budget (DECISIONS.md D16) — shift start_time
             # forward by however long the wait actually took, so only real elapsed *working*
             # time counts against timeout_s.
             start_time += time.monotonic() - escalation_started
-            _log({"type": "escalation_resumed"})
+            # D30: this used to discard `lease` entirely -- whatever a human typed while
+            # resolving a dead-end (e.g. "I clicked X for you, carry on from here" or "don't try
+            # that again, do Y instead") never reached the model, unlike the escalate() tool-call
+            # path, which already threads decision/human_actions_summary through. A dead-end has
+            # no "approve/decline" concept (nothing was being asked permission for), but the
+            # human's own note is exactly the kind of out-of-band context the model needs before
+            # re-observing a page state it may not recognize.
+            human_note = lease.context.get("human_actions_summary", "")
+            _log({"type": "escalation_resumed", "human_note": human_note})
             recent_hashes.clear()
-            last_action_result = "escalation resumed — re-observing current state"
+            last_action_result = (
+                "escalation resumed — re-observing current state. "
+                f"Human note: {human_note or '(none)'}."
+            )
             continue
 
         messages.append({"role": "user", "content": json.dumps(observation)})

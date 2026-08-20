@@ -65,8 +65,9 @@ The parts that need a real browser and/or a real LLM:
   `scripts/smoke_test_discovery.py` (scripted fake LLM), `scripts/smoke_test_replay.py`,
   `scripts/smoke_test_escalation_timeout.py` (regression test for a real timing bug — see
   `DECISIONS.md` D16), `scripts/smoke_test_operator_auth.py` (live integration test for the
-  operator console's authentication — see `DECISIONS.md` D18). These exist specifically to
-  validate mechanics without spending API credits — see `DECISIONS.md` D8.
+  operator console's authentication — see `DECISIONS.md` D18), `scripts/smoke_test_dead_end_human_note.py`
+  (regression test for a human's resume note reaching the model — see `DECISIONS.md` D30). These
+  exist specifically to validate mechanics without spending API credits — see `DECISIONS.md` D8.
 - **No browser, no API key:** `python3 scripts/demo_encryption_at_rest.py` proves the
   encryption-at-rest module (`guardrails/encryption.py`, D19) works end to end against a real
   file on disk — generates a throwaway key if `EVIDENCE_ENCRYPTION_KEY` isn't set in `.env`.
@@ -271,7 +272,7 @@ the agent-facing capability interface (§6). Nothing in it is synthesized after 
 file is what the corresponding script actually wrote when it ran.
 **`evidence/README.md`** is a short curated index — start there rather than the raw file list if
 you want one traceable discovery → artifact → replay example plus one of each exceptional-state
-replay, without reading all 70 files.
+replay, without reading all 74 files.
 
 ## 5. Project layout
 

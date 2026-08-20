@@ -1093,3 +1093,38 @@ artifacts by calling the real `_attach_expected_outcomes` function directly agai
 `Capability.steps` (not hand-edited JSON), round-trip validated, then re-verified live: both
 replays now correctly return `status=business_outcome` with the right code. 2 new regression
 tests (`tests/test_compiler.py`). Full suite: 131/131 (up from 129).
+
+## D30 — 2026-08-20 — The dead-end escalation path discarded whatever the human actually typed
+
+Found by a user genuinely playing the operator role: their own discovery run hit a dead-end
+escalation (`--open-console-on-escalation` wasn't used that run, so no auto-opened console), and
+rather than wait, they manually clicked "Confirm and Open Account" directly in the live browser
+window. I'd already warned against this earlier in the session — the discovery process isn't
+watching the page, only the lease file, so a manual click doesn't unblock it, and worse, the
+model's next observation won't match whatever it last expected. Exactly that happened: the model
+resumed, saw a completed-order confirmation page instead of the form it left off on, and
+(correctly, per its own system-prompt rules about unexpected state) escalated a second time,
+narrating its best guess at what happened — not a hallucination exactly, more a reasonable
+inference forced by having zero information about the actual cause, since no human note ever
+reached it.
+
+That gap was real and worth fixing regardless of the manual-click detour that surfaced it:
+`agent/discovery.py`'s dead-end branch called `trigger_escalation(...)` and threw away its return
+value entirely — the `escalate()` tool-call path already threads `lease.context.get("decision")`
+and `human_actions_summary` back to the model on resume (D12), but the dead-end path never did.
+A human typing a real note while resolving a dead-end — "I clicked X for you, carry on," "don't
+try that path again" — silently went nowhere; the model was told only "re-observe" with zero
+context for why the page might look different than expected.
+
+Fixed to match the same pattern D12 established: read `lease.context.get("human_actions_summary",
+"")` after resume and fold it into `last_action_result`, so it's part of what the model actually
+sees on its next turn (a dead-end has no natural "approved/declined" concept, since nothing was
+being asked permission for — only the note itself is threaded through, not a decision). New smoke
+test `scripts/smoke_test_dead_end_human_note.py` (same real-browser-plus-scripted-LLM pattern as
+`smoke_test_escalation_timeout.py`): scripts 4 identical `type` calls so the search box's value
+stops changing after the first, triggering a real dead-end by the 4th observation; a background
+thread resumes with a real note the instant the lease flips to human; asserts the note appears in
+`escalation_resumed`'s logged context AND in the next turn's actual `last_action_result` — not
+just internally logged but genuinely reaching the model. All 4 checks pass live. Full suite:
+131/131 (smoke test, not a pytest unit test — matches this repo's existing split between fast
+offline unit tests and real-browser smoke tests for discovery-loop mechanics, D8).

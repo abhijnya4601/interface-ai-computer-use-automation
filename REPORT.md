@@ -157,6 +157,11 @@ carried only a free-text note, so a resumed agent couldn't distinguish "approved
 lease's context — what let the risky `open_subaccount` capability get recorded to completion by
 one real, unattended run instead of a human sitting and clicking through it live.
 
+**A second, related gap (D30), found the same way — a user actually operating the escalation UI**:
+the dead-end path threaded `trigger_escalation`'s return value nowhere, so a human's own note on
+resume never reached the model, unlike the `escalate()` path D12 already fixed. Same fix, same
+pattern, applied to the branch it had been missed on.
+
 ## 6. Safety
 
 `guardrail_check(action, current_url)` — allowlisted domains and action types, loaded once at
