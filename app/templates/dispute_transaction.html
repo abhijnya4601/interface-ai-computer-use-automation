@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head><title>Dispute Transaction</title></head>
+<body>
+<div class="pg-wrap">
+<h1>Dispute Transaction — {{ member.first_name }} {{ member.last_name }}</h1>
+<table class="tbl-c2" border="1">
+  <tbody>
+    <tr><th scope="row">Date</th><td>{{ transaction.txn_date }}</td></tr>
+    <tr><th scope="row">Description</th><td>{{ transaction.description }}</td></tr>
+    <tr><th scope="row">Amount</th><td>{{ "%.2f"|format(transaction.amount_cents / 100) }}</td></tr>
+  </tbody>
+</table>
+<form method="POST" action="/member/{{ member.member_id }}/transactions/{{ transaction.id }}/dispute">
+  <label for="reason">Reason for dispute</label><br>
+  <textarea id="reason" name="reason" rows="4" cols="50"></textarea><br>
+  <button type="submit">Submit Dispute</button>
+</form>
+<p><a href="/member/{{ member.member_id }}/transactions">Back to transactions</a></p>
+</div>
+</body>
+</html>

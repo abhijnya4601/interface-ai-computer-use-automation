@@ -87,5 +87,36 @@ def submit_subaccount(member_id):
     )
 
 
+@app.route("/member/<member_id>/transactions")
+def transactions(member_id):
+    member = models.find_member(member_id)
+    if not member:
+        return render_template("member_detail.html", member=None, member_id=member_id)
+    if member["status"] == "locked":
+        return render_template("error_permission.html", member_id=member_id)
+    txns = models.list_transactions(member_id)
+    return render_template("transactions.html", member=member, transactions=txns)
+
+
+@app.route("/member/<member_id>/transactions/<int:transaction_id>/dispute", methods=["GET", "POST"])
+def dispute_transaction(member_id, transaction_id):
+    member = models.find_member(member_id)
+    if not member:
+        return render_template("member_detail.html", member=None, member_id=member_id)
+    if member["status"] == "locked":
+        return render_template("error_permission.html", member_id=member_id)
+    txn = models.get_transaction(transaction_id)
+    if not txn or txn["member_id"] != member_id:
+        return render_template("member_detail.html", member=None, member_id=member_id)
+
+    if request.method == "POST":
+        reason = request.form.get("reason", "").strip()
+        models.dispute_transaction(transaction_id, reason)
+        txn = models.get_transaction(transaction_id)
+        return render_template("dispute_success.html", member=member, transaction=txn)
+
+    return render_template("dispute_transaction.html", member=member, transaction=txn)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5050, debug=True)

@@ -20,6 +20,7 @@ def init_db():
     conn.executescript("""
         DROP TABLE IF EXISTS members;
         DROP TABLE IF EXISTS subaccounts;
+        DROP TABLE IF EXISTS transactions;
 
         CREATE TABLE members (
             member_id TEXT PRIMARY KEY,
@@ -36,6 +37,16 @@ def init_db():
             nickname TEXT,
             opening_deposit_cents INTEGER NOT NULL,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            member_id TEXT NOT NULL,
+            txn_date TEXT NOT NULL,
+            description TEXT NOT NULL,
+            amount_cents INTEGER NOT NULL,  -- negative = debit, positive = credit
+            status TEXT NOT NULL DEFAULT 'posted',  -- posted | disputed
+            dispute_reason TEXT
         );
     """)
     conn.commit()
@@ -57,6 +68,48 @@ def seed():
         "INSERT INTO members (member_id, first_name, last_name, savings_balance_cents, status) "
         "VALUES (?, ?, ?, ?, ?)",
         members,
+    )
+
+    # ordered newest-first per member, so "the latest transaction" is always row 1
+    transactions = [
+        ("12345", "2026-08-15", "Grocery Store Purchase", -4523),
+        ("12345", "2026-08-10", "Payroll Deposit", 250000),
+        ("12345", "2026-08-05", "ATM Withdrawal", -10000),
+        ("12345", "2026-07-29", "Coffee Shop", -650),
+        ("23456", "2026-08-12", "Online Transfer Out", -5000),
+        ("23456", "2026-08-01", "Payroll Deposit", 80000),
+    ]
+    conn.executemany(
+        "INSERT INTO transactions (member_id, txn_date, description, amount_cents) "
+        "VALUES (?, ?, ?, ?)",
+        transactions,
+    )
+    conn.commit()
+    conn.close()
+
+
+def list_transactions(member_id: str):
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT * FROM transactions WHERE member_id = ? ORDER BY txn_date DESC, id DESC",
+        (member_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_transaction(transaction_id: int):
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM transactions WHERE id = ?", (transaction_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def dispute_transaction(transaction_id: int, reason: str):
+    conn = get_conn()
+    conn.execute(
+        "UPDATE transactions SET status = 'disputed', dispute_reason = ? WHERE id = ?",
+        (reason, transaction_id),
     )
     conn.commit()
     conn.close()

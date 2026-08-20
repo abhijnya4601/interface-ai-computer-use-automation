@@ -692,3 +692,34 @@ Honest limitation, stated plainly rather than glossed over: one static key, no r
 per-tenant/per-record keys, no HSM-backed custody. This is a credible first step toward real
 encryption at rest, not a finished KMS — that remains genuinely out of scope for a take-home, and
 is named explicitly as "what I'd build next" in REPORT.md rather than left implicit.
+
+## D20 — 2026-08-20 — Added a transactions/dispute feature to the mock app, to actually
+demonstrate discovery on a genuinely new goal type (not required by the assignment)
+
+User asked what happens when discovery is given a goal type the system has never seen before
+(e.g. "get the latest transaction," "dispute a transaction") — beyond the assignment's two
+required capabilities. Answered conceptually first (`agent/discovery.py` is fully goal-agnostic;
+nothing about it is specific to balance-lookup or sub-account-creation), then the user asked to
+actually build the feature so this could be demonstrated for real rather than argued abstractly.
+
+Added, following the same deliberately-hostile-markup conventions as the rest of the app
+(nested tables, non-semantic classes, real semantic `<th scope=row>`/`<button>` underneath):
+- `transactions` table (`app/models.py`): `member_id`, `txn_date`, `description`, `amount_cents`,
+  `status` (`posted`/`disputed`), `dispute_reason`. Seeded newest-first per member so "the latest
+  transaction" is always the first row — a read-only capability target.
+- `GET /member/<id>/transactions` — a data table (not the label/value `th`/`td` shape the
+  existing two capabilities use) with a "Dispute" link per posted row — a genuinely different UI
+  shape from anything discovery has driven before, and a real test of whether the existing
+  locator/extraction design generalizes.
+- `GET`/`POST /member/<id>/transactions/<txn_id>/dispute` — a state-mutating action (marks a
+  transaction disputed) — a second natural `risk_level: risky` candidate.
+- Reused `error_permission.html` for the locked-member case on both new routes — surfaced a real
+  content bug in doing so: its message was hardcoded to say "sub-account creation is not
+  permitted" even when the actual blocked action was viewing transactions. Generalized the
+  copy ("this action is not permitted") since the template is now shared across three contexts.
+
+Verified via curl (list renders, dispute form shows the right transaction, submitting flips
+status to `disputed` and the list reflects it, locked member blocked with the corrected message,
+not-found member handled) before spending anything on a live discovery run. Full test suite
+re-run and still green (98/98) — this app change doesn't touch anything the existing unit tests
+exercise directly.

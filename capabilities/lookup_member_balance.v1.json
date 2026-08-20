@@ -1,7 +1,7 @@
 {
   "capability_id": "lookup_member_balance",
   "version": "1.0.0",
-  "created_from_run_id": "run_672cff25c0",
+  "created_from_run_id": "run_b80a018eea",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "http://localhost:5050/search",
