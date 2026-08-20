@@ -192,12 +192,14 @@ def compile_capability(
     outputs: dict,
     checkpoint: Checkpoint,
     surface_type: str = "legacy_web",
+    description: str = "",
 ) -> Capability:
     steps = _attach_expected_outcomes(capability_id, recorder.steps)
     return Capability(
         capability_id=capability_id,
         version=version,
         created_from_run_id=run_id,
+        description=description,
         target=TargetSpec(app_name="mock-core-banking", entry_point=target_url, surface_type=surface_type),
         risk_level=risk_level,
         input_schema=infer_input_schema(steps),

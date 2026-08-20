@@ -270,6 +270,7 @@ def main():
                 recorder=result.recorder,
                 outputs=result.outputs,
                 checkpoint=checkpoint,
+                description=args.goal,
             )
             saved_path = save_capability(capability)
             print(f"capability saved to {saved_path}")

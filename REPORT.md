@@ -210,10 +210,42 @@ fixes rather than left as write-up caveats:
   or file-upload primitive. The mock app's own `<select>` (`open_subaccount`'s account type) is
   only ever left at its default for this reason; every other form field is deliberately plain
   text so a new goal against it stays within what the agent can actually act on.
-- **MCP capability-server stretch goal**: not attempted — time went instead into verifying every
-  core requirement's full outcome matrix live (the two required capabilities × all 4 replay
-  scenarios each, a live escalation demo, several real bugs found and fixed — see
-  `DECISIONS.md`) rather than adding a new surface on top of a less-verified core.
+- **Only one stretch goal attempted** (§8) — depth over breadth per the assignment's own
+  guidance; time otherwise went into verifying every core requirement's full outcome matrix live
+  (the two required capabilities × all 4 replay scenarios each, a live escalation demo, many real
+  bugs found and fixed — see `DECISIONS.md`) rather than adding surfaces on top of a
+  less-verified core.
 - **What I'd build next**: the base+patch tenant model made concrete against a second app
   variant; a real KMS (rotation, envelope encryption, audit-logged key access) in place of
   `EVIDENCE_ENCRYPTION_KEY`'s single static key.
+
+## 8. Stretch goal: agent-facing capability interface
+
+`agent_interface/` exposes every real `capabilities/*.json` as a Claude tool-use catalog
+(`catalog.py`) and an invocation surface (`invoke.py`). `Capability.input_schema` is already
+`{param: {"type", "description"}}` — exactly a JSON-Schema `properties` object — so the mapping
+to a tool is direct, not a translation layer that could drift from what `replay()` accepts. Added
+`Capability.description` (a real schema gap: nothing previously carried what a capability *does*,
+only its typed I/O), populated from the discovery goal and manually patched onto all 5 existing
+artifacts using their own recorded goals — same discipline as every other artifact patch in this
+build (D13/D14/D22/D23).
+
+**Safety property, not an afterthought**: `confirm` is a parameter of `invoke_capability()`, never
+a field in the tool schema an LLM sees. Exposing it would let a model set `confirm=True` on its
+own tool call and silently defeat `check_risk_confirmation`'s existing server-side gate — the same
+guardrail already protects `open_subaccount` regardless of who's calling it.
+
+**The first live run found a real bug**: asked "What's the current balance for member 23456?",
+Claude had `lookup_member_balance` available with `member_id` clearly declared as a required
+parameter — and declined to call it, reading the literal description "member 12345" (the
+historical discovery goal, verbatim) as the tool being hardcoded to that one member. A description
+written for human provenance review reads like a hardcoded constraint to a model deciding whether
+to call a tool. Fixed by reusing existing logic rather than writing new detection:
+`_generalize_description` runs the exact regex `agent/recorder.py` already uses to find a
+parameterized ID, rewriting "member 12345" → "a member (member_id)" only when `member_id` is
+actually declared, so a capability that mentions an ID for an unrelated reason isn't mangled.
+Re-ran the same live demo after the fix: Claude correctly called
+`lookup_member_balance({"member_id": "23456"})`, the real deterministic replay engine (no LLM in
+this path) returned that member's actual balance, and Claude's final answer was correct. Both the
+broken-first and fixed-second runs' full transcripts are in `/evidence/`, not quietly discarded.
+10 new tests (`tests/test_agent_interface.py`). Full write-up: `DECISIONS.md` D27.

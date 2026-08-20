@@ -2,6 +2,7 @@
   "capability_id": "open_subaccount",
   "version": "1.0.0",
   "created_from_run_id": "run_57fcd7959d",
+  "description": "Open a new Christmas Club sub-account for member 56789 with a $50 opening deposit, and complete the account creation.",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "http://localhost:5050/search",

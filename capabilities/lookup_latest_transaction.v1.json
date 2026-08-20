@@ -2,6 +2,7 @@
   "capability_id": "lookup_latest_transaction",
   "version": "1.0.0",
   "created_from_run_id": "run_4f929f300e",
+  "description": "Find the most recent transaction date for member 12345.",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "http://localhost:5050/search",

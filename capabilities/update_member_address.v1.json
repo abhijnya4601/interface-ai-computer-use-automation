@@ -2,6 +2,7 @@
   "capability_id": "update_member_address",
   "version": "1.0.0",
   "created_from_run_id": "run_687d0adb45",
+  "description": "Update the mailing address for member 23456 to 500 Riverbend Rd, Denver, CO 80202.",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "http://localhost:5050/search",

@@ -2,6 +2,7 @@
   "capability_id": "dispute_transaction",
   "version": "1.0.0",
   "created_from_run_id": "run_28f22f1fe0",
+  "description": "File a dispute for member 12345's most recent transaction, reason 'unauthorized charge'.",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "http://localhost:5050/search",

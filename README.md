@@ -55,11 +55,12 @@ again.
 
 The parts that need a real browser and/or a real LLM:
 
-- **Offline (no browser, no API key):** `pytest tests/` — 119 unit tests covering the schema,
+- **Offline (no browser, no API key):** `pytest tests/` — 129 unit tests covering the schema,
   guardrails, perception parsing, the recorder's 3-/4-tier locator logic, the compiler, the replay
-  engine's pure helpers, the escalation lease mechanism, and the CLI's pure helper logic (default
-  checkpoint, risk-level inference, the auto-open-console watcher), all against fixtures or fake
-  Playwright-shaped stand-ins. Runs in under 2 seconds, no network.
+  engine's pure helpers, the escalation lease mechanism, the CLI's pure helper logic (default
+  checkpoint, risk-level inference, the auto-open-console watcher), and the agent-facing
+  capability catalog/invocation routing, all against fixtures or fake Playwright-shaped
+  stand-ins. Runs in under 2 seconds, no network.
 - **Needs a real browser, no API key:** `scripts/verify_perception_live.py`,
   `scripts/smoke_test_discovery.py` (scripted fake LLM), `scripts/smoke_test_replay.py`,
   `scripts/smoke_test_escalation_timeout.py` (regression test for a real timing bug — see
@@ -265,23 +266,46 @@ these cover genuinely different things to watch for, each verified live at least
 `/evidence/` holds the real artifacts from every run described in `DECISIONS.md` — 15 discovery
 transcripts, 19 replay results (success / business outcomes / an injected hard failure, across
 all 5 capabilities), 9 real escalations with screenshots, the fully-automated escalation demo
-sequence, and a captured guardrail-violation transcript. Nothing in it is synthesized after the
-fact; every file is what the corresponding script actually wrote when it ran.
+sequence, a captured guardrail-violation transcript, and two real Claude tool-use transcripts from
+the agent-facing capability interface (§6). Nothing in it is synthesized after the fact; every
+file is what the corresponding script actually wrote when it ran.
 **`evidence/README.md`** is a short curated index — start there rather than the raw file list if
 you want one traceable discovery → artifact → replay example plus one of each exceptional-state
-replay, without reading all 59 files.
+replay, without reading all 61 files.
 
 ## 5. Project layout
 
 ```
-app/            mock legacy core-banking Flask/SQLite app (Phase 0)
-agent/          perception, discovery loop, recorder, compiler (Phases 1-4)
-artifact/       the Capability/Step/Result Pydantic schema (the artifact contract)
-replay/         the deterministic replay engine (Phase 5)
-guardrails/     allowlist enforcement + redaction (Phase 6)
-escalation/     lease-based human handoff + operator console (Phase 7)
-capabilities/   compiled capability artifacts (the deliverable output)
-scripts/        CLI entrypoints + smoke tests
-tests/          91 offline unit tests
-evidence/       real run output (see above)
+app/              mock legacy core-banking Flask/SQLite app (Phase 0)
+agent/            perception, discovery loop, recorder, compiler (Phases 1-4)
+artifact/         the Capability/Step/Result Pydantic schema (the artifact contract)
+replay/           the deterministic replay engine (Phase 5)
+guardrails/       allowlist enforcement + redaction (Phase 6)
+escalation/       lease-based human handoff + operator console (Phase 7)
+agent_interface/  capabilities exposed as an agent-callable tool catalog (stretch goal, §6)
+capabilities/     compiled capability artifacts (the deliverable output)
+scripts/          CLI entrypoints + smoke tests
+tests/            129 offline unit tests
+evidence/         real run output (see above)
 ```
+
+## 6. Stretch goal: agent-facing capability interface
+
+`capabilities/*.json` exposed as a catalog an AI agent can discover and invoke by name with typed
+args — full design reasoning in `REPORT.md` §8, full write-up (including a real bug the first
+live run found) in `DECISIONS.md` D27.
+
+```bash
+# terminal 1 — the mock app, same as any other demo
+cd app && python3 -c "import models; models.init_db(); models.seed()" && python3 app.py
+
+# terminal 2 — a real Claude API call discovers the catalog and invokes a capability by name
+source .venv/bin/activate
+set -a; source .env; set +a
+python3 scripts/demo_agent_capability_interface.py
+```
+
+Asks Claude "What's the current balance for member 23456?" with the tool catalog attached —
+watch it choose `lookup_member_balance`, call it with `{"member_id": "23456"}`, get back a real
+result from the deterministic replay engine (no LLM in that path), and answer correctly. Saves
+the full transcript to `evidence/agent_capability_interface_demo_*.json`.

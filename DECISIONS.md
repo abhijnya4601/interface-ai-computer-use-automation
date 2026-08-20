@@ -972,3 +972,49 @@ docstring to describe what the code actually and correctly does: a terminal stat
 `hard_failure`, telling the *caller* "safe to retry the whole run later" rather than "something's
 broken, go investigate." Same clarification added to `REPORT.md` §3 so a reviewer doesn't have to
 find the mismatch themselves. No behavior change; docs-only fix. Full suite: 119/119.
+
+## D27 — 2026-08-20 — Stretch goal: agent-facing capability interface, and a real bug the very
+first live run found
+
+Picked one stretch goal (assignment's own "depth over breadth" guidance, at most one or two):
+expose `capabilities/*.json` as a catalog an AI agent can discover and invoke by name with typed
+args. New `agent_interface/` package:
+
+- **`catalog.py`** — `build_tool_catalog()` maps each real `Capability` straight to a Claude
+  tool-use shape. `input_schema` is already `{param: {"type", "description"}}`, exactly the
+  JSON-Schema `properties` shape a tool needs, so this is a direct mapping, not a translation
+  layer that could drift from what `replay()` actually accepts.
+- **`invoke.py`** — `invoke_capability(capability_id, args, confirm=False)` routes to the real
+  `replay()`. Deliberately does **not** expose `confirm` as a tool-schema field the LLM can set:
+  that gate exists so a human (or code a human configured) decides whether an irreversible action
+  proceeds — letting the model set `confirm=True` itself on a tool call would silently defeat the
+  exact guardrail `check_risk_confirmation` already enforces server-side. `confirm` is a parameter
+  of the Python function, invisible to the model.
+- Added `Capability.description` (schema addition, `artifact/schema.py`) — was genuinely missing:
+  nothing previously carried a human/agent-readable summary of what a capability *does*, only its
+  typed I/O. Populated from the original discovery `--goal` text (`compile_capability`); manually
+  patched onto all 5 already-compiled artifacts using the exact goal each was recorded from
+  (traced through their own evidence transcripts), verified via round-trip validation — same
+  discipline as D13/D14/D22/D23, not a re-spend of API credits for a schema-only field.
+
+**The first live run of `scripts/demo_agent_capability_interface.py` found a real bug
+immediately**: asked Claude "What's the current balance for member 23456?", it had
+`lookup_member_balance` available with `member_id` clearly declared as a required parameter — and
+declined to call it, reasoning the tool was "specifically configured for member 12345" (the
+literal, historical discovery-goal text used verbatim as the tool's description). A description
+written for human provenance review reads, to an LLM choosing whether to call a tool, like a
+hardcoded constraint.
+
+Fixed by reusing existing logic, not writing new detection: `catalog.py::_generalize_description`
+runs the exact same `_MEMBER_ID_RE` regex `agent/recorder.py` already uses to find the
+parameterized ID in a goal, and rewrites "member 12345" to "a member (member_id)" — only when
+`member_id` is actually a declared input, so a capability that happens to mention a member ID for
+an unrelated reason isn't silently mangled. Re-ran the exact same live demo after the fix: Claude
+correctly called `lookup_member_balance({"member_id": "23456"})`, the real deterministic replay
+engine returned `$5.02` (member 23456's actual seeded balance, verified against `app/models.py`),
+and Claude's final answer was correct. Both the broken-first and fixed-second runs' full
+transcripts are saved for real in `/evidence/` — the bug wasn't fixed then quietly erased.
+
+10 new offline tests (`tests/test_agent_interface.py`), including regression tests for both the
+`confirm`-never-exposed safety property and the description-generalization fix. Full suite:
+129/129 tests pass (up from 119).

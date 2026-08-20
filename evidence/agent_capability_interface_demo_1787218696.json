@@ -1,0 +1,16 @@
+[
+  {
+    "type": "user_message",
+    "content": "What's the current balance for member 23456?"
+  },
+  {
+    "type": "llm_response",
+    "stop_reason": "end_turn",
+    "content": [
+      {
+        "type": "text",
+        "text": "I don't have a tool to look up the balance for member 23456. The `lookup_member_balance` tool I have access to is specifically configured for member 12345, and my only tool referencing member 23456 is for updating their mailing address, not checking balances.\n\nIf you need the balance for member 23456, you'd likely need to use a different system or tool that's configured for that member's account lookups. Is there something else I can help with\u2014such as checking member 12345's balance, or updating member 23456's address if that's what you need?"
+      }
+    ]
+  }
+]

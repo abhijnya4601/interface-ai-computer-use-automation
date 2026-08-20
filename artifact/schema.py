@@ -82,6 +82,15 @@ class Capability(BaseModel):
     capability_id: str
     version: str = Field(..., description="semver, e.g. 1.0.0")
     created_from_run_id: str
+    description: str = Field(
+        default="",
+        description=(
+            "human/agent-readable summary of what this capability does — the discovery goal it "
+            "was recorded from, verbatim. This plus input_schema is what an AI agent sees when "
+            "choosing which capability to call (agent_interface/catalog.py), so it needs to be "
+            "a real natural-language description, not a slug."
+        ),
+    )
     target: TargetSpec
     risk_level: Literal["safe", "risky"]
     input_schema: dict = Field(..., description="JSON-schema-like typed inputs")

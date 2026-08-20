@@ -1,0 +1,46 @@
+[
+  {
+    "type": "user_message",
+    "content": "What's the current balance for member 23456?"
+  },
+  {
+    "type": "llm_response",
+    "stop_reason": "tool_use",
+    "content": [
+      {
+        "type": "tool_use",
+        "id": "toolu_01FWNb6TTHMauXm7R5wB5RYg",
+        "name": "lookup_member_balance",
+        "input": {
+          "member_id": "23456"
+        }
+      }
+    ]
+  },
+  {
+    "type": "capability_invoked",
+    "name": "lookup_member_balance",
+    "args": {
+      "member_id": "23456"
+    },
+    "result": {
+      "status": "success",
+      "outputs": {
+        "savings_balance": "$5.02"
+      },
+      "business_outcome_code": null,
+      "failure_detail": null,
+      "evidence_ref": null
+    }
+  },
+  {
+    "type": "llm_response",
+    "stop_reason": "end_turn",
+    "content": [
+      {
+        "type": "text",
+        "text": "Member 23456's current savings balance is **$5.02**.\n\nLet me know if you need anything else \u2014 such as checking recent transactions or making account changes."
+      }
+    ]
+  }
+]
