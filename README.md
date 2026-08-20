@@ -272,7 +272,7 @@ the agent-facing capability interface (§6). Nothing in it is synthesized after 
 file is what the corresponding script actually wrote when it ran.
 **`evidence/README.md`** is a short curated index — start there rather than the raw file list if
 you want one traceable discovery → artifact → replay example plus one of each exceptional-state
-replay, without reading all 77 files.
+replay, without reading all 80 files.
 
 ## 5. Project layout
 
