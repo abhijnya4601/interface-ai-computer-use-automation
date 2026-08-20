@@ -8,5 +8,5 @@
   "outcome": "GuardrailViolation raised and action halted, as required",
   "exception_type": "GuardrailViolation",
   "exception_message": "domain 'not-our-bank.example.com' (from url 'https://not-our-bank.example.com/admin/wipe') is not in allowed_domains ['localhost:5050']",
-  "traceback": "Traceback (most recent call last):\n  File \"/Users/abhijnyamenakur/Desktop/Interface_Bank_AI/scripts/demo_guardrail_violation.py\", line 34, in main\n    guardrail_check(attempted_action)\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^\n  File \"/Users/abhijnyamenakur/Desktop/Interface_Bank_AI/guardrails/policy.py\", line 78, in guardrail_check\n    raise GuardrailViolation(\n    ...<2 lines>...\n    )\nguardrails.policy.GuardrailViolation: domain 'not-our-bank.example.com' (from url 'https://not-our-bank.example.com/admin/wipe') is not in allowed_domains ['localhost:5050']\n"
+  "traceback": "Traceback (most recent call last):\n  File \"scripts/demo_guardrail_violation.py\", line 34, in main\n    guardrail_check(attempted_action)\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^\n  File \"guardrails/policy.py\", line 78, in guardrail_check\n    raise GuardrailViolation(\n    ...<2 lines>...\n    )\nguardrails.policy.GuardrailViolation: domain 'not-our-bank.example.com' (from url 'https://not-our-bank.example.com/admin/wipe') is not in allowed_domains ['localhost:5050']\n"
 }

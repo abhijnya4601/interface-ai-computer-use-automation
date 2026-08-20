@@ -113,7 +113,7 @@ def trigger_escalation(
     screenshot_path = EVIDENCE_DIR / f"escalation_{run_id}.png"
     try:
         page.screenshot(path=str(screenshot_path))
-        screenshot_ref = str(screenshot_path)
+        screenshot_ref = f"evidence/{screenshot_path.name}"
     except Exception:
         screenshot_ref = None
 

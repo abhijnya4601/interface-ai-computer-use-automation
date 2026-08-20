@@ -1,7 +1,7 @@
 {
   "reason": "Ready to finalize: a new General Savings sub-account for member 56789 (Sofia Alvarez) with a $10.00 opening deposit has been filled out and reviewed. The final step \"Confirm and Open Account\" is a state-changing, irreversible action that creates the account, so per policy I am escalating for human confirmation before submitting.",
   "current_url": "http://localhost:5050/member/56789/new-subaccount",
-  "screenshot_path": "/Users/abhijnyamenakur/Desktop/Interface_Bank_AI/evidence/escalation_run_5b11855814.png",
+  "screenshot_path": "evidence/escalation_run_5b11855814.png",
   "run_id": "run_5b11855814",
   "triggered_at": 1787223381.024404
 }

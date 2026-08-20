@@ -180,7 +180,7 @@ def _save_failure_screenshot(page, run_id: str, step_id: str) -> str | None:
     path = EVIDENCE_DIR / f"replay_{run_id}_failure_{step_id}.png"
     try:
         page.screenshot(path=str(path))
-        return str(path)
+        return f"evidence/{path.name}"
     except Exception:
         return None
 

@@ -1,7 +1,7 @@
 {
   "reason": "The system unexpectedly submitted the sub-account creation form when I clicked the Account Type combobox \u2014 it created a Christmas Club sub-account (not the intended Vacation Club) with a default deposit, without my confirmation. This is an irreversible state change that occurred without proper form completion (wrong account type, no $25 deposit set). A human needs to review the account that was just created (Sub-account #1, christmas_club, for Wei Chen, member 45678) and decide whether to correct/reverse it and properly create the intended Vacation Club sub-account with $25 opening deposit.",
   "current_url": "http://localhost:5050/member/45678/new-subaccount/submit",
-  "screenshot_path": "/Users/abhijnyamenakur/Desktop/Interface_Bank_AI/evidence/escalation_run_0e06b94fb1.png",
+  "screenshot_path": "evidence/escalation_run_0e06b94fb1.png",
   "run_id": "run_0e06b94fb1",
   "triggered_at": 1787221357.372801
 }

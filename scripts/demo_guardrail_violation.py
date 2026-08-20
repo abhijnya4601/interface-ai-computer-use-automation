@@ -11,11 +11,12 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+REPO_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(REPO_ROOT))
 
 from guardrails.policy import GuardrailViolation, guardrail_check
 
-EVIDENCE_PATH = Path(__file__).parent.parent / "evidence" / "phase6_guardrail_violation.json"
+EVIDENCE_PATH = REPO_ROOT / "evidence" / "phase6_guardrail_violation.json"
 
 
 def main():
@@ -37,7 +38,9 @@ def main():
         record["outcome"] = "GuardrailViolation raised and action halted, as required"
         record["exception_type"] = type(exc).__name__
         record["exception_message"] = str(exc)
-        record["traceback"] = traceback.format_exc()
+        # traceback.format_exc() bakes in absolute source paths (from sys.path); strip the repo
+        # root prefix so the evidence file stays portable for a reviewer on a different machine.
+        record["traceback"] = traceback.format_exc().replace(str(REPO_ROOT) + "/", "")
 
     EVIDENCE_PATH.parent.mkdir(exist_ok=True)
     EVIDENCE_PATH.write_text(json.dumps(record, indent=2))

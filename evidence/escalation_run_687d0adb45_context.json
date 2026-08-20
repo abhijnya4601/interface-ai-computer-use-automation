@@ -1,7 +1,7 @@
 {
   "reason": "The mailing address form for member 23456 has been filled with the new address (500 Riverbend Rd, Denver, CO 80202), ready to save. Submitting via \"Save Address\" will modify the member's record, which is a state-changing action requiring human confirmation before proceeding.",
   "current_url": "http://localhost:5050/member/23456/update-address",
-  "screenshot_path": "/Users/abhijnyamenakur/Desktop/Interface_Bank_AI/evidence/escalation_run_687d0adb45.png",
+  "screenshot_path": "evidence/escalation_run_687d0adb45.png",
   "run_id": "run_687d0adb45",
   "triggered_at": 1787213937.8039098
 }

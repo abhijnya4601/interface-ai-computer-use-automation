@@ -6,7 +6,7 @@
     "step_id": "s2",
     "expected": "element for {'role': 'textbox', 'name': 'Search (ID / name)'}",
     "observed": "no element resolved on the live page",
-    "screenshot_ref": "/Users/abhijnyamenakur/Desktop/Interface_Bank_AI/evidence/replay_replay_1787182364273_failure_s2.png"
+    "screenshot_ref": "evidence/replay_replay_1787182364273_failure_s2.png"
   },
-  "evidence_ref": "/Users/abhijnyamenakur/Desktop/Interface_Bank_AI/evidence/replay_replay_1787182364273_failure_s2.png"
+  "evidence_ref": "evidence/replay_replay_1787182364273_failure_s2.png"
 }

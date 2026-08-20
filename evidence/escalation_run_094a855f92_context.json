@@ -1,7 +1,7 @@
 {
   "reason": "Review page is ready: Christmas Club sub-account for member 12345 (Dana Whitfield), $50.00 opening deposit. The final step, clicking \"Confirm and Open Account\", is a state-changing, hard-to-reverse action (creates a new account and deposits funds), so per policy I am escalating for human confirmation before submitting.",
   "current_url": "http://localhost:5050/member/12345/new-subaccount",
-  "screenshot_path": "/Users/abhijnyamenakur/Desktop/Interface_Bank_AI/evidence/escalation_run_094a855f92.png",
+  "screenshot_path": "evidence/escalation_run_094a855f92.png",
   "run_id": "run_094a855f92",
   "triggered_at": 1787189508.367372
 }

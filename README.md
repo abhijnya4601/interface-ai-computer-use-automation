@@ -346,15 +346,16 @@ regardless of what you tried before.
 
 ## 4. Evidence
 
+**Start with [`evidence/README.md`](evidence/README.md)** — a short curated index pointing at one
+traceable discovery → artifact → replay example plus one of each exceptional-state replay, rather
+than the raw 87-file list below.
+
 `/evidence/` holds the real artifacts from every run made while building and testing this — 18
 discovery transcripts, 27 replay results (success / business outcomes / an injected hard failure, across
 all 5 capabilities), 14 real escalations with screenshots, the fully-automated escalation demo
 sequence, a captured guardrail-violation transcript, and two real Claude tool-use transcripts from
 the agent-facing capability interface (§6). Nothing in it is synthesized after the fact; every
 file is what the corresponding script actually wrote when it ran.
-**`evidence/README.md`** is a short curated index — start there rather than the raw file list if
-you want one traceable discovery → artifact → replay example plus one of each exceptional-state
-replay, without reading all 87 files.
 
 ## 5. Project layout
 

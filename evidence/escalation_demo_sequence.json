@@ -13,7 +13,7 @@
       "context": {
         "reason": "The new Christmas Club sub-account form for member 12345 (Dana Whitfield) has been filled out and reviewed: Account Type = Christmas Club, Opening Deposit = $50.00. The final step, clicking \"Confirm and Open Account\", is a state-changing/irreversible action that creates a new account record, so per policy I am escalating for explicit human confirmation before submitting.",
         "current_url": "http://localhost:5050/member/12345/new-subaccount",
-        "screenshot_path": "/Users/abhijnyamenakur/Desktop/Interface_Bank_AI/evidence/escalation_run_b1712718eb.png",
+        "screenshot_path": "evidence/escalation_run_b1712718eb.png",
         "run_id": "run_b1712718eb",
         "triggered_at": 1787183302.277876
       }

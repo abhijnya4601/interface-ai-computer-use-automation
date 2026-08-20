@@ -19,7 +19,8 @@ import secrets
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+REPO_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(REPO_ROOT))
 
 from flask import Flask, Response, redirect, render_template_string, request, send_file, url_for
 
@@ -113,9 +114,12 @@ def index():
 def screenshot():
     lease = read_lease()
     path = lease.context.get("screenshot_path")
-    if not path or not Path(path).exists():
+    if not path:
         return "no screenshot available", 404
-    return send_file(path)
+    full_path = REPO_ROOT / path
+    if not full_path.exists():
+        return "no screenshot available", 404
+    return send_file(full_path)
 
 
 @app.route("/resume", methods=["POST"])
