@@ -510,3 +510,19 @@ produces a schema-valid but behaviorally wrong artifact that nothing catches exc
 replaying every declared branch against the real app. This build did that for both capabilities'
 full outcome matrices; a production version would want this as a standing test suite run on
 every new capability version, not a one-time manual check. Full suite: 75/75 tests pass.
+
+## D15 — 2026-08-19 — README.md, REPORT.md, and a genuine fresh-clone verification
+
+Wrote `README.md` (setup, offline-vs-live guidance, exact demo commands for both capabilities)
+and `REPORT.md` (the 7 required headings, written against what was actually built and verified,
+not the original plan). Then did the assignment's explicit "verify it clones clean and the
+README's setup steps actually work from a fresh clone" check for real: `git clone`d this repo
+into `/tmp/fresh_clone_test`, confirmed no `.env`/`.venv`/`bank.db`/`__pycache__`/browser-profile
+files leaked into git history (only source, tests, capabilities, and evidence), ran the README's
+exact setup commands (`pip install -r requirements.txt`, `playwright install chromium`), ran the
+full test suite (75/75 pass), started the mock app fresh, and replayed the real
+`lookup_member_balance.v1.json` capability with `member_id=34567` — a THIRD member ID never used
+in any prior test in this build, and never used to record — correctly returning `$9,901.00`
+(matching seed data) with no API key set anywhere in that clone. This closes the loop on
+"deterministic replay needs no LLM" and "genuine parameterization" one more time, independently,
+from a location that has never seen any of this project's local state.
