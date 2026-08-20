@@ -121,6 +121,56 @@ _KNOWN_OUTCOMES: dict[str, list[dict]] = {
             ),
         },
     ],
+    "dispute_transaction": [
+        {
+            "match": {"action_type": "click", "role": "link", "name": "View"},
+            "outcome": ExpectedOutcome(
+                condition="page contains 'No results.'",
+                classification="business_outcome",
+                code="MEMBER_NOT_FOUND",
+                handling="search returned no matching row for this member_id",
+            ),
+        },
+        {
+            # D29: found live -- same wall as D14's open_subaccount/PERMISSION_DENIED, one hop
+            # further down the same page. member_detail.html never renders "View Transactions"
+            # for a locked member (only the msg-denied branch), so replaying against a locked
+            # member_id was reporting hard_failure instead of the real, expected business
+            # outcome -- this capability was compiled after D14 fixed the pattern once, but
+            # never got its own entry here, since it's outside the two capabilities the
+            # assignment requires.
+            "match": {"action_type": "click", "role": "link", "name": "View Transactions"},
+            "outcome": ExpectedOutcome(
+                condition="page contains 'Access denied. This account is restricted'",
+                classification="business_outcome",
+                code="PERMISSION_DENIED",
+                handling="member account is locked; there is no 'View Transactions' link to "
+                "click through on the member detail page",
+            ),
+        },
+    ],
+    "update_member_address": [
+        {
+            "match": {"action_type": "click", "role": "link", "name": "View"},
+            "outcome": ExpectedOutcome(
+                condition="page contains 'No results.'",
+                classification="business_outcome",
+                code="MEMBER_NOT_FOUND",
+                handling="search returned no matching row for this member_id",
+            ),
+        },
+        {
+            # D29, same pattern as dispute_transaction above.
+            "match": {"action_type": "click", "role": "link", "name": "Update Mailing Address"},
+            "outcome": ExpectedOutcome(
+                condition="page contains 'Access denied. This account is restricted'",
+                classification="business_outcome",
+                code="PERMISSION_DENIED",
+                handling="member account is locked; there is no 'Update Mailing Address' link "
+                "to click through on the member detail page",
+            ),
+        },
+    ],
 }
 
 

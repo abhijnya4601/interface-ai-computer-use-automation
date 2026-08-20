@@ -113,6 +113,12 @@ update. Separately verified: fresh discovery starting *directly* on a locked mem
 way to `business_outcome`/`PERMISSION_DENIED` cold, no prior capability to guide it. Reviewer
 commands: `README.md`, "Teach it something it's never seen."
 
+**A full-codebase review (D29) found this section's own named failure mode, inverted**: both new
+capabilities were missing the `expected_outcomes` D14 already established for the other three, so
+replaying either against a locked member reported `hard_failure` for a real, expected
+`PERMISSION_DENIED` — a business outcome misreported as a break, not the usual direction (a
+failure silently reported as success). Same D14 fix, just extended; re-verified live.
+
 ## 4. Heterogeneity & multi-tenant
 
 Not built — design only, per scope. The seam that matters is already in place: perception and
@@ -206,10 +212,14 @@ fixes rather than left as write-up caveats:
 - **Tier-2 structural locator is simplified** ("first match in DOM order," not a richer
   relative-position description) — real but only exercised via fake match counts in
   `tests/test_recorder.py`, since this app's own role+name pairs are unique by design.
-- **Action vocabulary is `click`/`type`/`navigate`/`extract` only** — no `select`-dropdown, drag,
-  or file-upload primitive. The mock app's own `<select>` (`open_subaccount`'s account type) is
-  only ever left at its default for this reason; every other form field is deliberately plain
-  text so a new goal against it stays within what the agent can actually act on.
+- **Action vocabulary is `click`/`type`/`navigate`/`extract` only** — no drag or file-upload
+  primitive. `<select>` dropdowns *are* covered — `type` falls back from `fill()` to
+  `select_option()` — but a code-review pass (D28, not a live crash) found this fallback, and
+  every other non-timeout Playwright error in `agent/tools.py`, was unreachable: three functions
+  caught only `TimeoutError`, not its own base `Error` class, so any other real failure (element
+  detached, not visible, ...) propagated uncaught and would have crashed the whole discovery run
+  instead of surfacing as a recoverable tool error the model could see. Fixed and verified live
+  with a goal needing `open_subaccount`'s non-default account type.
 - **Only one stretch goal attempted** (§8) — depth over breadth per the assignment's own
   guidance; time otherwise went into verifying every core requirement's full outcome matrix live
   (the two required capabilities × all 4 replay scenarios each, a live escalation demo, many real

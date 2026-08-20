@@ -13,7 +13,7 @@ frame boundaries (it only ever sees the merged accessibility tree from perceptio
 """
 from __future__ import annotations
 
-from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import Error as PlaywrightError, Page
 
 TOOLS = [
     {
@@ -154,31 +154,50 @@ def execute_click(page: Page, role: str, name: str) -> str:
     locator, where = locate_by_role_name(page, role, name)
     try:
         locator.click(timeout=5000)
-    except PlaywrightTimeoutError as exc:
-        raise ToolExecutionError(f"click on role={role!r} name={name!r} timed out: {exc}") from exc
+    except PlaywrightError as exc:
+        # Catches PlaywrightTimeoutError too (it subclasses Error) plus every other real
+        # Playwright failure (element detached, not visible, not clickable, ...) -- narrowing
+        # this to TimeoutError only meant any of those instead propagated straight out of
+        # run_discovery() uncaught, crashing the whole run instead of a graceful tool_error the
+        # model could see and reason about. Found by inspection, not a live crash (D28).
+        raise ToolExecutionError(f"click on role={role!r} name={name!r} failed: {exc}") from exc
     return f"clicked {role} '{name}' (in {where})"
 
 
 def execute_type(page: Page, role: str, name: str, text: str) -> str:
+    """
+    Two real element shapes share the "type" tool: a plain text input (`fill`) and a `<select>`
+    (resolves to role "combobox", needs `select_option`, not `fill` -- `fill()` raises
+    immediately with a plain `Error`, not a timeout, verified directly against a real Playwright
+    page (D28), which is exactly why the fallback below has to catch `PlaywrightError`, not just
+    a timeout: the original narrower except never actually caught it, so this fallback was dead
+    code -- the model could never successfully select a non-default option, it would just crash
+    the run instead. `select_option` itself is tried by value first (the HTML attribute, e.g.
+    "christmas_club") then by visible label (e.g. "Christmas Club"), since the model only ever
+    sees the visible label text via the accessibility tree, not the underlying value attribute.
+    """
     locator, where = locate_by_role_name(page, role, name)
     try:
         locator.fill(text, timeout=5000)
-    except PlaywrightTimeoutError:
-        # <select> elements resolve to role "combobox" but need select_option, not fill.
+    except PlaywrightError:
         try:
-            locator.select_option(text, timeout=5000)
-        except Exception as exc:
-            raise ToolExecutionError(
-                f"type into role={role!r} name={name!r} failed (tried fill and select_option): {exc}"
-            ) from exc
+            locator.select_option(value=text, timeout=5000)
+        except PlaywrightError:
+            try:
+                locator.select_option(label=text, timeout=5000)
+            except PlaywrightError as exc:
+                raise ToolExecutionError(
+                    f"type into role={role!r} name={name!r} failed (tried fill, select by "
+                    f"value, and select by label): {exc}"
+                ) from exc
     return f"typed {text!r} into {role} '{name}' (in {where})"
 
 
 def execute_navigate(page: Page, url: str) -> str:
     try:
         page.goto(url, timeout=10000)
-    except PlaywrightTimeoutError as exc:
-        raise ToolExecutionError(f"navigate to {url!r} timed out: {exc}") from exc
+    except PlaywrightError as exc:
+        raise ToolExecutionError(f"navigate to {url!r} failed: {exc}") from exc
     return f"navigated to {url}"
 
 

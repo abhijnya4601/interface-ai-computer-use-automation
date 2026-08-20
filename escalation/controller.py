@@ -85,8 +85,8 @@ def trigger_escalation(
 
     print(f"[escalation] ESCALATED: {reason}")
     print(
-        f"[escalation] lease -> human. Waiting for operator to resume "
-        f"(escalation/operator_page.py, or signal_resume() directly)."
+        "[escalation] lease -> human. Waiting for operator to resume "
+        "(escalation/operator_page.py, or signal_resume() directly)."
     )
 
     waited = 0.0

@@ -1,5 +1,3 @@
-import json
-
 from agent.compiler import compile_capability, infer_input_schema, infer_output_schema, save_capability
 from artifact.schema import Capability, Checkpoint, LocatorTarget, Step
 
@@ -191,3 +189,45 @@ def test_lookup_latest_transaction_declares_no_transactions_business_outcome():
     s6 = next(s for s in cap.steps if s.step_id == "s6")
     codes = {o.code for o in s6.expected_outcomes}
     assert "NO_TRANSACTIONS" in codes
+
+
+def test_dispute_transaction_declares_permission_denied_on_view_transactions_link():
+    """D29: found live -- dispute_transaction and update_member_address were compiled after D14
+    established the "locked member never renders the link" pattern for open_subaccount, but
+    never got their own _KNOWN_OUTCOMES entries, since they're outside the two capabilities the
+    assignment requires. Replaying either against a locked member_id was reporting hard_failure
+    instead of the real, expected PERMISSION_DENIED business outcome -- verified live before and
+    after this fix."""
+    steps = [
+        Step(step_id="s4", action_type="click", target=_lt("link", "View")),
+        Step(step_id="s5", action_type="click", target=_lt("link", "View Transactions")),
+        Step(step_id="s6", action_type="click", target=_lt("link", "Dispute", "structural")),
+    ]
+    recorder = FakeRecorder(steps)
+    checkpoint = Checkpoint(type="text_match", expected="Dispute submitted for")
+    cap = compile_capability(
+        capability_id="dispute_transaction", version="1.0.0", run_id="run_test",
+        target_url="http://localhost:5050/search", risk_level="risky",
+        recorder=recorder, outputs={}, checkpoint=checkpoint,
+    )
+    view_step = next(s for s in cap.steps if s.step_id == "s4")
+    view_txns_step = next(s for s in cap.steps if s.step_id == "s5")
+    assert {o.code for o in view_step.expected_outcomes} == {"MEMBER_NOT_FOUND"}
+    assert {o.code for o in view_txns_step.expected_outcomes} == {"PERMISSION_DENIED"}
+
+
+def test_update_member_address_declares_permission_denied_on_its_own_link():
+    """Same D29 finding and fix, for the other capability that shares the gap."""
+    steps = [
+        Step(step_id="s4", action_type="click", target=_lt("link", "View")),
+        Step(step_id="s5", action_type="click", target=_lt("link", "Update Mailing Address")),
+    ]
+    recorder = FakeRecorder(steps)
+    checkpoint = Checkpoint(type="url_match", expected="update-address")
+    cap = compile_capability(
+        capability_id="update_member_address", version="1.0.0", run_id="run_test",
+        target_url="http://localhost:5050/search", risk_level="risky",
+        recorder=recorder, outputs={}, checkpoint=checkpoint,
+    )
+    update_link_step = next(s for s in cap.steps if s.step_id == "s5")
+    assert {o.code for o in update_link_step.expected_outcomes} == {"PERMISSION_DENIED"}

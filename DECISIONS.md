@@ -1018,3 +1018,78 @@ transcripts are saved for real in `/evidence/` — the bug wasn't fixed then qui
 10 new offline tests (`tests/test_agent_interface.py`), including regression tests for both the
 `confirm`-never-exposed safety property and the description-generalization fix. Full suite:
 129/129 tests pass (up from 119).
+
+## D28 — 2026-08-20 — Full-codebase review: a real crash-risk bug, found by inspection, not a
+live failure
+
+User asked for a full pass over everything — code clarity included, not just re-verifying prior
+work. `pyflakes` across every module first: three trivial findings (two `f"..."` strings with no
+placeholders, one unused import), fixed. The real find came from actually reading
+`agent/tools.py` line by line rather than trusting its own comments.
+
+`execute_click`, `execute_type`, and `execute_navigate` each only caught
+`playwright.sync_api.TimeoutError`. Verified directly against a real Playwright page: calling
+`.fill()` on a `<select>` element (role "combobox") raises a plain `Error` immediately — "Element
+is not an `<input>`, `<textarea>` or `[contenteditable]` element" — never a timeout. That plain
+`Error` is *not* caught by `except PlaywrightTimeoutError`, so `execute_type`'s own
+`select_option` fallback (there specifically to handle `<select>` elements) was dead code, and —
+worse — the uncaught exception would propagate straight out of `run_discovery()`'s loop, which
+only catches `ToolExecutionError` at its outer boundary, crashing the entire discovery run instead
+of surfacing a recoverable tool error the model could reason about. Same narrow-except shape in
+`execute_click`/`execute_navigate` meant *any* non-timeout Playwright error there (element
+detached, not visible, navigation aborted, ...) had the identical crash risk — this wasn't a
+select-specific bug, it was a systemic one.
+
+Confirmed `TimeoutError` is a subclass of Playwright's own `Error` (`issubclass(TimeoutError,
+Error) == True`), so the fix is a strict broadening, not a behavior change for the timeout case:
+all three functions now catch `PlaywrightError`, always re-raised as `ToolExecutionError` so
+`run_discovery()`'s existing handling (log as `tool_error`, let the model see the failure message
+and decide what to do next) actually applies. `execute_type`'s select fallback also now tries
+`select_option(value=text, ...)` then `select_option(label=text, ...)` — belt-and-suspenders,
+since a live check showed Playwright's `value=` parameter already resolves against label text too
+when it doesn't match a value attribute, not strictly the HTML `value`.
+
+**This one really mattered for a claim already in `REPORT.md`.** The Cuts section said the action
+vocabulary has "no `select`-dropdown... primitive," pointing at `open_subaccount`'s account-type
+field as the reason it's always left at its default. That framing was wrong — a fallback for
+exactly this case already existed, it just couldn't ever run. Verified live after the fix: a goal
+requiring `open_subaccount`'s non-default "Vacation Club" option (`page.locator("body")
+.aria_snapshot()` confirms the model sees the full option list, not just the current selection) —
+the model correctly typed "Vacation Club" into the combobox, and the escalation reason text on the
+resulting confirmation page read back "...opening a new Vacation Club sub-account..." confirming
+the real DOM selection changed, not just the model's belief about it. (That particular run hit
+`max_steps` before a final `finish()` — an unrelated step-budget issue from an earlier dead-end
+detour in the same run, not a sign the select mechanism itself failed — the tier log shows the
+combobox interaction succeeded at steps s6-s9.) `REPORT.md`'s Cuts section corrected to describe
+what's actually true. Full suite: 129/129 (no new tests needed — this was an exception-handling
+correctness fix in already-tested code paths, verified by direct interpreter checks and one real
+live run, not new unit coverage).
+
+## D29 — 2026-08-20 — dispute_transaction and update_member_address were silently missing the
+exact business-outcome pattern D14 already established
+
+Same full-codebase review pass as D28, continued past `agent/tools.py` into `agent/compiler.py`.
+`_KNOWN_OUTCOMES` has real, declared `MEMBER_NOT_FOUND`/`PERMISSION_DENIED` entries for
+`lookup_member_balance`, `open_subaccount`, and `lookup_latest_transaction` — but nothing for
+`dispute_transaction` or `update_member_address`, the two capabilities added later (D20/D23) to
+prove discovery generalizes to genuinely new features. Checked live rather than assumed: replayed
+both against a locked member (`99999`) and a not-found member (`00000`), with `--confirm` since
+both are `risk_level=risky`.
+
+Both reported `status=hard_failure` for what is actually a real, expected condition — the exact
+failure mode the assignment names as "the most common design mistake here," just the inverse
+direction of the usual example (a legitimate business outcome misreported as a system failure,
+not a failure misreported as success). Root cause was identical to D14: `member_detail.html`
+never renders the "View Transactions" / "Update Mailing Address" link at all for a locked member
+(only the `msg-denied` branch renders), so replay's locator resolution correctly finds nothing —
+but with no declared `expected_outcomes` on that step to check against, `_check_expected_outcomes`
+had nothing to match and fell through to `hard_failure`.
+
+Fixed by adding the same two-rule pattern (`MEMBER_NOT_FOUND` on the "View" click,
+`PERMISSION_DENIED` on the capability's own next link) already proven for the other three
+capabilities — not new logic, the same `_KNOWN_OUTCOMES`/`_attach_expected_outcomes` mechanism,
+just extended to cover the two capabilities that had been missed. Patched both already-compiled
+artifacts by calling the real `_attach_expected_outcomes` function directly against their loaded
+`Capability.steps` (not hand-edited JSON), round-trip validated, then re-verified live: both
+replays now correctly return `status=business_outcome` with the right code. 2 new regression
+tests (`tests/test_compiler.py`). Full suite: 131/131 (up from 129).

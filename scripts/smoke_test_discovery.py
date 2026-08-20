@@ -16,7 +16,6 @@ Run: python scripts/smoke_test_discovery.py   (needs the Flask app running on 50
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 

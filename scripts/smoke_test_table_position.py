@@ -70,7 +70,7 @@ def main():
         resolved = _locate_table_position(page, target.primary)
         check("locator resolves on a page with totally different data", resolved is not None)
         resolved_text = resolved.text_content() if resolved else None
-        check(f"resolved to TABLE_B's actual latest date ('2026-08-12'), not TABLE_A's stale value",
+        check("resolved to TABLE_B's actual latest date ('2026-08-12'), not TABLE_A's stale value",
               resolved_text == "2026-08-12")
         print(f"resolved cell text on TABLE_B: {resolved_text!r} (this IS the D21 fix)\n")
 

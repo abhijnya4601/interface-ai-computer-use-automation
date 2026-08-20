@@ -55,7 +55,7 @@ again.
 
 The parts that need a real browser and/or a real LLM:
 
-- **Offline (no browser, no API key):** `pytest tests/` — 129 unit tests covering the schema,
+- **Offline (no browser, no API key):** `pytest tests/` — 131 unit tests covering the schema,
   guardrails, perception parsing, the recorder's 3-/4-tier locator logic, the compiler, the replay
   engine's pure helpers, the escalation lease mechanism, the CLI's pure helper logic (default
   checkpoint, risk-level inference, the auto-open-console watcher), and the agent-facing
@@ -255,23 +255,23 @@ these cover genuinely different things to watch for, each verified live at least
   balance, then find their most recent transaction." Untested territory: the compiler declares
   business outcomes per-capability from a single `capability_id`, so a merged run may compile
   oddly or need two separate discovery calls. Worth trying specifically *because* it's untested.
-- **A goal that needs a non-default `<select>` option** — e.g. "Open a Vacation Club sub-account"
-  (the default is Christmas Club). Expect this to hit a real, documented boundary rather than a
-  clean success: the agent's action vocabulary has no dropdown-selection primitive (`REPORT.md`
-  Cuts), so it has no tool to change the field away from its default. Useful to see the honest
-  failure mode, not a bug to report.
+- **A goal that needs a non-default `<select>` option** — e.g. "Open a Vacation Club sub-account
+  for member 45678 with a $25 opening deposit, and complete the account creation." (the default
+  is Christmas Club). This now works (D28) — the `type` tool falls back to `select_option` for a
+  `<select>` element, and the model can see every option's label via the accessibility tree, not
+  just the current selection.
 
 ## 4. Evidence
 
-`/evidence/` holds the real artifacts from every run described in `DECISIONS.md` — 15 discovery
-transcripts, 19 replay results (success / business outcomes / an injected hard failure, across
-all 5 capabilities), 9 real escalations with screenshots, the fully-automated escalation demo
+`/evidence/` holds the real artifacts from every run described in `DECISIONS.md` — 16 discovery
+transcripts, 22 replay results (success / business outcomes / an injected hard failure, across
+all 5 capabilities), 10 real escalations with screenshots, the fully-automated escalation demo
 sequence, a captured guardrail-violation transcript, and two real Claude tool-use transcripts from
 the agent-facing capability interface (§6). Nothing in it is synthesized after the fact; every
 file is what the corresponding script actually wrote when it ran.
 **`evidence/README.md`** is a short curated index — start there rather than the raw file list if
 you want one traceable discovery → artifact → replay example plus one of each exceptional-state
-replay, without reading all 61 files.
+replay, without reading all 70 files.
 
 ## 5. Project layout
 
@@ -285,7 +285,7 @@ escalation/       lease-based human handoff + operator console (Phase 7)
 agent_interface/  capabilities exposed as an agent-callable tool catalog (stretch goal, §6)
 capabilities/     compiled capability artifacts (the deliverable output)
 scripts/          CLI entrypoints + smoke tests
-tests/            129 offline unit tests
+tests/            131 offline unit tests
 evidence/         real run output (see above)
 ```
 
