@@ -297,9 +297,9 @@ these cover genuinely different things to watch for, each verified live at least
 
 ## 4. Evidence
 
-`/evidence/` holds the real artifacts from every run described in `DECISIONS.md` — 17 discovery
+`/evidence/` holds the real artifacts from every run described in `DECISIONS.md` — 18 discovery
 transcripts, 27 replay results (success / business outcomes / an injected hard failure, across
-all 5 capabilities), 13 real escalations with screenshots, the fully-automated escalation demo
+all 5 capabilities), 14 real escalations with screenshots, the fully-automated escalation demo
 sequence, a captured guardrail-violation transcript, and two real Claude tool-use transcripts from
 the agent-facing capability interface (§6). Nothing in it is synthesized after the fact; every
 file is what the corresponding script actually wrote when it ran.

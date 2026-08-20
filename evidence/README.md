@@ -51,7 +51,7 @@ Per the "ideally include one" ask, there are several, each a different kind:
 
 ## Everything else, briefly
 
-- **`discovery_run_*.jsonl`** (17 total) — every real discovery run made during this build,
+- **`discovery_run_*.jsonl`** (18 total) — every real discovery run made during this build,
   across all 5 capabilities in `../capabilities/` plus throwaway/edge-case probes.
 - **`replay_*.json`** (27) — every real replay result, across success/business-outcome/
   hard-failure for every capability and several member IDs each.
