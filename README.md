@@ -15,8 +15,8 @@ with what broke and how they were fixed).
 Requires Python 3.11+ (built and run on 3.14) and a real Anthropic API key.
 
 ```bash
-git clone <this-repo-url>
-cd Interface_Bank_AI
+git clone https://github.com/abhijnya4601/interface-ai-computer-use-automation.git
+cd interface-ai-computer-use-automation
 
 python3 -m venv .venv
 source .venv/bin/activate
