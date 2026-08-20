@@ -9,6 +9,30 @@ and a human-in-the-loop escalation/handoff path.
 See [`REPORT.md`](REPORT.md) for the design write-up, including the trade-offs made and several
 real bugs found while building this — what broke and how they were fixed.
 
+**A note for Windows users:** every terminal command block below that needs a different form on
+Windows has a collapsed **Windows (PowerShell)** toggle directly underneath it — click it to
+expand instead of translating bash yourself.
+
+## Terms used in this README
+
+- **Member** — this mock bank's word for a customer / account holder. Every member has a
+  `member_id` (a 5-digit string like `12345`) — that's the one input most goals below need.
+- **Capability** — a single task the agent has learned to do (e.g. "look up a balance"), saved as
+  a versioned JSON file in `capabilities/`. Recorded once by a real LLM-driven **discovery** run,
+  then **replayed** afterward with no LLM involved at all.
+- **Discovery** — the one-time run where Claude actually looks at the live app and figures out,
+  step by step, how to complete a goal. Slow, costs API credits, needs a real Anthropic key.
+- **Replay** — running an already-recorded capability again, deterministically, against new input
+  (e.g. a different member_id). Fast, free, no LLM involved.
+- **Business outcome** — not a crash. A real, expected result the app itself produces — "this
+  member doesn't exist," "this account is locked," "no transactions on file." Reported as
+  `status=business_outcome` with a `business_outcome_code` like `MEMBER_NOT_FOUND`, distinct from
+  `hard_failure` (something actually broke) and plain `success`.
+- **Escalation** — when the agent stops mid-run and asks a human to approve a state-changing
+  action (e.g. actually opening an account) before doing it.
+- **Risk level** (`safe` / `risky`) — whether a capability is allowed to replay without a human
+  explicitly confirming first. `risky` capabilities always need `--confirm`.
+
 ## 1. Setup
 
 Requires Python 3.11+ (built and run on 3.14) and a real Anthropic API key.
@@ -25,6 +49,27 @@ playwright install chromium      # downloads a real Chromium binary, no root nee
 echo "ANTHROPIC_API_KEY=sk-ant-..." > .env   # gitignored, never committed
 ```
 
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+git clone https://github.com/abhijnya4601/interface-ai-computer-use-automation.git
+cd interface-ai-computer-use-automation
+
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+playwright install chromium
+
+"ANTHROPIC_API_KEY=sk-ant-..." | Out-File -Encoding utf8 .env
+```
+
+> If activation fails with "running scripts is disabled on this system," that's PowerShell's
+> default execution policy, not a bug here. Allow it for the current session only:
+> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+
+</details>
+
 **Operator console credentials:** `escalation/operator_page.py` requires HTTP Basic Auth —
 whoever can reach it can approve an irreversible financial action, so it never serves
 unauthenticated. Set a stable credential in `.env`:
@@ -33,6 +78,16 @@ unauthenticated. Set a stable credential in `.env`:
 echo "OPERATOR_USERNAME=banker" >> .env
 echo "OPERATOR_PASSWORD=$(python3 -c 'import secrets; print(secrets.token_urlsafe(16))')" >> .env
 ```
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+"OPERATOR_USERNAME=banker" | Add-Content .env
+"OPERATOR_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(16))')" | Add-Content .env
+```
+
+</details>
 
 If you skip this, the console generates and prints a one-time random password to its own
 terminal at startup instead of ever running open — it never silently serves without auth.
@@ -59,7 +114,7 @@ The parts that need a real browser and/or a real LLM:
   engine's pure helpers, the escalation lease mechanism, the CLI's pure helper logic (default
   checkpoint, risk-level inference, the auto-open-console watcher), and the agent-facing
   capability catalog/invocation routing, all against fixtures or fake Playwright-shaped
-  stand-ins. Runs in under 2 seconds, no network.
+  stand-ins. Runs in under 2 seconds, no network. Identical command on Windows.
 - **Needs a real browser, no API key:** `scripts/verify_perception_live.py`,
   `scripts/smoke_test_discovery.py` (scripted fake LLM), `scripts/smoke_test_replay.py`,
   `scripts/smoke_test_escalation_timeout.py` (regression test for a real timing bug — a
@@ -89,7 +144,8 @@ a risky action gets approved.
 The very first `run_discovery.py` example below leaves `--headless` off on purpose, so you can
 watch the real Chromium window click through the mock bank the first time. Every example after
 that adds `--headless` back, since by then you already know what it looks like and headless is
-faster.
+faster. Whenever a headed run finishes, the browser window stays open for 5 more seconds before
+it closes, so you have time to actually look at the final page.
 
 **The operator console — what it is, and when you need it.** A few goals change real data (open
 an account, file a dispute) — the agent stops and waits for a human to approve before it commits
@@ -105,6 +161,19 @@ Pick one of these three per run:
 | `--open-console-on-escalation` (recommended, to try this yourself) | The console starts and pops open in your browser the instant the run escalates — nothing to set up. |
 | *(neither flag)* | The run just blocks and waits. Start it yourself first: `python3 escalation/operator_page.py` in a separate terminal, then open `http://localhost:5001` by hand once it escalates. |
 
+**Seeded members you can use for testing.** The mock bank starts with these members already in
+it — every example below uses one of these IDs, and you can swap in any other one from this list:
+
+| Member ID | Name | Status | Savings balance | Transactions |
+|---|---|---|---|---|
+| `12345` | Dana Whitfield | active | $1,842.30 | 4 |
+| `23456` | Marcus Oyelaran | active | $5.02 | 2 |
+| `34567` | Priya Ramaswamy | active | $9,901.00 | 0 — triggers `NO_TRANSACTIONS` |
+| `45678` | Wei Chen | active | $0.00 | 2 |
+| `56789` | Sofia Alvarez | active | $127.50 | 3 |
+| `99999` | Restricted Account | **locked** | — | any action here triggers `PERMISSION_DENIED` |
+| `88888` (or any ID not above) | — not a real member — | — | — | triggers `MEMBER_NOT_FOUND` |
+
 **Terminal 1 — start the mock bank app:**
 
 ```bash
@@ -113,6 +182,18 @@ cd app
 python3 -c "import models; models.init_db(); models.seed()"
 python3 app.py    # http://localhost:5050
 ```
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+.venv\Scripts\Activate.ps1
+cd app
+python -c "import models; models.init_db(); models.seed()"
+python app.py    # http://localhost:5050 -- blocks this terminal, leave it running
+```
+
+</details>
 
 **Terminal 2 — run the agent on a goal, for real:**
 
@@ -125,6 +206,24 @@ python3 scripts/run_discovery.py \
   --target "http://localhost:5050/search" \
   --capability-id lookup_member_balance
 ```
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+.venv\Scripts\Activate.ps1
+Get-Content .env | ForEach-Object {
+    $name, $value = $_.Split('=', 2)
+    if ($name) { Set-Item "Env:$name" $value }
+}
+
+python scripts/run_discovery.py `
+  --goal "Look up member 12345 and read their current savings balance." `
+  --target "http://localhost:5050/search" `
+  --capability-id lookup_member_balance
+```
+
+</details>
 
 This launches a real (persistent) Chromium context, runs the real observe→decide→act loop
 against Claude, and on success:
@@ -149,6 +248,27 @@ python3 scripts/run_replay.py \
   --params '{"member_id": "99999"}'   # locked -> PERMISSION_DENIED
 ```
 
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+# a NEW member_id, never seen during discovery -- proves real parameterization
+python scripts/run_replay.py `
+  --capability capabilities/lookup_member_balance.v1.json `
+  --params '{"member_id": "23456"}'
+
+# a business outcome, not a crash
+python scripts/run_replay.py `
+  --capability capabilities/lookup_member_balance.v1.json `
+  --params '{"member_id": "88888"}'   # not seeded -> MEMBER_NOT_FOUND
+
+python scripts/run_replay.py `
+  --capability capabilities/lookup_member_balance.v1.json `
+  --params '{"member_id": "99999"}'   # locked -> PERMISSION_DENIED
+```
+
+</details>
+
 Each replay prints and saves a structured `Result` (`status`, `outputs`,
 `business_outcome_code`, `failure_detail`) to `evidence/replay_*.json`.
 
@@ -164,6 +284,19 @@ python3 scripts/run_discovery.py \
   --capability-id <a_short_name_for_this_task> \
   --headless
 ```
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+python scripts/run_discovery.py `
+  --goal "<a real, plain-English instruction -- this is the only thing the model reads>" `
+  --target "http://localhost:5050/search" `
+  --capability-id <a_short_name_for_this_task> `
+  --headless
+```
+
+</details>
 
 - **`--goal`** isn't matched against a fixed list or a menu of known intents — it's the literal
   text the model reasons over each turn, so a genuinely different goal produces genuinely
@@ -185,6 +318,17 @@ python3 scripts/run_replay.py \
   --params '{"member_id": "<any seeded or unseeded ID>"}'
 ```
 
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+python scripts/run_replay.py `
+  --capability capabilities/<your-capability-id>.v1.json `
+  --params '{"member_id": "<any seeded or unseeded ID>"}'
+```
+
+</details>
+
 ### The second, risky capability
 
 `open_subaccount` is state-mutating (creates a real DB row) and `risk_level: risky`. Recording
@@ -200,6 +344,19 @@ python3 scripts/run_discovery.py \
   --max-steps 12 --auto-approve-escalation --headless
 ```
 
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+python scripts/run_discovery.py `
+  --goal "Open a new Christmas Club sub-account for member 12345 with a `$50 opening deposit, and complete the account creation." `
+  --target "http://localhost:5050/search" `
+  --capability-id open_subaccount `
+  --max-steps 12 --auto-approve-escalation --headless
+```
+
+</details>
+
 Replaying it requires explicit confirmation — without `--confirm` it's rejected before touching
 the page:
 
@@ -212,6 +369,21 @@ python3 scripts/run_replay.py \
   --capability capabilities/open_subaccount.v1.json \
   --params '{"member_id": "23456"}' --confirm     # -> success, real DB row created
 ```
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+python scripts/run_replay.py `
+  --capability capabilities/open_subaccount.v1.json `
+  --params '{"member_id": "23456"}'              # -> hard_failure, confirm=True required
+
+python scripts/run_replay.py `
+  --capability capabilities/open_subaccount.v1.json `
+  --params '{"member_id": "23456"}' --confirm     # -> success, real DB row created
+```
+
+</details>
 
 ### Trying the third capability: `lookup_latest_transaction`
 
@@ -232,6 +404,26 @@ python3 scripts/run_replay.py \
   --capability capabilities/lookup_latest_transaction.v1.json \
   --params '{"member_id": "34567"}'   # empty history -> NO_TRANSACTIONS (business outcome)
 ```
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+python scripts/run_discovery.py `
+  --goal "Find the most recent transaction date for member 12345." `
+  --target "http://localhost:5050/search" `
+  --capability-id lookup_latest_transaction --headless
+
+python scripts/run_replay.py `
+  --capability capabilities/lookup_latest_transaction.v1.json `
+  --params '{"member_id": "23456"}'   # has transactions -> success
+
+python scripts/run_replay.py `
+  --capability capabilities/lookup_latest_transaction.v1.json `
+  --params '{"member_id": "34567"}'   # empty history -> NO_TRANSACTIONS (business outcome)
+```
+
+</details>
 
 ### Testing human-in-the-loop escalation yourself
 
@@ -256,6 +448,24 @@ python3 scripts/run_discovery.py \
   --target "http://localhost:5050/search" \
   --capability-id open_subaccount --max-steps 12 --open-console-on-escalation
 ```
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+.venv\Scripts\Activate.ps1
+Get-Content .env | ForEach-Object {
+    $name, $value = $_.Split('=', 2)
+    if ($name) { Set-Item "Env:$name" $value }
+}
+
+python scripts/run_discovery.py `
+  --goal "Open a new Christmas Club sub-account for member 34567 with a `$50 opening deposit, and complete the account creation." `
+  --target "http://localhost:5050/search" `
+  --capability-id open_subaccount --max-steps 12 --open-console-on-escalation
+```
+
+</details>
 
 No `--headless` here on purpose — watch the real browser window reach the confirmation page, then
 watch your own browser pop open the operator console the moment it actually escalates. Log in
@@ -289,6 +499,20 @@ python3 scripts/run_discovery.py \
   --target "http://localhost:5050/search" \
   --capability-id dispute_transaction --headless
 ```
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+rm capabilities/dispute_transaction.v1.json    # or update_member_address.v1.json
+
+python scripts/run_discovery.py `
+  --goal "File a dispute for member 23456's most recent transaction, reason 'duplicate charge'." `
+  --target "http://localhost:5050/search" `
+  --capability-id dispute_transaction --headless
+```
+
+</details>
 
 Two things worth watching for, both real and both verified live twice now (once per feature):
 
@@ -351,6 +575,17 @@ address) without needing to restart the Flask app itself:
 cd app && python3 -c "import models; models.init_db(); models.seed()" && cd ..
 ```
 
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+cd app
+python -c "import models; models.init_db(); models.seed()"
+cd ..
+```
+
+</details>
+
 Run this between attempts if you want every member ID above to behave exactly as described,
 regardless of what you tried before.
 
@@ -398,89 +633,27 @@ set -a; source .env; set +a
 python3 scripts/demo_agent_capability_interface.py
 ```
 
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+# terminal 1 -- the mock app, same as any other demo
+cd app
+python -c "import models; models.init_db(); models.seed()"
+python app.py
+
+# terminal 2 -- a real Claude API call discovers the catalog and invokes a capability by name
+.venv\Scripts\Activate.ps1
+Get-Content .env | ForEach-Object {
+    $name, $value = $_.Split('=', 2)
+    if ($name) { Set-Item "Env:$name" $value }
+}
+python scripts/demo_agent_capability_interface.py
+```
+
+</details>
+
 Asks Claude "What's the current balance for member 23456?" with the tool catalog attached —
 watch it choose `lookup_member_balance`, call it with `{"member_id": "23456"}`, get back a real
 result from the deterministic replay engine (no LLM in that path), and answer correctly. Saves
 the full transcript to `evidence/agent_capability_interface_demo_*.json`.
-
-## 7. Running this on Windows
-
-Every command above is written for bash (macOS/Linux). On Windows, use **PowerShell** and make
-these substitutions — the same ones apply to every command block in this README, not just the
-ones spelled out below:
-
-| Bash | PowerShell |
-|---|---|
-| `python3` | `python` |
-| `source .venv/bin/activate` | `.venv\Scripts\Activate.ps1` |
-| trailing `\` (line continuation) | trailing `` ` `` (backtick) |
-| `cmd1 && cmd2` | `cmd1` and `cmd2` on separate lines |
-| `rm <file>` | `rm <file>` (works as-is — PowerShell aliases `rm` to `Remove-Item`) |
-
-> If activation fails with "running scripts is disabled on this system," that's PowerShell's
-> default execution policy, not a bug here. Allow it for the current session only:
-> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
-
-**Setup** (replaces §1):
-
-```powershell
-git clone https://github.com/abhijnya4601/interface-ai-computer-use-automation.git
-cd interface-ai-computer-use-automation
-
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-playwright install chromium
-
-"ANTHROPIC_API_KEY=sk-ant-..." | Out-File -Encoding utf8 .env
-"OPERATOR_USERNAME=banker" | Add-Content .env
-"OPERATOR_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(16))')" | Add-Content .env
-```
-
-**Loading `.env` into your shell** (replaces `set -a; source .env; set +a` — needed before any
-`run_discovery.py` command, since this project reads the API key from the environment, not the
-file directly):
-
-```powershell
-Get-Content .env | ForEach-Object {
-    $name, $value = $_.Split('=', 2)
-    if ($name) { Set-Item "Env:$name" $value }
-}
-```
-
-**Terminal 1 — start the mock bank app:**
-
-```powershell
-.venv\Scripts\Activate.ps1
-cd app
-python -c "import models; models.init_db(); models.seed()"
-python app.py    # http://localhost:5050 -- blocks this terminal, leave it running
-```
-
-**Terminal 2 — run the agent on a goal:**
-
-```powershell
-.venv\Scripts\Activate.ps1
-Get-Content .env | ForEach-Object {
-    $name, $value = $_.Split('=', 2)
-    if ($name) { Set-Item "Env:$name" $value }
-}
-
-python scripts/run_discovery.py `
-  --goal "Look up member 12345 and read their current savings balance." `
-  --target "http://localhost:5050/search" `
-  --capability-id lookup_member_balance
-```
-
-**Reset the mock bank between attempts** (replaces `cd app && python3 -c "..." && cd ..`):
-
-```powershell
-cd app
-python -c "import models; models.init_db(); models.seed()"
-cd ..
-```
-
-Every flag used elsewhere in this README (`--headless`, `--auto-approve-escalation`,
-`--open-console-on-escalation`, `--params`, `--confirm`, etc.) works identically on Windows —
-they're just command-line arguments. The operator console and mock app URLs
-(`http://localhost:5001`, `http://localhost:5050`) are the same too.
