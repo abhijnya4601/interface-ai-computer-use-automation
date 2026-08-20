@@ -124,6 +124,39 @@ python3 scripts/run_replay.py \
 Each replay prints and saves a structured `Result` (`status`, `outputs`,
 `business_outcome_code`, `failure_detail`) to `evidence/replay_*.json`.
 
+### Running a different task entirely
+
+Every command above follows one fixed shape — nothing here is hardcoded to these specific
+examples, so swap in whatever you actually want the agent to try:
+
+```bash
+python3 scripts/run_discovery.py \
+  --goal "<a real, plain-English instruction — this is the only thing the model reads>" \
+  --target "http://localhost:5050/search" \
+  --capability-id <a_short_name_for_this_task> \
+  --headless
+```
+
+- **`--goal`** isn't matched against a fixed list or a menu of known intents — it's the literal
+  text the model reasons over each turn, so a genuinely different goal produces genuinely
+  different behavior. This is what "Teach it something it's never seen" below actually
+  demonstrates: two goals that were never scripted in advance, run for the first time, live.
+- **`--capability-id`** just names the output file (`capabilities/<capability-id>.v1.json`) — pick
+  anything unused and it won't overwrite one of the 5 real capabilities already in this repo.
+- **`--target`** stays `http://localhost:5050/search` unless you've pointed the mock app at a
+  different entry route yourself.
+- Drop `--headless` if you want to watch the browser; add `--open-console-on-escalation` if the
+  task might need a state-changing action confirmed (see "Forcing a human escalation by hand"
+  below for what that looks like end to end).
+
+Whatever gets compiled replays exactly like any other capability:
+
+```bash
+python3 scripts/run_replay.py \
+  --capability capabilities/<your-capability-id>.v1.json \
+  --params '{"member_id": "<any seeded or unseeded ID>"}'
+```
+
 ### The second, risky capability
 
 `open_subaccount` is state-mutating (creates a real DB row) and `risk_level: risky`. Recording
