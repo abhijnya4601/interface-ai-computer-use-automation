@@ -44,6 +44,52 @@ def read_lease() -> Lease:
     return Lease(state=data.get("state", "automation"), context=data.get("context", {}))
 
 
+_BANNER_ID = "__escalation_pause_banner__"
+
+
+def _inject_pause_banner(page, reason: str) -> None:
+    """
+    A human watching the automation's OWN browser window (not the operator console) has no way
+    to tell it's paused vs. just idle -- only the terminal says so. This puts that signal
+    directly on the page itself: a fixed banner, injected client-side (the mock app has and
+    needs zero knowledge of escalation state) so it shows up in the live window AND the
+    evidence screenshot below. `aria-hidden` keeps it out of the accessibility tree entirely --
+    it must never become something the model itself perceives as part of the page. Best-effort:
+    a page that's mid-navigation or otherwise unevaluable must never break the real escalation
+    over a cosmetic banner.
+    """
+    try:
+        page.evaluate(
+            """([bannerId, reasonText]) => {
+                const old = document.getElementById(bannerId);
+                if (old) old.remove();
+                const banner = document.createElement('div');
+                banner.id = bannerId;
+                banner.setAttribute('aria-hidden', 'true');
+                banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;'
+                    + 'background:#973524;color:#fff;padding:10px 16px;'
+                    + 'font:600 14px system-ui,sans-serif;text-align:center;'
+                    + 'box-shadow:0 2px 6px rgba(0,0,0,.35);';
+                banner.textContent = '⏸ PAUSED — awaiting human approval at '
+                    + 'http://localhost:5001 — ' + reasonText;
+                document.body.prepend(banner);
+            }""",
+            [_BANNER_ID, reason],
+        )
+    except Exception:
+        pass
+
+
+def _remove_pause_banner(page) -> None:
+    try:
+        page.evaluate(
+            """(bannerId) => { const el = document.getElementById(bannerId); if (el) el.remove(); }""",
+            _BANNER_ID,
+        )
+    except Exception:
+        pass
+
+
 def trigger_escalation(
     reason: str,
     page,
@@ -61,6 +107,8 @@ def trigger_escalation(
     EVIDENCE_DIR.mkdir(exist_ok=True)
     if RESUME_SIGNAL_PATH.exists():
         RESUME_SIGNAL_PATH.unlink()
+
+    _inject_pause_banner(page, reason)
 
     screenshot_path = EVIDENCE_DIR / f"escalation_{run_id}.png"
     try:
@@ -96,6 +144,7 @@ def trigger_escalation(
         if max_wait_s is not None and waited > max_wait_s:
             raise TimeoutError(f"escalation for run_id={run_id!r} not resumed within {max_wait_s}s")
 
+    _remove_pause_banner(page)
     return resume()
 
 

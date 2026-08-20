@@ -1,8 +1,8 @@
 {
   "capability_id": "open_subaccount",
   "version": "1.0.0",
-  "created_from_run_id": "run_57fcd7959d",
-  "description": "Open a new Christmas Club sub-account for member 56789 with a $50 opening deposit, and complete the account creation.",
+  "created_from_run_id": "run_fcc0fa2532",
+  "description": "Open a new Vacation Club sub-account for member 45678 with a $25 opening deposit, and complete the account creation.",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "http://localhost:5050/search",
@@ -166,7 +166,63 @@
       ]
     },
     {
-      "step_id": "s6",
+      "step_id": "s7",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "combobox",
+          "name": "Account Type"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Account Type"
+          }
+        ],
+        "reasoning": "role='combobox' name='Account Type' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s9",
+      "action_type": "type",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "combobox",
+          "name": "Account Type"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Account Type"
+          }
+        ],
+        "reasoning": "role='combobox' name='Account Type' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": "Vacation Club",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s10",
       "action_type": "type",
       "target": {
         "strategy": "role_name",
@@ -182,7 +238,7 @@
         ],
         "reasoning": "role='textbox' name='Opening Deposit ($)' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
-      "value": "50",
+      "value": "25",
       "extract_as": null,
       "wait_policy": {
         "timeout_ms": 5000,
@@ -194,7 +250,7 @@
       "expected_outcomes": []
     },
     {
-      "step_id": "s7",
+      "step_id": "s11",
       "action_type": "click",
       "target": {
         "strategy": "role_name",
@@ -222,7 +278,7 @@
       "expected_outcomes": []
     },
     {
-      "step_id": "s8",
+      "step_id": "s12",
       "action_type": "click",
       "target": {
         "strategy": "role_name",

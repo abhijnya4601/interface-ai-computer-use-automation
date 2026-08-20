@@ -1,0 +1,7 @@
+{
+  "reason": "Review page is ready: Vacation Club sub-account for member 45678 (Wei Chen), opening deposit $25.00. The final step \"Confirm and Open Account\" is a state-changing, hard-to-reverse account creation action, so per policy I need human confirmation before submitting.",
+  "current_url": "http://localhost:5050/member/45678/new-subaccount",
+  "screenshot_path": "/Users/abhijnyamenakur/Desktop/Interface_Bank_AI/evidence/escalation_run_fcc0fa2532.png",
+  "run_id": "run_fcc0fa2532",
+  "triggered_at": 1787222076.709472
+}

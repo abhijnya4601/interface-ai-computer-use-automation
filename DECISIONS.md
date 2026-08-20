@@ -1128,3 +1128,31 @@ thread resumes with a real note the instant the lease flips to human; asserts th
 just internally logged but genuinely reaching the model. All 4 checks pass live. Full suite:
 131/131 (smoke test, not a pytest unit test — matches this repo's existing split between fast
 offline unit tests and real-browser smoke tests for discovery-loop mechanics, D8).
+
+## D31 — 2026-08-20 — On-page pause banner: a human watching the automation's own window had no
+visual signal it was paused
+
+User's suggestion, watching their own successful `--open-console-on-escalation` run: the operator
+console makes escalation state obvious to whoever's looking *there*, but a human watching the
+automation's own live browser window (the one being handed over) had nothing — no banner, no
+visual cue — only the terminal said "ESCALATED." A real gap in the handoff experience, not a bug.
+
+Added `escalation/controller.py::_inject_pause_banner` — a small red fixed banner
+("⏸ PAUSED — awaiting human approval at http://localhost:5001 — <reason>"), injected client-side
+via `page.evaluate()` right before the evidence screenshot is taken, so both the live window AND
+every escalation screenshot going forward show it. The mock app needs zero knowledge of this —
+it's pure escalation-layer injection, same separation of concerns as everything else here.
+
+Two things had to be right, not just "does a banner appear":
+1. **`aria-hidden="true"`** — verified live against a real page that the banner's text does not
+   leak into `agent/perception.py::build_observation`'s accessibility tree. A banner the *model*
+   itself could perceive as page content would be a real regression, not a UX nicety.
+2. **Removed on resume** (`_remove_pause_banner`, called right before `trigger_escalation`
+   returns) — verified live it's actually gone from the DOM afterward, not just visually
+   overwritten by a subsequent navigation.
+
+Verified live end-to-end against the real app (banner present in DOM, absent from accessibility
+tree, present in a real screenshot, gone after removal) before writing any tests. 4 new tests in
+`tests/test_escalation.py`, including one that a page unevaluable mid-navigation never breaks the
+real escalation over a cosmetic banner (best-effort, wrapped in `except Exception: pass`, same
+posture as the existing screenshot capture). Full suite: 134/134 (up from 131).

@@ -162,6 +162,13 @@ the dead-end path threaded `trigger_escalation`'s return value nowhere, so a hum
 resume never reached the model, unlike the `escalate()` path D12 already fixed. Same fix, same
 pattern, applied to the branch it had been missed on.
 
+**A UX gap in the handoff itself (D31)**, also a user's own observation: the operator console
+makes escalation obvious to whoever's looking *there*, but the automation's own browser window —
+the one actually being handed over — showed nothing. Fixed with a small on-page banner, injected
+client-side right before the evidence screenshot; verified live that `aria-hidden` keeps it out of
+the model's own accessibility-tree perception, and that it's actually removed from the DOM on
+resume, not just visually overwritten.
+
 ## 6. Safety
 
 `guardrail_check(action, current_url)` — allowlisted domains and action types, loaded once at
