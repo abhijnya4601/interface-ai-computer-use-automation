@@ -40,8 +40,10 @@ this constrained.
 ## 2. Artifact schema
 
 `artifact/schema.py` — the most heavily-invested piece. A `Capability` is: `capability_id`,
-semver `version`, `created_from_run_id` (provenance), `target`, `risk_level` (`safe`/`risky`),
-typed `input_schema`/`output_schema`, a `checkpoint`, and `steps: list[Step]`.
+semver `version`, `created_from_run_id` (provenance), `description` (the discovery goal, verbatim
+— added for §8's stretch goal, since nothing previously carried what a capability *does* in
+natural language, only its typed I/O), `target`, `risk_level` (`safe`/`risky`), typed
+`input_schema`/`output_schema`, a `checkpoint`, and `steps: list[Step]`.
 
 Each `Step` carries a `LocatorTarget` (`strategy`, `primary`, `fallbacks`, and a required
 `reasoning` string — a locator with no stated reasoning is exactly the kind of unreviewable
