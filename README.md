@@ -310,6 +310,31 @@ python scripts/run_discovery.py `
   task might need a state-changing action confirmed (see "Testing human-in-the-loop escalation yourself"
   below for what that looks like end to end).
 
+**The goal text itself is unrestricted — but what it can accomplish isn't.** You can type any
+plain-English instruction; the model isn't matched against a preset menu of allowed intents. What
+actually *happens* is still bounded by what this particular mock bank UI supports — there's no
+page, button, or form for anything outside the six things below, so a goal asking for something
+the app has no route for (e.g. "close this account," "transfer money between two members," "email
+me a statement") will make the model genuinely try, fail to find a way to do it, and report that
+honestly rather than fabricate a result. Everything the app can actually do:
+
+| What the UI supports | Where it lives |
+|---|---|
+| Search for a member by ID or name | `/search` |
+| View a member's balance and status | `/member/<id>` |
+| Open a new sub-account (Christmas Club / Vacation Club / General Savings) | `/member/<id>/new-subaccount` |
+| Update a member's mailing address | `/member/<id>/update-address` |
+| View a member's transaction history | `/member/<id>/transactions` |
+| Dispute a posted transaction | `/member/<id>/transactions/<id>/dispute` |
+
+That's the whole app — no login/auth flow, no fund transfers, no account closure, no statements or
+documents, no card management. A goal outside this list is still worth trying on purpose: the
+model will explore, fail to find a page or button that does what you asked, and eventually either
+hit `--max-steps` or call `finish(success=False)` on its own (both report as `status=max_steps` —
+see `agent/discovery.py`'s `DiscoveryResult.status`) rather than fabricate a result. Either way, no
+capability gets compiled from a run like that — `run_discovery.py` prints "run did not reach
+success/business_outcome; no capability compiled" and exits without writing to `capabilities/`.
+
 Whatever gets compiled replays exactly like any other capability:
 
 ```bash
