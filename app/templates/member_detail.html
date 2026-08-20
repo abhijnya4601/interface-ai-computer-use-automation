@@ -7,11 +7,11 @@
 <div class="pg-wrap">
 {% if member is none %}
   <p class="msg-notfound">No member record found for ID {{ member_id }}.</p>
-  <p><a href="/search">Back to search</a></p>
+  <p><a class="back-link" href="/search">Back to search</a></p>
 {% elif member.status == 'locked' %}
   <h1>Member {{ member.member_id }}</h1>
   <p class="msg-denied">Access denied. This account is restricted and its details cannot be viewed.</p>
-  <p><a href="/search">Back to search</a></p>
+  <p><a class="back-link" href="/search">Back to search</a></p>
 {% else %}
   <h1>Member {{ member.member_id }}</h1>
   <table class="tbl-c2" border="1">
@@ -22,10 +22,12 @@
       <tr><th scope="row" class="fld-lbl">Savings Balance</th><td class="tbl-c2" data-role="balance">${{ "%.2f"|format(member.savings_balance_cents / 100) }}</td></tr>
     </tbody>
   </table>
-  <p><a href="/member/{{ member.member_id }}/new-subaccount">Open sub-account</a></p>
-  <p><a href="/member/{{ member.member_id }}/transactions">View Transactions</a></p>
-  <p><a href="/member/{{ member.member_id }}/update-address">Update Mailing Address</a></p>
-  <p><a href="/search">Back to search</a></p>
+  <div class="btn-row">
+    <a class="btn" href="/member/{{ member.member_id }}/new-subaccount">Open sub-account</a>
+    <a class="btn" href="/member/{{ member.member_id }}/transactions">View Transactions</a>
+    <a class="btn" href="/member/{{ member.member_id }}/update-address">Update Mailing Address</a>
+  </div>
+  <p><a class="back-link" href="/search">Back to search</a></p>
 {% endif %}
 </div>
 </body>

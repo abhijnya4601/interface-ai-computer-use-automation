@@ -15,7 +15,7 @@
     <tr>
       <td class="tbl-c1">{{ txn.txn_date }}</td>
       <td class="tbl-c2">{{ txn.description }}</td>
-      <td class="tbl-c3">{{ "%.2f"|format(txn.amount_cents / 100) }}</td>
+      <td class="tbl-c3 {{ 'amt-neg' if txn.amount_cents < 0 else 'amt-pos' }}">{{ "%.2f"|format(txn.amount_cents / 100) }}</td>
       <td class="tbl-c4">{{ txn.status }}</td>
       <td class="tbl-c5">
         {% if txn.status == 'posted' %}
@@ -30,7 +30,7 @@
     {% endfor %}
   </tbody>
 </table>
-<p><a href="/member/{{ member.member_id }}">Back to member</a></p>
+<p><a class="back-link" href="/member/{{ member.member_id }}">Back to member</a></p>
 </div>
 </body>
 </html>

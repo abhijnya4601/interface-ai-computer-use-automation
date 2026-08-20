@@ -1,15 +1,18 @@
 /*
-Visual styling only — no markup, class names, or DOM structure changes anywhere in
-app/templates/. The non-semantic class names, nested tables, and iframe are deliberate
-(see app/app.py's module docstring: "ugly CSS/class names, not ugly accessibility"), and
-every recorded capability's locators depend on that exact structure. This file makes the
-existing structure look like a real banking portal by styling elements and the classes
-already there — it changes nothing an accessibility tree or a locator would see.
+Visual styling only. app/app.py's own docstring calls the markup "ugly CSS/class names, not ugly
+accessibility" on purpose -- every recorded capability's locators depend on the exact current
+class names, table nesting, and iframe structure, so nothing here changes an element's role,
+accessible name, or position in the DOM. The few template edits that came with this file
+(member_detail.html's action links wrapped in a .btn-row div, "Back to..." links given a
+.back-link class, a transactions.html amount cell given .amt-pos/.amt-neg) only add attributes
+and one purely-presentational wrapper -- never a new role, a changed name, or a removed element --
+so every existing get_by_role(role, name=...) locator still resolves exactly as before.
 */
 
 :root {
   --navy: #1b3a5c;
   --navy-dark: #12283f;
+  --navy-light: #e8edf3;
   --gold-hover: #9c7209;
   --bg: #eef1f5;
   --surface: #ffffff;
@@ -27,8 +30,7 @@ already there — it changes nothing an accessibility tree or a locator would se
   --warning-border: #f0dba8;
   --muted-bg: #eef0f2;
   --radius: 6px;
-  --font-heading: Georgia, "Times New Roman", serif;
-  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -37,7 +39,7 @@ body {
   margin: 0;
   padding: 40px 20px;
   background: var(--bg);
-  font-family: var(--font-body);
+  font-family: var(--font);
   color: var(--text);
   line-height: 1.5;
 }
@@ -53,9 +55,8 @@ body {
 }
 
 h1 {
-  font-family: var(--font-heading);
-  font-size: 1.5rem;
-  font-weight: normal;
+  font-size: 1.35rem;
+  font-weight: 700;
   color: var(--navy);
   margin: 0 0 20px;
   padding-bottom: 14px;
@@ -67,13 +68,14 @@ table.lyt-t1 { display: block; width: 100%; border-collapse: collapse; }
 table.lyt-t1 tr { display: block; }
 table.lyt-t1 td.lyt-c1 { display: block; padding: 0; border: none; }
 
-/* field-label / field-input tables (frm-t1, frm-t2) -> plain form rows, no grid lines */
-table.frm-t1, table.frm-t2 { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+/* field-label / field-input tables (frm-t1, frm-t2) -> plain form rows, capped width so a short
+   form doesn't stretch edge-to-edge across the whole card */
+table.frm-t1, table.frm-t2 { border-collapse: collapse; width: 100%; max-width: 480px; margin-bottom: 20px; }
 table.frm-t1 td, table.frm-t2 td { border: none; padding: 8px 0; vertical-align: middle; }
-.fld-lbl { font-weight: 600; color: var(--text-muted); width: 200px; padding-right: 16px !important; }
-.fld-lbl label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.fld-lbl { font-weight: 600; color: var(--text-muted); width: 190px; padding-right: 16px !important; }
+.fld-lbl label { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.03em; }
 
-/* real data tables (search results, member detail, transactions, confirmations) */
+/* real data tables (search results, transactions, review/confirm) */
 table[border="1"] {
   border-collapse: collapse;
   width: 100%;
@@ -83,14 +85,14 @@ table[border="1"] th, table[border="1"] td {
   border: 1px solid var(--border);
   padding: 10px 14px;
   text-align: left;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
 }
 table[border="1"] thead th {
   background: var(--navy);
   color: #fff;
   font-weight: 600;
   text-transform: uppercase;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   letter-spacing: 0.04em;
 }
 table[border="1"] tbody tr:nth-child(even) { background: #f7f9fb; }
@@ -99,16 +101,27 @@ table[border="1"] th[scope="row"] {
   background: #f4f6f8;
   font-weight: 600;
   color: var(--text-muted);
-  width: 200px;
+  width: 180px;
 }
+
+/* two-column key/value review tables (member detail, confirm sub-account, dispute transaction)
+   -- capped narrower so a handful of short facts doesn't stretch across the full card width */
+table.tbl-c2 { width: 100%; max-width: 460px; }
 
 /* the savings balance figure gets a bit of emphasis */
 td[data-role="balance"] {
-  font-family: var(--font-heading);
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--navy);
 }
+
+/* transaction amount column: right-aligned like real currency figures, colored by sign */
+table.tbl-c4 th:nth-child(3), table.tbl-c4 td.tbl-c3 {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+td.amt-neg { color: var(--danger-text); }
+td.amt-pos { color: var(--success-text); }
 
 /* form controls */
 input[type="text"], textarea, select {
@@ -145,6 +158,50 @@ button:hover { background: var(--navy-dark); }
 
 a { color: var(--navy); text-decoration: none; font-weight: 500; }
 a:hover { text-decoration: underline; color: var(--gold-hover); }
+
+/* primary action links (member detail's Open sub-account / View Transactions / Update Address) --
+   a real button row instead of a bare stack of underlined links */
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0 16px;
+}
+a.btn {
+  display: inline-block;
+  background: var(--navy-light);
+  color: var(--navy);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 9px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+a.btn:hover { background: var(--navy); color: #fff; text-decoration: none; }
+
+/* secondary "back to..." navigation -- quieter than a primary action, always last on the page */
+a.back-link {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.88rem;
+}
+a.back-link:hover { color: var(--navy); }
+a.back-link::before { content: "\2190  "; }
+
+/* in-table row actions (search results' View, transactions' Dispute) -- small pills, not bare text */
+table[border="1"] tbody td a:not(.btn):not(.back-link) {
+  display: inline-block;
+  background: var(--navy-light);
+  color: var(--navy);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+table[border="1"] tbody td a:not(.btn):not(.back-link):hover { background: var(--navy); color: #fff; }
 
 /* status messages -- one class per outcome, already used consistently across templates */
 .msg-success, .msg-denied, .msg-notfound {

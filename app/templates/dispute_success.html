@@ -6,7 +6,7 @@
 <body>
 <div class="pg-wrap">
 <p class="msg-success">Dispute submitted for transaction #{{ transaction.id }} ({{ transaction.description }}, {{ "%.2f"|format(transaction.amount_cents / 100) }}) for {{ member.first_name }} {{ member.last_name }}.</p>
-<p><a href="/member/{{ member.member_id }}/transactions">Back to transactions</a></p>
+<p><a class="back-link" href="/member/{{ member.member_id }}/transactions">Back to transactions</a></p>
 </div>
 </body>
 </html>

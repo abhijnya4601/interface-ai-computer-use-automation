@@ -6,7 +6,7 @@
 <body>
 <div class="pg-wrap">
 <p class="msg-success">Mailing address updated for {{ member.first_name }} {{ member.last_name }}: {{ member.address_line1 }}, {{ member.city }}, {{ member.state }} {{ member.zip_code }}.</p>
-<p><a href="/member/{{ member.member_id }}">Back to member</a></p>
+<p><a class="back-link" href="/member/{{ member.member_id }}">Back to member</a></p>
 </div>
 </body>
 </html>
