@@ -402,3 +402,85 @@ Asks Claude "What's the current balance for member 23456?" with the tool catalog
 watch it choose `lookup_member_balance`, call it with `{"member_id": "23456"}`, get back a real
 result from the deterministic replay engine (no LLM in that path), and answer correctly. Saves
 the full transcript to `evidence/agent_capability_interface_demo_*.json`.
+
+## 7. Running this on Windows
+
+Every command above is written for bash (macOS/Linux). On Windows, use **PowerShell** and make
+these substitutions — the same ones apply to every command block in this README, not just the
+ones spelled out below:
+
+| Bash | PowerShell |
+|---|---|
+| `python3` | `python` |
+| `source .venv/bin/activate` | `.venv\Scripts\Activate.ps1` |
+| trailing `\` (line continuation) | trailing `` ` `` (backtick) |
+| `cmd1 && cmd2` | `cmd1` and `cmd2` on separate lines |
+| `rm <file>` | `rm <file>` (works as-is — PowerShell aliases `rm` to `Remove-Item`) |
+
+> If activation fails with "running scripts is disabled on this system," that's PowerShell's
+> default execution policy, not a bug here. Allow it for the current session only:
+> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+
+**Setup** (replaces §1):
+
+```powershell
+git clone https://github.com/abhijnya4601/interface-ai-computer-use-automation.git
+cd interface-ai-computer-use-automation
+
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+playwright install chromium
+
+"ANTHROPIC_API_KEY=sk-ant-..." | Out-File -Encoding utf8 .env
+"OPERATOR_USERNAME=banker" | Add-Content .env
+"OPERATOR_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(16))')" | Add-Content .env
+```
+
+**Loading `.env` into your shell** (replaces `set -a; source .env; set +a` — needed before any
+`run_discovery.py` command, since this project reads the API key from the environment, not the
+file directly):
+
+```powershell
+Get-Content .env | ForEach-Object {
+    $name, $value = $_.Split('=', 2)
+    if ($name) { Set-Item "Env:$name" $value }
+}
+```
+
+**Terminal 1 — start the mock bank app:**
+
+```powershell
+.venv\Scripts\Activate.ps1
+cd app
+python -c "import models; models.init_db(); models.seed()"
+python app.py    # http://localhost:5050 -- blocks this terminal, leave it running
+```
+
+**Terminal 2 — run the agent on a goal:**
+
+```powershell
+.venv\Scripts\Activate.ps1
+Get-Content .env | ForEach-Object {
+    $name, $value = $_.Split('=', 2)
+    if ($name) { Set-Item "Env:$name" $value }
+}
+
+python scripts/run_discovery.py `
+  --goal "Look up member 12345 and read their current savings balance." `
+  --target "http://localhost:5050/search" `
+  --capability-id lookup_member_balance
+```
+
+**Reset the mock bank between attempts** (replaces `cd app && python3 -c "..." && cd ..`):
+
+```powershell
+cd app
+python -c "import models; models.init_db(); models.seed()"
+cd ..
+```
+
+Every flag used elsewhere in this README (`--headless`, `--auto-approve-escalation`,
+`--open-console-on-escalation`, `--params`, `--confirm`, etc.) works identically on Windows —
+they're just command-line arguments. The operator console and mock app URLs
+(`http://localhost:5001`, `http://localhost:5050`) are the same too.
