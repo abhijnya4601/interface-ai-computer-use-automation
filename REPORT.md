@@ -66,61 +66,38 @@ surfaced *which step* was wrong this clearly.
 Replay resolves every `Step.target` the same way the recorder declared it: tier 1 `role_name`
 (unique role+accessible-name, backed by real semantic HTML, not CSS/IDs), tier 2 `structural`
 (declared `nth` when role+name isn't unique), tier 3 `text` (raw text-content match, logged as a
-warning). This app never needs tier 2/3 in practice, but both are real, exercised code paths
-(`tests/test_recorder.py` proves tier selection with fake match counts). **The tier log doubles
-as a free drift-detection signal**: rising tier-2/3 usage across replays means the UI drifted, at
-zero extra infrastructure cost.
+warning), tier 4 `table_position` (a data-table cell with no per-row label, addressed by its
+table's column headers + row/column index instead of content — found live extending past the two
+required capabilities into a transaction-history table, where a value-anchored locator broke the
+moment a different member's data differed, D21→D22). **The tier log doubles as a free
+drift-detection signal**: rising tier-2/3/4 usage across replays means the UI drifted, at zero
+extra infrastructure cost — the same signal covers per-tenant drift in section 4.
 
 Each step's `expected_outcomes` are checked deterministically: when a declared locator can't be
 resolved (or fails to act), and after a successful action, replay checks whether any declared
 `condition` (a literal `"page contains '<substring>'"`) matches the live page. A match returns
-`business_outcome` or `recoverable`; no match on a failure is `hard_failure`, returned with
-`step_id`, `expected`, `observed`, and a screenshot reference. `wait_policy` retries are opt-in
-per step (`retry_on: transient_load`), not blanket-applied. `recoverable` stops just as cleanly as
+`business_outcome` or `recoverable`; no match on a failure is `hard_failure`, with `step_id`,
+`expected`, `observed`, and a screenshot reference. `recoverable` stops just as cleanly as
 `business_outcome` rather than retrying in-place — a replay engine that silently retries an
 unrecognized page state is the wrong instinct for a banking system; what it buys the *caller* is a
-status distinct from `hard_failure` ("safe to retry the whole run later" vs. "something's broken,
-investigate"). None of the 5 real capabilities declare one — this mock app's business logic is
-fully deterministic with no naturally-occurring transient state, so it's exercised in
-`tests/test_replay.py`, not live. Declaring one just to exercise the path would mean fabricating
-non-deterministic app behavior, directly against this section's own goal.
+status distinct from `hard_failure` ("safe to retry later" vs. "something's broken, investigate").
+None of the 5 real capabilities declare one, since this app's business logic has no
+naturally-occurring transient state to retry against — exercised in `tests/test_replay.py`
+instead of live, since fabricating one would mean building non-deterministic app behavior,
+directly against this section's own goal.
 
-All four required scenarios ran against real compiled capabilities, for both capabilities:
-success with a never-recorded `member_id`, both business outcomes, and an injected hard failure
-(target pointed at a nonexistent route) — real output saved to `/evidence/`.
-
-**A fourth locator tier, `table_position` (D21→D22)**: found by extending the app past the two
-required capabilities, into a UI shape neither one uses (a transaction-history table, no per-row
-label). Discovery generalized to it with zero code changes — but the recorded locator anchored on
-the extracted value itself, and replaying against a different member failed immediately, for
-real. Fixed by addressing a cell via its table's column headers + row/column index instead of
-content, verified live against two pages with identical structure and different data. The same
-live run also caught the default checkpoint checking the final page against the *starting* URL
-(backwards), and `output_schema` declaring outputs `finish()` reported with no step backing
-them — both fixed, plus an empty-transactions edge case now correctly returns
-`business_outcome`/`NO_TRANSACTIONS` instead of silently succeeding with placeholder text.
-`lookup_latest_transaction` is now a third fully-verified capability, to the same standard as the
-two the assignment requires.
-
-**Proof this generalizes beyond three pre-built capabilities, not just three (D23):** pointed
-discovery at two real app features with zero prior capability — `dispute_transaction`,
-`update_member_address` — with fresh goal wording each time. Both succeeded, and both escalated on
-the model's own judgment (submitting either form is state-changing, per its own system prompt)
-with no scripting involved. Also caught: any capability outside a hardcoded two-entry table
-defaulted `risk_level` to `safe` even after needing a human's sign-off — fixed by inferring
-`risky` from the run's own transcript. Separately verified: fresh discovery starting *directly* on
-a locked member reasons its way to `business_outcome`/`PERMISSION_DENIED` cold, no prior
-capability to guide it. Reviewer commands: `README.md`, "Teach it something it's never seen."
-
-**Two full outcome-matrix sweeps (D29, D32), re-verified live rather than trusted from earlier**:
-both found this section's own named failure mode, inverted — a business outcome misreported as a
-break, not the usual direction. D29: the two new capabilities above were simply missing the
-`expected_outcomes` D14 already established for the other three. D32, re-sweeping all 5
-capabilities after 31 rounds of changes rather than assuming prior verification still held: found
-the *same* gap on `lookup_latest_transaction`'s own artifact (compiler rules correct, compiled
-file stale), and while repairing it the established way (re-run the rule-attacher, re-save), found
-that function wasn't idempotent — it silently duplicated an outcome the artifact already had
-correctly. Both fixed; re-swept all 5 capabilities clean afterward.
+All four required scenarios ran against real compiled capabilities: success with a never-recorded
+`member_id`, both business outcomes, and an injected hard failure — real output in `/evidence/`.
+Verification didn't stop at the two required capabilities: discovery was pointed at real app
+features with zero prior capability and fresh goal wording each time (`lookup_latest_transaction`,
+`dispute_transaction`, `update_member_address` — 3 more, to the same standard), and the full
+outcome matrix was re-swept live across all 5 capabilities after every round of changes rather
+than trusting earlier verification still held. That discipline is exactly what caught this
+section's own named failure mode, twice, inverted (a business outcome misreported as a break, not
+the usual direction) — two capabilities missing `expected_outcomes` a third already had (D14→D29),
+and a stale artifact plus a genuine idempotency bug in the rule-patching function itself, found
+while fixing the first (D32). Full account of every one of these, including exact commands to
+reproduce: `DECISIONS.md`.
 
 ## 4. Heterogeneity & multi-tenant
 
@@ -154,21 +131,17 @@ tested live and offline), a `risk_level: risky` step needing confirmation, or th
 voluntarily calling `escalate` (observed live: given a goal requiring an irreversible submit,
 the model escalated on its own, citing the exact policy rule from its system prompt).
 
-**Two gaps in what actually reaches the model on resume, both found by running this live** (D12,
-then D30 the same way — a user actually operating the escalation UI): the resume signal originally
-carried only a free-text note, so a resumed agent couldn't distinguish "approved" from "declined"
-— fixed with a structured `decision` threaded back through the lease's context, what let
-`open_subaccount` get recorded to completion by one real, unattended run instead of a human
-sitting and clicking through it live. The dead-end path shared the same shape of bug: it threaded
-`trigger_escalation`'s return value nowhere at all, so a human's own note on resume silently went
-nowhere — same fix, applied to the branch it had been missed on.
-
-**A UX gap in the handoff itself (D31)**, also a user's own observation: the operator console
-makes escalation obvious to whoever's looking *there*, but the automation's own browser window —
-the one actually being handed over — showed nothing. Fixed with a small on-page banner, injected
-client-side right before the evidence screenshot; verified live that `aria-hidden` keeps it out of
-the model's own accessibility-tree perception, and that it's actually removed from the DOM on
-resume, not just visually overwritten.
+Three gaps here were found by actually running this live — twice by a user genuinely operating
+the escalation UI, not just by me (D12, D30, D31): the resume signal originally carried only a
+free-text note with no way to distinguish "approved" from "declined," and separately the dead-end
+path threaded nothing back at all, so a human's own note on resume silently went nowhere in either
+case — both fixed by threading a structured `decision` + note back through the lease's context,
+which is what let `open_subaccount` get recorded to completion by one real, unattended run instead
+of a human sitting and clicking through it live. The third was pure UX, not data loss: the
+operator console makes escalation obvious to whoever's looking *there*, but the automation's own
+browser window — the one actually being handed over — showed nothing. Fixed with a small on-page
+banner, `aria-hidden` (verified live it never leaks into the model's own perception) and removed
+on resume. Full write-ups: `DECISIONS.md` D12, D30, D31.
 
 ## 6. Safety
 
@@ -190,26 +163,18 @@ verified against 1,000 random SHA256 hashes with zero false positives, and delib
 Full PII detection remains an explicit cut.
 
 The compliance frame that actually applies to a US bank is **GLBA** (the Safeguards Rule), not
-HIPAA (healthcare-specific). Three follow-on gaps this raised were closed with real, verified
-fixes rather than left as write-up caveats:
-
-- **Discovery must never touch production data** (every turn sends page content to a third-party
-  LLM) — now *enforced*: `guardrail_check(phase="discovery"|"replay")` checks a separate,
-  stricter `discovery_allowed_domains` list, so a production domain added to the general replay
-  allowlist doesn't automatically permit discovery there.
-- **The operator console had zero authentication** — the single most safety-critical gap, since
-  whoever could reach it could approve an irreversible financial action. Now requires HTTP Basic
-  Auth, fail-secure (a random credential is generated and printed if none is configured). Verified
-  live: `scripts/smoke_test_operator_auth.py` launches the real subprocess and confirms an
-  unauthenticated `/resume` is rejected AND the lease provably stays untouched afterward.
-- **Encryption at rest** — `guardrails/encryption.py`, real authenticated encryption
-  (`cryptography`'s `Fernet`), keyed from `EVIDENCE_ENCRYPTION_KEY` in `.env` — the same trust
-  model already used for `ANTHROPIC_API_KEY`, not a hardcoded key. Verified via
-  `scripts/demo_encryption_at_rest.py`: writes a customer-shaped record, confirms nothing (not
-  even valid JSON) survives on disk, decrypts back byte-for-byte. Deliberately **not** applied to
-  this repo's own `/evidence/`/`capabilities/`, since the assignment requires those stay
-  reviewable. Honest limit: one static key, no rotation, no HSM custody — a real KMS is the
-  credible next step, not one to build from scratch here.
+HIPAA (healthcare-specific). Three follow-on gaps this raised got real, verified fixes rather than
+write-up caveats: **discovery-vs-replay domain separation** — every discovery turn sends page
+content to a third-party LLM, so `guardrail_check(phase=...)` now checks a stricter
+`discovery_allowed_domains` list independent of the general replay allowlist; **operator console
+authentication** — the single most safety-critical gap, since whoever could reach it could approve
+an irreversible action, now HTTP Basic Auth, fail-secure, verified live that an unauthenticated
+`/resume` is rejected and the lease provably stays untouched; and **encryption at rest**
+(`guardrails/encryption.py`, real `Fernet` authenticated encryption, keyed from `.env` the same
+way `ANTHROPIC_API_KEY` already is), verified writing a customer-shaped record and confirming
+nothing — not even valid JSON — survives on disk. Deliberately not applied to this repo's own
+`/evidence/`/`capabilities/`, since the assignment requires those stay reviewable. Honest limit on
+all three: one static key, no rotation, no HSM custody — a real KMS is the credible next step.
 
 ## 7. Cuts
 
@@ -226,13 +191,10 @@ fixes rather than left as write-up caveats:
   relative-position description) — real but only exercised via fake match counts in
   `tests/test_recorder.py`, since this app's own role+name pairs are unique by design.
 - **Action vocabulary is `click`/`type`/`navigate`/`extract` only** — no drag or file-upload
-  primitive. `<select>` dropdowns *are* covered — `type` falls back from `fill()` to
-  `select_option()` — but a code-review pass (D28, not a live crash) found this fallback, and
-  every other non-timeout Playwright error in `agent/tools.py`, was unreachable: three functions
-  caught only `TimeoutError`, not its own base `Error` class, so any other real failure (element
-  detached, not visible, ...) propagated uncaught and would have crashed the whole discovery run
-  instead of surfacing as a recoverable tool error the model could see. Fixed and verified live
-  with a goal needing `open_subaccount`'s non-default account type.
+  primitive. `<select>` dropdowns *are* covered (`type` falls back to `select_option()`) — a
+  code-review pass (D28) found this fallback, and every non-timeout Playwright error in
+  `agent/tools.py`, was silently unreachable due to an overly narrow `except`, fixed and verified
+  live with a goal needing `open_subaccount`'s non-default account type.
 - **Only one stretch goal attempted** (§8) — depth over breadth per the assignment's own
   guidance; time otherwise went into verifying every core requirement's full outcome matrix live
   (the two required capabilities × all 4 replay scenarios each, a live escalation demo, many real
