@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head><title>Update Mailing Address</title></head>
+<body>
+<div class="pg-wrap">
+<h1>Update Mailing Address — {{ member.first_name }} {{ member.last_name }}</h1>
+<form method="POST" action="/member/{{ member.member_id }}/update-address">
+<table class="frm-t2">
+  <tr>
+    <td class="fld-lbl"><label for="address_line1">Street Address</label></td>
+    <td class="fld-in"><input type="text" id="address_line1" name="address_line1" value="{{ member.address_line1 }}"></td>
+  </tr>
+  <tr>
+    <td class="fld-lbl"><label for="city">City</label></td>
+    <td class="fld-in"><input type="text" id="city" name="city" value="{{ member.city }}"></td>
+  </tr>
+  <tr>
+    <td class="fld-lbl"><label for="state">State</label></td>
+    <td class="fld-in"><input type="text" id="state" name="state" value="{{ member.state }}"></td>
+  </tr>
+  <tr>
+    <td class="fld-lbl"><label for="zip_code">ZIP Code</label></td>
+    <td class="fld-in"><input type="text" id="zip_code" name="zip_code" value="{{ member.zip_code }}"></td>
+  </tr>
+</table>
+<button type="submit">Save Address</button>
+</form>
+<p><a href="/member/{{ member.member_id }}">Back to member</a></p>
+</div>
+</body>
+</html>

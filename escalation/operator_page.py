@@ -56,12 +56,26 @@ def _require_auth():
         )
 
 
+@app.after_request
+def _no_cache(response):
+    # This page shows live escalation state (D23-adjacent finding: a browser back-button or
+    # reload can redisplay an already-resolved "escalated" view from cache, making a resolved
+    # request look like it's still pending -- confusing for an operator deciding whether to act).
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return response
+
+
 TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head><title>Operator Console</title></head>
 <body>
 <h1>Operator Console</h1>
+{% if resumed %}
+  <p style="background: #dfd; border: 1px solid #6a6; padding: 8px 12px;">
+    Resume signal sent (decision: {{ resumed }}). The waiting discovery/replay process will pick
+    it up within a second or two and continue on its own.</p>
+{% endif %}
 {% if lease.state == 'human' %}
   <p><b>Status:</b> escalated — waiting for a human operator</p>
   <p><b>Reason:</b> {{ lease.context.get('reason') }}</p>
@@ -92,7 +106,7 @@ TEMPLATE = """
 
 @app.route("/")
 def index():
-    return render_template_string(TEMPLATE, lease=read_lease())
+    return render_template_string(TEMPLATE, lease=read_lease(), resumed=request.args.get("resumed"))
 
 
 @app.route("/screenshot")
@@ -106,11 +120,12 @@ def screenshot():
 
 @app.route("/resume", methods=["POST"])
 def resume_route():
+    decision = request.form.get("decision") or None
     signal_resume(
         human_actions_summary=request.form.get("summary", ""),
-        decision=request.form.get("decision") or None,
+        decision=decision,
     )
-    return redirect(url_for("index"))
+    return redirect(url_for("index", resumed=decision or "no-decision-needed"))
 
 
 if __name__ == "__main__":

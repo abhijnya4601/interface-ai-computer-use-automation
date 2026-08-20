@@ -18,7 +18,17 @@ Result.status taxonomy (from artifact/schema.py, enforced here, not guessed):
                             condition (e.g. "no such member"). NOT an error — a real, useful
                             answer the caller needs.
   - "recoverable_handled" — a step's declared expected_outcomes matched a `recoverable`
-                            condition and replay handled it (dismiss/retry) and kept going.
+                            condition: a known, transient operational state (a session-timeout
+                            page, a rate-limit notice) that isn't a business answer and isn't a
+                            system break either. Like `business_outcome`, replay stops cleanly
+                            here rather than guessing at a fix in-place -- silently retrying an
+                            unrecognized page state is exactly the wrong instinct for a banking
+                            replay engine. What it buys the *caller*: a status distinct from
+                            `hard_failure` that says "safe to retry the whole run later," not
+                            "something is broken, go investigate." None of this build's 5 real
+                            capabilities declare one, since this mock app's business logic is
+                            fully deterministic and has no naturally-occurring transient state to
+                            model -- exercised via `tests/test_replay.py` instead of live replay.
   - "hard_failure"        — nothing declared explains what replay is seeing; stops immediately
                             with step id, expected vs. observed, and a screenshot reference.
 """

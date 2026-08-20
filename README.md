@@ -55,9 +55,10 @@ again.
 
 The parts that need a real browser and/or a real LLM:
 
-- **Offline (no browser, no API key):** `pytest tests/` — 91 unit tests covering the schema,
-  guardrails, perception parsing, the recorder's 3-tier locator logic, the compiler, the replay
-  engine's pure helpers, and the escalation lease mechanism, all against fixtures or fake
+- **Offline (no browser, no API key):** `pytest tests/` — 119 unit tests covering the schema,
+  guardrails, perception parsing, the recorder's 3-/4-tier locator logic, the compiler, the replay
+  engine's pure helpers, the escalation lease mechanism, and the CLI's pure helper logic (default
+  checkpoint, risk-level inference, the auto-open-console watcher), all against fixtures or fake
   Playwright-shaped stand-ins. Runs in under 2 seconds, no network.
 - **Needs a real browser, no API key:** `scripts/verify_perception_live.py`,
   `scripts/smoke_test_discovery.py` (scripted fake LLM), `scripts/smoke_test_replay.py`,
@@ -149,16 +150,43 @@ python3 scripts/run_replay.py \
   --params '{"member_id": "23456"}' --confirm     # -> success, real DB row created
 ```
 
+### Trying the third capability: `lookup_latest_transaction`
+
+Same discover-then-replay shape, different member IDs surface a real business outcome instead of
+a fixed example:
+
+```bash
+python3 scripts/run_discovery.py \
+  --goal "Find the most recent transaction date for member 12345." \
+  --target "http://localhost:5050/search" \
+  --capability-id lookup_latest_transaction --headless
+
+python3 scripts/run_replay.py \
+  --capability capabilities/lookup_latest_transaction.v1.json \
+  --params '{"member_id": "23456"}'   # has transactions -> success
+
+python3 scripts/run_replay.py \
+  --capability capabilities/lookup_latest_transaction.v1.json \
+  --params '{"member_id": "34567"}'   # empty history -> NO_TRANSACTIONS (business outcome)
+```
+
 ### Forcing a human escalation by hand
+
+This is the interactive version — you play the banker who approves or declines a real pending
+request, rather than letting `--auto-approve-escalation` do it unattended:
 
 ```bash
 # Terminal A: the operator console
 source .venv/bin/activate
 set -a; source .env; set +a   # loads OPERATOR_USERNAME/OPERATOR_PASSWORD if you set them
-python3 escalation/operator_page.py    # http://localhost:5001
+python3 escalation/operator_page.py    # http://localhost:5001, prints a one-time
+                                        # credential to the console if you didn't set one
 
-# Terminal B: a goal likely to hit the dead-end detector or need risky-action confirmation
-python3 scripts/run_discovery.py --goal "..." --target "http://localhost:5050/search"
+# Terminal B: an irreversible goal, WITHOUT --auto-approve-escalation, so it actually blocks
+python3 scripts/run_discovery.py \
+  --goal "Open a new Christmas Club sub-account for member 34567 with a \$50 opening deposit, and complete the account creation." \
+  --target "http://localhost:5050/search" \
+  --capability-id open_subaccount --max-steps 12 --headless
 ```
 
 When the run escalates, open `http://localhost:5001` — your browser will prompt for a
@@ -170,13 +198,78 @@ Decline / plain-Resume buttons. See
 real separate operator process, real HTTP calls) used to produce
 `evidence/escalation_demo_sequence.json`.
 
+### Teach it something it's never seen
+
+`capabilities/` currently has 5 files — the assignment requires 2. Two of the extra three
+(`dispute_transaction`, `update_member_address`) exist specifically because this exact "make it
+learn something new" question came up during review, and both were proven live rather than just
+described: point discovery at a real app feature with **zero** prior capability, on a goal never
+seen before, and watch it build one from scratch (`DECISIONS.md` D23 has the full write-up of both
+runs, including a real bug the first one surfaced).
+
+To get a genuinely blank slate yourself — not just a capability_id you personally haven't typed
+yet — delete its compiled artifact first, then discover it fresh:
+
+```bash
+rm capabilities/dispute_transaction.v1.json    # or update_member_address.v1.json
+
+python3 scripts/run_discovery.py \
+  --goal "File a dispute for member 23456's most recent transaction, reason 'duplicate charge'." \
+  --target "http://localhost:5050/search" \
+  --capability-id dispute_transaction --headless
+```
+
+Two things worth watching for, both real and both verified live twice now (once per feature,
+`DECISIONS.md` D23):
+
+1. **It may escalate on its own.** Submitting a form that changes a real record is exactly the
+   "state-changing, hard-to-reverse action" the system prompt tells the model to stop and confirm
+   before taking — both `dispute_transaction` and `update_member_address` did, unprompted, on
+   their first-ever run. If it does, follow the "Forcing a human escalation by hand" steps above
+   to approve or decline it — no `--auto-approve-escalation` needed if you want to do that part
+   yourself.
+2. **A capability discovered this way that *did* escalate gets compiled `risk_level: risky`
+   automatically** (D23's `_infer_risk_level` — no capability needs to be hand-listed for this),
+   so replaying it back will refuse without `--confirm`, same as `open_subaccount`.
+
+One honest limit to know before replaying `update_member_address`: parameter detection only
+generalizes the `member_id` (D13) — replaying it against a different member re-targets *that*
+member correctly, but writes back the same address values recorded during discovery, not new
+ones. It's "apply this recorded change to someone else," not "make up a new value per member."
+
+### A fuller menu — other goals worth trying, and what to expect
+
+Not an exhaustive list — the point is the system takes arbitrary goal text, not a fixed menu — but
+these cover genuinely different things to watch for, each verified live at least once:
+
+- **A business outcome reached cold, no capability guiding it.** Point discovery straight at an
+  edge-case member instead of the happy path, e.g. `--goal "Look up member 99999 and read their
+  current savings balance."` with `--capability-id lookup_member_balance` (use a throwaway
+  `--capability-id` if you don't want to touch the real file). The model has no declared
+  `expected_outcomes` to lean on here — that mechanism is replay-only — so this is its own
+  from-scratch reasoning: it reads the "restricted" page and correctly finishes with
+  `status=business_outcome`, `business_outcome_code=PERMISSION_DENIED`, same as a not-found member
+  ID produces `MEMBER_NOT_FOUND`.
+- **A goal combining two existing capabilities' steps in one run** — e.g. "Look up member 12345's
+  balance, then find their most recent transaction." Untested territory: the compiler declares
+  business outcomes per-capability from a single `capability_id`, so a merged run may compile
+  oddly or need two separate discovery calls. Worth trying specifically *because* it's untested.
+- **A goal that needs a non-default `<select>` option** — e.g. "Open a Vacation Club sub-account"
+  (the default is Christmas Club). Expect this to hit a real, documented boundary rather than a
+  clean success: the agent's action vocabulary has no dropdown-selection primitive (`REPORT.md`
+  Cuts), so it has no tool to change the field away from its default. Useful to see the honest
+  failure mode, not a bug to report.
+
 ## 4. Evidence
 
-`/evidence/` holds the real artifacts from the runs described in `DECISIONS.md` — discovery
-transcripts, compiled capabilities' replay results (success / both business outcomes / an
-injected hard failure, for both capabilities), the escalation demo sequence with its screenshot,
-and a captured guardrail-violation transcript. Nothing in it is synthesized after the fact;
-every file is what the corresponding script actually wrote when it ran.
+`/evidence/` holds the real artifacts from every run described in `DECISIONS.md` — 15 discovery
+transcripts, 19 replay results (success / business outcomes / an injected hard failure, across
+all 5 capabilities), 9 real escalations with screenshots, the fully-automated escalation demo
+sequence, and a captured guardrail-violation transcript. Nothing in it is synthesized after the
+fact; every file is what the corresponding script actually wrote when it ran.
+**`evidence/README.md`** is a short curated index — start there rather than the raw file list if
+you want one traceable discovery → artifact → replay example plus one of each exceptional-state
+replay, without reading all 59 files.
 
 ## 5. Project layout
 

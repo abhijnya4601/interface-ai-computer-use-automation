@@ -81,3 +81,30 @@ def test_resume_with_correct_credentials_succeeds_and_writes_the_signal(client):
 def test_screenshot_route_also_requires_auth(client):
     resp = client.get("/screenshot")
     assert resp.status_code == 401
+
+
+def test_index_response_is_never_cached(client):
+    """Found live (D24): a browser back-button or reload could redisplay an already-resolved
+    'escalated' view from cache after a real operator had already clicked Approve, making a
+    resolved request look like it was still pending. The page shows live state, so it must never
+    be served from cache."""
+    resp = client.get("/", headers=_basic_auth_header("test_operator", "test_password_123"))
+    assert resp.headers["Cache-Control"] == "no-store, no-cache, must-revalidate, max-age=0"
+
+
+def test_resume_redirects_with_the_decision_for_a_confirmation_banner(client):
+    """Same finding: a bare redirect after Approve gave no positive feedback that the click
+    actually did anything, which is exactly what made a stale cached page look ambiguous."""
+    resp = client.post(
+        "/resume",
+        data={"decision": "approved", "summary": "reviewed and approved"},
+        headers=_basic_auth_header("test_operator", "test_password_123"),
+    )
+    assert resp.status_code == 302
+    assert resp.headers["Location"] == "/?resumed=approved"
+
+    follow = client.get(
+        resp.headers["Location"], headers=_basic_auth_header("test_operator", "test_password_123")
+    )
+    assert b"Resume signal sent" in follow.data
+    assert b"decision: approved" in follow.data

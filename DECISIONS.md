@@ -844,3 +844,131 @@ repair the artifact to match what the fixed code now produces, backed by real tr
 output, rather than re-spend API credits on a fourth discovery run for schema-only corrections.
 `lookup_latest_transaction` is now a third fully-verified capability, to the same standard as the
 two the assignment actually requires. Full suite: 108/108 tests pass (up from 98).
+
+## D23 — 2026-08-20 — Gave reviewers a genuinely undiscovered feature to point discovery at, and
+it immediately surfaced a real risk-classification gap
+
+User asked what happens if a reviewer wants to make discovery learn something it's never seen,
+rather than just replaying the three pre-baked capabilities — and asked for the mock app to have
+more real variety to demonstrate that on. Two changes:
+
+**1. Added `update_member_address`, a genuinely new mock-app feature with zero pre-existing
+capability.** `app/models.py` gained `address_line1`/`city`/`state`/`zip_code` columns and
+`update_member_address()`; `app/app.py` a `GET/POST /member/<id>/update-address` route; two new
+templates in the same hostile-but-semantic style as the rest of the app. Deliberately plain text
+inputs only, no `<select>` — the discovery agent's action vocabulary is `click`/`type`/`navigate`/
+`extract` with no dropdown primitive (documented as a new cut in `REPORT.md`), so a goal against a
+`<select>` field would silently have no tool available to act on it. `dispute_transaction` (added
+in D20) already had zero compiled capability too, so reviewers now have two real, untouched
+features to choose from, of genuinely different shapes.
+
+**2. Ran discovery live against `update_member_address` to prove the story is real before writing
+it up — and it surfaced a real bug.** The model correctly judged submitting the address change as
+a state-changing action and called `escalate()` on its own judgment (not scripted), exactly per
+the system prompt's own rule. Approved it via `escalation.controller.signal_resume()` (the same
+call the operator console's Approve button makes), the run resumed and finished, and
+`agent/compiler.py` compiled `capabilities/update_member_address.v1.json` —
+but with `risk_level: "safe"`. `scripts/run_discovery.py`'s `RISK_LEVELS` is a static dict keyed by
+`capability_id`, hardcoded for only the two capabilities the assignment names
+(`lookup_member_balance`, `open_subaccount`); anything else — including a capability whose own
+discovery run needed a human to approve an irreversible step — silently defaulted to `"safe"`.
+That default is exactly what would let replay execute a real address-changing action later with
+*zero* `--confirm` gate, on any newly-discovered capability the author forgot to add to the table.
+Fixed with `_infer_risk_level(capability_id, transcript)`: explicit table entries still win, but
+anything else now inherits `risky` if `escalate_requested` appears anywhere in that run's own
+transcript, `safe` otherwise — the run's own history decides, not a static list someone has to
+remember to update. Manually patched the already-compiled artifact's `risk_level` to match (same
+D13/D14/D22 discipline — backed by that run's real transcript, not a re-run), then verified live
+both directions: replay without `--confirm` now correctly returns `hard_failure` with
+`"confirm=True for a risky capability"`; with `--confirm` it executes and the member's address
+changes for real. 3 new offline tests in `tests/test_run_discovery.py`. Full suite: 111/111 tests
+pass (up from 108).
+
+**One more honest limitation this surfaced, left as-is and documented rather than fixed:**
+replaying `update_member_address` against a *different* member_id correctly re-targets that member
+(the same `member_id` param-detection every other capability uses), but writes the *same* address
+values recorded during discovery, not new ones — parameter detection (D13's fixed
+`member (\d+)`-only, exact-match slot-filler) has no way to generalize arbitrary form field values,
+only the member ID. Confirmed live: replaying against member 45678 with `--confirm` gave them
+Denver, not a new address of their own. This is the same already-documented cut as D13/REPORT.md's
+Cuts section, just now visible on a capability outside the two the assignment requires — reviewer
+docs describe this replay as "set this same recorded address for a different member," not "set an
+arbitrary new address," so nobody is misled by trying it.
+
+**Postscript, same day:** re-ran the whole story a second time, independently, on the *other*
+previously-uncompiled feature — `dispute_transaction`, goal "File a dispute for member 12345's
+most recent transaction, reason 'unauthorized charge'." Same shape held: the model escalated on
+its own judgment before submitting, a human approved it through the real operator console UI in a
+browser (not `signal_resume()` called directly this time), the run resumed and finished, and
+`capabilities/dispute_transaction.v1.json` compiled with `risk_level: risky` — this time with zero
+manual patching, since the `_infer_risk_level` fix was already live in the code. Confirmed the
+dispute actually wrote to the database (`transactions.status` -> `'disputed'`). Both previously-
+uncompiled features are now real, compiled, risk-correct capabilities — `capabilities/` holds 5
+files, not the 2 the assignment requires. This also means the "two genuinely untouched features"
+framing in `README.md`/the reviewer artifact is now stale (both are compiled); updated it to be
+honest about that and tell reviewers how to get a truly blank slate themselves: delete the
+specific `capabilities/<id>.v1.json` first, then discover it fresh.
+
+## D24 — 2026-08-20 — Operator console could show a resolved escalation as if it were still
+pending
+
+Found by the user running the interactive escalation walkthrough themselves (the `open_subaccount`
+flow, approving via the real browser UI at `localhost:5001`): after clicking Approve, they saw the
+Chromium automation window close (expected — the run finished successfully; a real sub-account was
+created, confirmed via the DB directly). But they also described clicking Approve a second time and
+seeing "the same thing" — the identical escalated-request view — before it closed again.
+
+Root cause: `escalation/controller.py::resume()` genuinely does flip the lease back to
+`state="automation"` immediately (verified — not the bug), but the Flask response for `GET /` never
+told the browser not to cache it, so a reload or back-navigation could redisplay the old, already-
+resolved "escalated" view straight from the browser's own cache. A second click of "Approve &
+Resume" against that stale page is harmless in practice (it only writes a resume-signal file
+nobody is polling for anymore — confirmed directly against the DB: exactly one sub-account row was
+created, not two), but it's a real UX gap: an operator has no way to tell a genuinely-still-pending
+request apart from a stale cached view of an already-resolved one, and for an action this
+consequential that ambiguity matters. Two fixes in `escalation/operator_page.py`: (1)
+`Cache-Control: no-store, no-cache, must-revalidate, max-age=0` on every response, so the page
+always reflects live lease state; (2) `/resume` now redirects to `/?resumed=<decision>`, which
+renders a plain confirmation banner ("Resume signal sent...") — positive feedback that the click
+actually did something, instead of a bare redirect that gives an operator no way to distinguish
+"it worked" from "did that go through?". 2 new tests in `tests/test_operator_page.py` (9/9 pass).
+Full suite: 111/111 (no count change — this fix needed no new capability-side tests).
+
+## D25 — 2026-08-20 — Auto-open the operator console the moment a run actually escalates
+
+User asked, playing the banker role themselves: how would an operator even know a run escalated,
+or where to look, without watching the terminal scrollback for the `ESCALATED` line and
+remembering port 5001? Real friction a human operator wouldn't tolerate.
+
+New `--open-console-on-escalation` flag (`scripts/run_discovery.py`). If the port isn't already
+occupied, spawns `escalation/operator_page.py` itself (same subprocess pattern
+`--auto-approve-escalation` already used, but printing credentials instead of consuming them) and
+starts a background watcher thread. The watcher's actual open/re-arm decision is factored into a
+pure function, `_console_watcher_step(lease_state, already_opened) -> (should_open, new_state)`,
+specifically so it's unit-testable without real threads or sleeps — opens exactly once per
+escalation via `webbrowser.open()`, and re-arms after the lease resolves so a second escalation
+later in the same run reopens it too. No run ID to hunt for: `read_lease()` always shows whatever
+is currently pending, and there's only ever one. Verified live, for real: ran a discovery goal
+that escalates with the flag on, and the operator console's own Flask log showed a genuine
+`GET / HTTP/1.1" 401` — proof a real browser tab opened itself and hit the console before any
+credentials were entered, not just that the code path executed. 6 new offline tests (2 for
+`_port_is_open`, 4 for `_console_watcher_step`). Full suite: 119/119.
+
+## D26 — 2026-08-20 — `recoverable`'s own docstring described behavior the code never implemented
+
+Re-checking against the assignment's evaluation criteria ("how cleanly it separates... recoverable
+conditions") surfaced a real doc/code mismatch: `replay/engine.py`'s module docstring claimed
+`recoverable_handled` meant replay "handled it (dismiss/retry) and kept going," but the actual
+code (`_outcome_to_result`) just returns a terminal `Result` — identical short-circuit behavior to
+`business_outcome`, no retry, no continuation. Also confirmed live: none of the 5 real capabilities
+declare a `recoverable` outcome at all, only exercised via `tests/test_replay.py`.
+
+Decided not to build real in-place retry to match the old docstring — a replay engine that
+silently retries an unrecognized page state is the wrong instinct for a banking system, and this
+mock app's business logic is fully deterministic with no naturally-occurring transient state to
+retry against; fabricating one just to exercise the path would mean building non-deterministic app
+behavior, directly against the "replay must be deterministic" requirement. Instead corrected the
+docstring to describe what the code actually and correctly does: a terminal status distinct from
+`hard_failure`, telling the *caller* "safe to retry the whole run later" rather than "something's
+broken, go investigate." Same clarification added to `REPORT.md` §3 so a reviewer doesn't have to
+find the mismatch themselves. No behavior change; docs-only fix. Full suite: 119/119.

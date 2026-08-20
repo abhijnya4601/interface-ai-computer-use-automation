@@ -1,7 +1,7 @@
 {
-  "capability_id": "open_subaccount",
+  "capability_id": "update_member_address",
   "version": "1.0.0",
-  "created_from_run_id": "run_57fcd7959d",
+  "created_from_run_id": "run_687d0adb45",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "http://localhost:5050/search",
@@ -16,9 +16,9 @@
   },
   "output_schema": {},
   "checkpoint": {
-    "type": "text_match",
+    "type": "url_match",
     "locator": null,
-    "expected": "created for"
+    "expected": "update-address"
   },
   "steps": [
     {
@@ -120,14 +120,7 @@
           "transient_load"
         ]
       },
-      "expected_outcomes": [
-        {
-          "condition": "page contains 'No results.'",
-          "classification": "business_outcome",
-          "code": "MEMBER_NOT_FOUND",
-          "handling": "search returned no matching row for this member_id"
-        }
-      ]
+      "expected_outcomes": []
     },
     {
       "step_id": "s5",
@@ -136,15 +129,15 @@
         "strategy": "role_name",
         "primary": {
           "role": "link",
-          "name": "Open sub-account"
+          "name": "Update Mailing Address"
         },
         "fallbacks": [
           {
             "strategy": "text",
-            "text": "Open sub-account"
+            "text": "Update Mailing Address"
           }
         ],
-        "reasoning": "role='link' name='Open sub-account' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='link' name='Update Mailing Address' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": null,
@@ -155,14 +148,7 @@
           "transient_load"
         ]
       },
-      "expected_outcomes": [
-        {
-          "condition": "page contains 'Access denied. This account is restricted'",
-          "classification": "business_outcome",
-          "code": "PERMISSION_DENIED",
-          "handling": "member account is locked; there is no 'Open sub-account' link to click through on the member detail page"
-        }
-      ]
+      "expected_outcomes": []
     },
     {
       "step_id": "s6",
@@ -171,17 +157,17 @@
         "strategy": "role_name",
         "primary": {
           "role": "textbox",
-          "name": "Opening Deposit ($)"
+          "name": "Street Address"
         },
         "fallbacks": [
           {
             "strategy": "text",
-            "text": "Opening Deposit ($)"
+            "text": "Street Address"
           }
         ],
-        "reasoning": "role='textbox' name='Opening Deposit ($)' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='textbox' name='Street Address' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
-      "value": "50",
+      "value": "500 Riverbend Rd",
       "extract_as": null,
       "wait_policy": {
         "timeout_ms": 5000,
@@ -194,22 +180,22 @@
     },
     {
       "step_id": "s7",
-      "action_type": "click",
+      "action_type": "type",
       "target": {
         "strategy": "role_name",
         "primary": {
-          "role": "button",
-          "name": "Continue"
+          "role": "textbox",
+          "name": "City"
         },
         "fallbacks": [
           {
             "strategy": "text",
-            "text": "Continue"
+            "text": "City"
           }
         ],
-        "reasoning": "role='button' name='Continue' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='textbox' name='City' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
-      "value": null,
+      "value": "Denver",
       "extract_as": null,
       "wait_policy": {
         "timeout_ms": 5000,
@@ -222,20 +208,76 @@
     },
     {
       "step_id": "s8",
+      "action_type": "type",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "textbox",
+          "name": "State"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "State"
+          }
+        ],
+        "reasoning": "role='textbox' name='State' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": "CO",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s9",
+      "action_type": "type",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "textbox",
+          "name": "ZIP Code"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "ZIP Code"
+          }
+        ],
+        "reasoning": "role='textbox' name='ZIP Code' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": "80202",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s10",
       "action_type": "click",
       "target": {
         "strategy": "role_name",
         "primary": {
           "role": "button",
-          "name": "Confirm and Open Account"
+          "name": "Save Address"
         },
         "fallbacks": [
           {
             "strategy": "text",
-            "text": "Confirm and Open Account"
+            "text": "Save Address"
           }
         ],
-        "reasoning": "role='button' name='Confirm and Open Account' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='button' name='Save Address' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": null,

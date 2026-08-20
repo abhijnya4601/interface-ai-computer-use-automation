@@ -87,6 +87,28 @@ def submit_subaccount(member_id):
     )
 
 
+@app.route("/member/<member_id>/update-address", methods=["GET", "POST"])
+def update_address(member_id):
+    member = models.find_member(member_id)
+    if not member:
+        return render_template("member_detail.html", member=None, member_id=member_id)
+    if member["status"] == "locked":
+        return render_template("error_permission.html", member_id=member_id)
+
+    if request.method == "POST":
+        models.update_member_address(
+            member_id,
+            request.form.get("address_line1", "").strip(),
+            request.form.get("city", "").strip(),
+            request.form.get("state", "").strip(),
+            request.form.get("zip_code", "").strip(),
+        )
+        member = models.find_member(member_id)
+        return render_template("address_updated.html", member=member)
+
+    return render_template("update_address.html", member=member)
+
+
 @app.route("/member/<member_id>/transactions")
 def transactions(member_id):
     member = models.find_member(member_id)

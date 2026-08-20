@@ -27,7 +27,11 @@ def init_db():
             first_name TEXT NOT NULL,
             last_name TEXT NOT NULL,
             savings_balance_cents INTEGER NOT NULL,
-            status TEXT NOT NULL DEFAULT 'active'  -- active | locked
+            status TEXT NOT NULL DEFAULT 'active',  -- active | locked
+            address_line1 TEXT NOT NULL DEFAULT '',
+            city TEXT NOT NULL DEFAULT '',
+            state TEXT NOT NULL DEFAULT '',
+            zip_code TEXT NOT NULL DEFAULT ''
         );
 
         CREATE TABLE subaccounts (
@@ -56,17 +60,17 @@ def init_db():
 def seed():
     conn = get_conn()
     members = [
-        ("12345", "Dana", "Whitfield", 184230, "active"),
-        ("23456", "Marcus", "Oyelaran", 502, "active"),
-        ("34567", "Priya", "Ramaswamy", 990100, "active"),
-        ("45678", "Wei", "Chen", 0, "active"),
-        ("56789", "Sofia", "Alvarez", 12750, "active"),
-        ("99999", "Restricted", "Account", 0, "locked"),  # permission-denied test case
+        ("12345", "Dana", "Whitfield", 184230, "active", "412 Birchwood Ln", "Madison", "WI", "53703"),
+        ("23456", "Marcus", "Oyelaran", 502, "active", "88 Fenwick Ave", "Austin", "TX", "78701"),
+        ("34567", "Priya", "Ramaswamy", 990100, "active", "2210 Crestline Dr", "San Jose", "CA", "95126"),
+        ("45678", "Wei", "Chen", 0, "active", "77 Harbor View Rd", "Seattle", "WA", "98101"),
+        ("56789", "Sofia", "Alvarez", 12750, "active", "930 Palmetto Ct", "Tampa", "FL", "33602"),
+        ("99999", "Restricted", "Account", 0, "locked", "1 Vault Way", "Wilmington", "DE", "19801"),
         # NOTE: member_id "88888" intentionally NOT seeded -> not-found test case
     ]
     conn.executemany(
-        "INSERT INTO members (member_id, first_name, last_name, savings_balance_cents, status) "
-        "VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO members (member_id, first_name, last_name, savings_balance_cents, status, "
+        "address_line1, city, state, zip_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         members,
     )
 
@@ -78,6 +82,12 @@ def seed():
         ("12345", "2026-07-29", "Coffee Shop", -650),
         ("23456", "2026-08-12", "Online Transfer Out", -5000),
         ("23456", "2026-08-01", "Payroll Deposit", 80000),
+        ("45678", "2026-08-14", "Overdraft Fee", -3500),
+        ("45678", "2026-08-02", "Mobile Check Deposit", 12000),
+        ("56789", "2026-08-16", "Zelle Transfer to J. Kim", -22000),
+        ("56789", "2026-08-09", "Interest Payment", 41),
+        ("56789", "2026-07-30", "Utility Bill Autopay", -8912),
+        # member 34567 intentionally has NO transactions -> NO_TRANSACTIONS test case
     ]
     conn.executemany(
         "INSERT INTO transactions (member_id, txn_date, description, amount_cents) "
@@ -110,6 +120,16 @@ def dispute_transaction(transaction_id: int, reason: str):
     conn.execute(
         "UPDATE transactions SET status = 'disputed', dispute_reason = ? WHERE id = ?",
         (reason, transaction_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_member_address(member_id: str, address_line1: str, city: str, state: str, zip_code: str):
+    conn = get_conn()
+    conn.execute(
+        "UPDATE members SET address_line1 = ?, city = ?, state = ?, zip_code = ? WHERE member_id = ?",
+        (address_line1, city, state, zip_code, member_id),
     )
     conn.commit()
     conn.close()

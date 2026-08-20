@@ -1,7 +1,7 @@
 {
-  "capability_id": "open_subaccount",
+  "capability_id": "dispute_transaction",
   "version": "1.0.0",
-  "created_from_run_id": "run_57fcd7959d",
+  "created_from_run_id": "run_28f22f1fe0",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "http://localhost:5050/search",
@@ -16,9 +16,9 @@
   },
   "output_schema": {},
   "checkpoint": {
-    "type": "text_match",
+    "type": "url_match",
     "locator": null,
-    "expected": "created for"
+    "expected": "dispute"
   },
   "steps": [
     {
@@ -120,14 +120,7 @@
           "transient_load"
         ]
       },
-      "expected_outcomes": [
-        {
-          "condition": "page contains 'No results.'",
-          "classification": "business_outcome",
-          "code": "MEMBER_NOT_FOUND",
-          "handling": "search returned no matching row for this member_id"
-        }
-      ]
+      "expected_outcomes": []
     },
     {
       "step_id": "s5",
@@ -136,15 +129,15 @@
         "strategy": "role_name",
         "primary": {
           "role": "link",
-          "name": "Open sub-account"
+          "name": "View Transactions"
         },
         "fallbacks": [
           {
             "strategy": "text",
-            "text": "Open sub-account"
+            "text": "View Transactions"
           }
         ],
-        "reasoning": "role='link' name='Open sub-account' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='link' name='View Transactions' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": null,
@@ -155,33 +148,27 @@
           "transient_load"
         ]
       },
-      "expected_outcomes": [
-        {
-          "condition": "page contains 'Access denied. This account is restricted'",
-          "classification": "business_outcome",
-          "code": "PERMISSION_DENIED",
-          "handling": "member account is locked; there is no 'Open sub-account' link to click through on the member detail page"
-        }
-      ]
+      "expected_outcomes": []
     },
     {
       "step_id": "s6",
-      "action_type": "type",
+      "action_type": "click",
       "target": {
-        "strategy": "role_name",
+        "strategy": "structural",
         "primary": {
-          "role": "textbox",
-          "name": "Opening Deposit ($)"
+          "role": "link",
+          "name": "Dispute",
+          "nth": 0
         },
         "fallbacks": [
           {
             "strategy": "text",
-            "text": "Opening Deposit ($)"
+            "text": "Dispute"
           }
         ],
-        "reasoning": "role='textbox' name='Opening Deposit ($)' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='link' name='Dispute' matched 4 elements \u2014 not unique. Resolved structurally as the first (index 0) match in DOM order, since that is what the discovery agent actually acted on. Weaker than tier 1: only reliable if replay's runtime page produces matches in the same order."
       },
-      "value": "50",
+      "value": null,
       "extract_as": null,
       "wait_policy": {
         "timeout_ms": 5000,
@@ -194,22 +181,22 @@
     },
     {
       "step_id": "s7",
-      "action_type": "click",
+      "action_type": "type",
       "target": {
         "strategy": "role_name",
         "primary": {
-          "role": "button",
-          "name": "Continue"
+          "role": "textbox",
+          "name": "Reason for dispute"
         },
         "fallbacks": [
           {
             "strategy": "text",
-            "text": "Continue"
+            "text": "Reason for dispute"
           }
         ],
-        "reasoning": "role='button' name='Continue' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='textbox' name='Reason for dispute' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
-      "value": null,
+      "value": "unauthorized charge",
       "extract_as": null,
       "wait_policy": {
         "timeout_ms": 5000,
@@ -227,15 +214,15 @@
         "strategy": "role_name",
         "primary": {
           "role": "button",
-          "name": "Confirm and Open Account"
+          "name": "Submit Dispute"
         },
         "fallbacks": [
           {
             "strategy": "text",
-            "text": "Confirm and Open Account"
+            "text": "Submit Dispute"
           }
         ],
-        "reasoning": "role='button' name='Confirm and Open Account' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='button' name='Submit Dispute' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": null,
