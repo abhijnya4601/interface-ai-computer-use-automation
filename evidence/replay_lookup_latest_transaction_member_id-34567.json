@@ -1,0 +1,9 @@
+{
+  "status": "business_outcome",
+  "outputs": {
+    "most_recent_date": "No transactions on file."
+  },
+  "business_outcome_code": "NO_TRANSACTIONS",
+  "failure_detail": null,
+  "evidence_ref": null
+}

@@ -1,7 +1,13 @@
 import pytest
 
 from artifact.schema import ExpectedOutcome
-from replay.engine import _extract_quoted_substring, _outcome_to_result, _resolve_value, _verify_checkpoint
+from replay.engine import (
+    _extract_quoted_substring,
+    _locate_table_position,
+    _outcome_to_result,
+    _resolve_value,
+    _verify_checkpoint,
+)
 
 
 # ---- _resolve_value ---------------------------------------------------------------------------
@@ -122,3 +128,19 @@ def test_verify_checkpoint_element_present_false():
     cap = _Capability(_Checkpoint(type="element_present", locator={"role": "rowheader", "name": "Savings Balance"}))
     page = FakePage(role_counts={})
     assert _verify_checkpoint(cap, page) is False
+
+
+# ---- _locate_table_position (D22) -- guard-clause paths; the real DOM-walking logic is ----
+# ---- verified live in scripts/smoke_test_table_position.py, which needs a real browser ----
+
+def test_locate_table_position_returns_none_with_no_headers():
+    # page=None would blow up if this reached real DOM logic -- proves the guard fires first
+    assert _locate_table_position(None, {"row_index": 0, "column_index": 0}) is None
+
+
+def test_locate_table_position_returns_none_with_missing_row_index():
+    assert _locate_table_position(None, {"table_headers": ["Date"], "column_index": 0}) is None
+
+
+def test_locate_table_position_returns_none_with_missing_column_index():
+    assert _locate_table_position(None, {"table_headers": ["Date"], "row_index": 0}) is None

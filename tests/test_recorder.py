@@ -129,3 +129,20 @@ def test_record_extract_sets_extract_as():
     step = rec.record_extract("rowheader", "Savings Balance", "savings_balance", page)
     assert step.action_type == "extract"
     assert step.extract_as == "savings_balance"
+
+
+# ---- table_position locator (D22) -- guard-clause paths only; the real DOM-walking logic ----
+# ---- is verified live in scripts/smoke_test_table_position.py, which needs a real browser ----
+
+def test_table_position_short_circuits_for_non_cell_roles_without_touching_page():
+    rec = _recorder()
+    # page=None would blow up if the function tried to use it -- proves the role check happens first
+    assert rec._try_table_position_locator("button", "Go", None) is None
+    assert rec._try_table_position_locator("rowheader", "Savings Balance", None) is None
+
+
+def test_record_extract_falls_back_to_normal_tiers_when_not_a_table_position_shape():
+    rec = _recorder()
+    page = FakePage({("rowheader", "Savings Balance"): 1})
+    step = rec.record_extract("rowheader", "Savings Balance", "savings_balance", page)
+    assert step.target.strategy == "role_name"

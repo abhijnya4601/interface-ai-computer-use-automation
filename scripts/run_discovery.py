@@ -65,6 +65,25 @@ CHECKPOINTS = {
 RISK_LEVELS = {"lookup_member_balance": "safe", "open_subaccount": "risky"}
 
 
+def _default_checkpoint(final_url: str, target_url: str) -> Checkpoint:
+    """
+    Fallback checkpoint for any capability_id not in CHECKPOINTS above (D22 — the earlier
+    fallback, `Checkpoint(type="url_match", expected=target_url)`, checked whether the FINAL
+    page was still the STARTING page, which is wrong for virtually every real capability, since
+    the whole point of running one is to navigate somewhere else). Uses the final URL's last
+    non-empty path segment instead of the full URL, since `url_match` is a substring check and
+    the full path usually contains a per-run ID (e.g. `/member/12345/transactions`) that
+    wouldn't match a differently-parameterized replay — the trailing route segment
+    (`transactions`) is what's actually stable across runs.
+    """
+    if final_url == target_url:
+        return Checkpoint(type="url_match", expected=target_url)
+    path_segments = [seg for seg in urllib.parse.urlparse(final_url).path.split("/") if seg]
+    if path_segments:
+        return Checkpoint(type="url_match", expected=path_segments[-1])
+    return Checkpoint(type="url_match", expected=final_url)
+
+
 def _basic_auth_header(username: str, password: str) -> dict:
     token = base64.b64encode(f"{username}:{password}".encode()).decode()
     return {"Authorization": f"Basic {token}"}
@@ -155,7 +174,7 @@ def main():
 
         if result.status in ("success", "business_outcome"):
             checkpoint = CHECKPOINTS.get(
-                args.capability_id, Checkpoint(type="url_match", expected=args.target)
+                args.capability_id, _default_checkpoint(page.url, args.target)
             )
             risk_level = RISK_LEVELS.get(args.capability_id, "safe")
             capability = compile_capability(

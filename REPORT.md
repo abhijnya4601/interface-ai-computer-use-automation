@@ -77,16 +77,22 @@ All four required scenarios ran against real compiled capabilities, for both cap
 success with a never-recorded `member_id`, both business outcomes, and an injected hard failure
 (target pointed at a nonexistent route) — real output saved to `/evidence/`.
 
-**A real (not injected) limitation this locator design has, found by extending the app** (D21):
-built a third, out-of-scope page (a transaction-history data table) to test whether discovery
-generalizes to a UI shape neither required capability uses. It did — the agent found and used a
-link it had never seen before with zero code changes. But the recorded locator for reading the
-transaction date anchored on the date's own literal value (a data-table row has no stable
-per-cell label the way `<th scope="row">` gives the balance lookup one), and replaying against a
-different member — whose latest transaction has a different date — failed immediately, for real.
-The label→value locator strategy that works well for both required capabilities doesn't cover
-"extract an unlabeled cell from a data table row," and a real fix needs a genuinely new locator
-strategy (position-in-row, not content-match) — noted in Cuts rather than patched under pressure.
+**A fourth locator tier, `table_position` (D21→D22)**: found by extending the app past the two
+required capabilities, to test whether discovery generalizes to a UI shape neither one uses (a
+transaction-history data table, no per-row label). It did — the agent found and drove a link it
+had never seen, zero code changes. But the recorded locator anchored on the extracted value
+itself, and replaying against a different member — different data, same structure — failed
+immediately, for real. Real fix, not a workaround: `table_position` addresses a cell by its
+table's column headers + row/column index instead of content, verified live against two pages
+with identical structure and different data (same row 0 resolves to each page's *own* value).
+Also caught, fixing this: the default checkpoint for a new capability_id checked the final page
+against the *starting* URL (backwards — the whole point of a capability is to end up elsewhere),
+and `output_schema` used to declare outputs `finish()` reported even with no step backing them
+(the other half of the same original finding) — both fixed, and an empty-transactions edge case
+now correctly returns `business_outcome`/`NO_TRANSACTIONS` instead of silently succeeding with
+placeholder text as if it were data. `lookup_latest_transaction` is now a third fully-verified
+capability (success × 2 different members, one business outcome), to the same standard as the
+two the assignment requires.
 
 ## 4. Heterogeneity & multi-tenant
 
@@ -181,9 +187,6 @@ fixes rather than left as write-up caveats:
   in the goal text. Now only tags `param_ref` on an exact match to the extracted ID.
 - **`redact()`'s value-shape pass covers SSN/card-number shapes only (D17)**, not full PII — that
   needs NLP-grade entity detection, deliberately out of scope.
-- **A fourth locator strategy for unlabeled data-table cells** (D21, section 3) —
-  position-in-row addressing, for UI shapes where nothing but the value itself is available to
-  anchor on.
 - **Tier-2 structural locator is simplified** ("first match in DOM order," not a richer
   relative-position description) — real but only exercised via fake match counts in
   `tests/test_recorder.py`, since this app's own role+name pairs are unique by design.
@@ -191,6 +194,6 @@ fixes rather than left as write-up caveats:
   core requirement's full outcome matrix live (both capabilities × all 4 replay scenarios, a live
   escalation demo, several real bugs found and fixed — see `DECISIONS.md`) rather than adding a
   new surface on top of a less-verified core.
-- **What I'd build next**: the data-table locator strategy above; the base+patch tenant model
-  made concrete against a second app variant; a real KMS (rotation, envelope encryption,
-  audit-logged key access) in place of `EVIDENCE_ENCRYPTION_KEY`'s single static key.
+- **What I'd build next**: the base+patch tenant model made concrete against a second app
+  variant; a real KMS (rotation, envelope encryption, audit-logged key access) in place of
+  `EVIDENCE_ENCRYPTION_KEY`'s single static key.

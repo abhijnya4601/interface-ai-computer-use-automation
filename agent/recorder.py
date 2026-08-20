@@ -31,6 +31,16 @@ Two things worth understanding about the design:
    "$50"), so it got tagged `{"param_ref": "member_id"}` too. Replaying with a different
    member_id would then have typed the member_id into the deposit field. Matching only the
    goal's actual extracted ID, exactly, closes that hole.
+
+3. **`table_position` locator, for cells with no per-row label** (D22, fixing D21's real find):
+   `extract`ing a labeled value (`<th scope="row">Savings Balance</th><td>$1,842.30</td>`)
+   anchors on the label — stable, since the label doesn't depend on the data. A plain data-table
+   row (`<td>2026-08-15</td><td>Grocery Store Purchase</td>...`, no per-row label) has nothing
+   like that to anchor on; the only thing distinguishing "the date cell" from any other cell was
+   its own value, which is exactly what's different on every replay. `_try_table_position_locator`
+   detects this shape (a `<td>` inside a table whose row has no `<th>`, but the table itself has
+   `<th scope="col">` column headers) and addresses the cell by position instead — which table
+   (identified by its column headers, since those don't depend on data), which row, which column.
 """
 from __future__ import annotations
 
@@ -114,6 +124,71 @@ class Recorder:
                   "tier-3 text locator — most brittle, watch this in future replays")
         return target
 
+    # ---- table_position locator (D22) -------------------------------------------------------
+
+    def _try_table_position_locator(self, role: str, name: str, page) -> LocatorTarget | None:
+        """
+        If (role, name) resolves to a single <td> cell sitting in a data-table row with no
+        per-row label (<th>), but the table itself has column headers (<th scope="col">), build
+        a position-based locator instead of the normal role_name-by-value tier — see module
+        docstring point 3 / DECISIONS.md D22. Returns None (caller falls back to the normal
+        tiers) if the shape doesn't match; never raises.
+        """
+        if role.lower() != "cell":
+            return None
+
+        contexts = [page] + [f for f in page.frames if f != page.main_frame]
+        for ctx in contexts:
+            try:
+                candidate = ctx.get_by_role("cell", name=name)
+                if candidate.count() != 1:
+                    continue
+            except Exception:
+                continue
+
+            cell = candidate.first
+            try:
+                row = cell.locator("xpath=ancestor::tr[1]")
+                if row.count() == 0 or row.locator("xpath=./th").count() > 0:
+                    continue  # has its own label -- the label/value tiers already cover this
+
+                table = cell.locator("xpath=ancestor::table[1]")
+                if table.count() == 0:
+                    continue
+                header_row = table.locator("xpath=.//tr[th[@scope='col']]").first
+                if header_row.count() == 0:
+                    continue
+                headers = header_row.locator("th").all_text_contents()
+                if not headers:
+                    continue
+
+                row_index = row.evaluate(
+                    "el => Array.from(el.parentElement.children)"
+                    ".filter(tr => tr.querySelector('td'))"
+                    ".indexOf(el)"
+                )
+                col_index = cell.evaluate("el => Array.from(el.parentElement.children).indexOf(el)")
+                if row_index is None or row_index < 0 or col_index is None or col_index < 0:
+                    continue
+
+                column_label = headers[col_index] if col_index < len(headers) else "?"
+                return LocatorTarget(
+                    strategy="table_position",
+                    primary={"table_headers": headers, "row_index": row_index, "column_index": col_index},
+                    fallbacks=[{"strategy": "text", "text": name}],
+                    reasoning=(
+                        f"role='cell' name={name!r} sits in a data table (columns {headers}) with "
+                        "no per-row label — anchoring on the cell's own value would break the "
+                        "moment the underlying data changes (see DECISIONS.md D21/D22), since "
+                        "that value is exactly what's different on every replay. Addressed by "
+                        f"position instead: row {row_index} (0-indexed among data rows), column "
+                        f"{col_index} ({column_label!r})."
+                    ),
+                )
+            except Exception:
+                continue
+        return None
+
     # ---- parameter detection ---------------------------------------------------------------
 
     def _maybe_param_ref(self, value: str) -> dict | str:
@@ -146,7 +221,12 @@ class Recorder:
 
     def record_extract(self, role: str, name: str, as_var: str, page) -> Step:
         step_id = self._next_step_id()
-        target = self.build_locator(role, name, page, step_id)
+        table_target = self._try_table_position_locator(role, name, page)
+        if table_target is not None:
+            target = table_target
+            self.tier_log.append({"step_id": step_id, "role": role, "name": name, "tier": "table_position"})
+        else:
+            target = self.build_locator(role, name, page, step_id)
         step = Step(step_id=step_id, action_type="extract", target=target, extract_as=as_var)
         self.steps.append(step)
         return step

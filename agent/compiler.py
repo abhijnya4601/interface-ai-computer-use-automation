@@ -85,6 +85,42 @@ _KNOWN_OUTCOMES: dict[str, list[dict]] = {
             ),
         },
     ],
+    "lookup_latest_transaction": [
+        {
+            "match": {"action_type": "click", "role": "link", "name": "View"},
+            "outcome": ExpectedOutcome(
+                condition="page contains 'No results.'",
+                classification="business_outcome",
+                code="MEMBER_NOT_FOUND",
+                handling="search returned no matching row for this member_id",
+            ),
+        },
+        {
+            "match": {"action_type": "click", "role": "link", "name": "View Transactions"},
+            "outcome": ExpectedOutcome(
+                condition="page contains 'Access denied. This account is restricted'",
+                classification="business_outcome",
+                code="PERMISSION_DENIED",
+                handling="member account is locked; transaction history is not shown",
+            ),
+        },
+        {
+            # D22: found live, not contrived — a member with zero transactions renders one row
+            # with transactions.html's msg-empty text instead of a data row. The table_position
+            # locator (row 0, column 0) still resolves to *a* cell at that position — it has no
+            # way to know the row is a placeholder rather than data — so without this declared
+            # outcome, replay would report status=success with "No transactions on file." as if
+            # it were a real transaction date. Exactly the "business outcome silently treated as
+            # success" failure mode the assignment calls out as the most common mistake here.
+            "match": {"action_type": "extract"},
+            "outcome": ExpectedOutcome(
+                condition="page contains 'No transactions on file.'",
+                classification="business_outcome",
+                code="NO_TRANSACTIONS",
+                handling="member has no transaction history; there is no real data to extract",
+            ),
+        },
+    ],
 }
 
 
@@ -123,8 +159,27 @@ def infer_input_schema(steps: list[Step]) -> dict:
     }
 
 
-def infer_output_schema(outputs: dict) -> dict:
-    return {key: {"type": "string"} for key in outputs}
+def infer_output_schema(outputs: dict, steps: list[Step]) -> dict:
+    """
+    Declares only the output keys that have a recorded Step actually backing them (D22): a
+    discovery run's `finish()` can report values the LLM read directly off the observation
+    without ever calling `extract()` on them (see DECISIONS.md D21) — declaring those in
+    `output_schema` anyway produces a schema-valid artifact whose promised outputs replay has no
+    recorded way to reproduce. A key in `outputs` with no step whose `extract_as` matches it is
+    dropped (with a printed warning, never silently) rather than promised and then missing.
+    """
+    backed_keys = {step.extract_as for step in steps if step.extract_as}
+    schema = {}
+    for key in outputs:
+        if key in backed_keys:
+            schema[key] = {"type": "string"}
+        else:
+            print(
+                f"[compiler] WARNING: output {key!r} was reported by finish() but no recorded "
+                f"step extracted it — dropping it from output_schema since replay has no way to "
+                f"reproduce it. Steps actually extracted: {sorted(backed_keys) or 'none'}."
+            )
+    return schema
 
 
 def compile_capability(
@@ -146,7 +201,7 @@ def compile_capability(
         target=TargetSpec(app_name="mock-core-banking", entry_point=target_url, surface_type=surface_type),
         risk_level=risk_level,
         input_schema=infer_input_schema(steps),
-        output_schema=infer_output_schema(outputs),
+        output_schema=infer_output_schema(outputs, steps),
         checkpoint=checkpoint,
         steps=steps,
     )

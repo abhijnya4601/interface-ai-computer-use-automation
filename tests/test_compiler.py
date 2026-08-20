@@ -34,8 +34,20 @@ def test_infer_input_schema_finds_param_refs():
 
 
 def test_infer_output_schema_from_outputs_dict():
-    schema = infer_output_schema({"savings_balance": "$1,842.30"})
+    steps = [Step(step_id="s1", action_type="extract", extract_as="savings_balance")]
+    schema = infer_output_schema({"savings_balance": "$1,842.30"}, steps)
     assert schema == {"savings_balance": {"type": "string"}}
+
+
+def test_infer_output_schema_drops_unbacked_keys():
+    """D22: an output the LLM reported via finish() but never actually extract()-ed must not be
+    declared in output_schema -- replay has no recorded step that could reproduce it."""
+    steps = [Step(step_id="s1", action_type="extract", extract_as="most_recent_date")]
+    schema = infer_output_schema(
+        {"most_recent_date": "2026-08-15", "member_name": "Dana Whitfield"}, steps
+    )
+    assert schema == {"most_recent_date": {"type": "string"}}
+    assert "member_name" not in schema
 
 
 def test_compile_attaches_business_outcomes_to_matching_steps():
@@ -125,7 +137,10 @@ def test_save_capability_does_not_corrupt_output_schema_with_a_secret_like_field
     'sub_account_number' collided with the 'account_number' redaction marker, and applying
     redact() to the whole capability dump replaced its {"type": "string"} schema descriptor
     with the string "***REDACTED***", corrupting the artifact's structure."""
-    recorder = FakeRecorder([Step(step_id="s1", action_type="navigate", value="http://x/search")])
+    recorder = FakeRecorder([
+        Step(step_id="s1", action_type="navigate", value="http://x/search"),
+        Step(step_id="s2", action_type="extract", target=_lt("cell", "2"), extract_as="sub_account_number"),
+    ])
     checkpoint = Checkpoint(type="text_match", expected="created for")
     cap = compile_capability(
         capability_id="open_subaccount", version="1.0.0", run_id="run_test",
@@ -156,3 +171,23 @@ def test_save_capability_still_redacts_secret_like_values_inside_steps(tmp_path)
     raw = path.read_text()
     assert "hunter2" not in raw
     assert "***REDACTED***" in raw
+
+
+def test_lookup_latest_transaction_declares_no_transactions_business_outcome():
+    """D22: an empty transaction history renders a placeholder row that a position-based
+    locator would otherwise silently treat as real data."""
+    steps = [
+        Step(step_id="s6", action_type="extract",
+             target=_lt("cell", "2026-08-15", strategy="table_position"),
+             extract_as="most_recent_date"),
+    ]
+    recorder = FakeRecorder(steps)
+    checkpoint = Checkpoint(type="url_match", expected="transactions")
+    cap = compile_capability(
+        capability_id="lookup_latest_transaction", version="1.0.0", run_id="run_test",
+        target_url="http://localhost:5050/search", risk_level="safe",
+        recorder=recorder, outputs={"most_recent_date": "2026-08-15"}, checkpoint=checkpoint,
+    )
+    s6 = next(s for s in cap.steps if s.step_id == "s6")
+    codes = {o.code for o in s6.expected_outcomes}
+    assert "NO_TRANSACTIONS" in codes

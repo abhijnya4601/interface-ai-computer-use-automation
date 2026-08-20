@@ -53,6 +53,46 @@ def _contexts(page):
             yield frame
 
 
+def _locate_table_position(page, primary: dict):
+    """
+    Resolve a table_position locator (D22): find the table whose column headers match, then the
+    row_index-th data row, then the column_index-th cell in it. Position-based rather than
+    content-based, specifically because a data-table cell with no per-row label has nothing
+    stable to anchor on except its own value — which is exactly what changes between replays
+    (see DECISIONS.md D21). Returns a Locator or None.
+    """
+    headers = primary.get("table_headers") or []
+    row_index = primary.get("row_index")
+    column_index = primary.get("column_index")
+    if not headers or row_index is None or column_index is None:
+        return None
+
+    for ctx in _contexts(page):
+        try:
+            tables = ctx.locator("table")
+            table_count = tables.count()
+        except Exception:
+            continue
+        for i in range(table_count):
+            table = tables.nth(i)
+            try:
+                header_row = table.locator("xpath=.//tr[th[@scope='col']]").first
+                if header_row.count() == 0:
+                    continue
+                if header_row.locator("th").all_text_contents() != headers:
+                    continue
+                data_rows = table.locator("xpath=.//tr[td]")
+                if data_rows.count() <= row_index:
+                    continue
+                cells = data_rows.nth(row_index).locator("td")
+                if cells.count() <= column_index:
+                    continue
+                return cells.nth(column_index)
+            except Exception:
+                continue
+    return None
+
+
 def _locate(page, target):
     """
     Resolve a LocatorTarget the same way the recorder declared it should be found, trying
@@ -60,6 +100,10 @@ def _locate(page, target):
     then the declared fallbacks, then a bare text-content match as the last resort. Returns
     (locator_or_None, tier_actually_used).
     """
+    if target.strategy == "table_position":
+        loc = _locate_table_position(page, target.primary)
+        return (loc, "table_position") if loc is not None else (None, None)
+
     role = target.primary.get("role")
     name = target.primary.get("name")
     nth = target.primary.get("nth", 0)

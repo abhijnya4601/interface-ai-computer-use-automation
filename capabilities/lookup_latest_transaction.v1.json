@@ -1,7 +1,7 @@
 {
   "capability_id": "lookup_latest_transaction",
   "version": "1.0.0",
-  "created_from_run_id": "run_0f66ffd93d",
+  "created_from_run_id": "run_4f929f300e",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "http://localhost:5050/search",
@@ -15,29 +15,14 @@
     }
   },
   "output_schema": {
-    "member_id": {
-      "type": "string"
-    },
-    "member_name": {
-      "type": "string"
-    },
-    "most_recent_transaction_date": {
-      "type": "string"
-    },
-    "most_recent_transaction_description": {
-      "type": "string"
-    },
-    "most_recent_transaction_amount": {
-      "type": "string"
-    },
-    "status": {
+    "most_recent_date": {
       "type": "string"
     }
   },
   "checkpoint": {
     "type": "url_match",
     "locator": null,
-    "expected": "http://localhost:5050/search"
+    "expected": "transactions"
   },
   "steps": [
     {
@@ -173,10 +158,17 @@
       "step_id": "s6",
       "action_type": "extract",
       "target": {
-        "strategy": "role_name",
+        "strategy": "table_position",
         "primary": {
-          "role": "cell",
-          "name": "2026-08-15"
+          "table_headers": [
+            "Date",
+            "Description",
+            "Amount",
+            "Status",
+            "Actions"
+          ],
+          "row_index": 0,
+          "column_index": 0
         },
         "fallbacks": [
           {
@@ -184,10 +176,10 @@
             "text": "2026-08-15"
           }
         ],
-        "reasoning": "role='cell' name='2026-08-15' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='cell' name='2026-08-15' sits in a data table (columns ['Date', 'Description', 'Amount', 'Status', 'Actions']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes (see DECISIONS.md D21/D22), since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 0 ('Date')."
       },
       "value": null,
-      "extract_as": "most_recent_transaction_date",
+      "extract_as": "most_recent_date",
       "wait_policy": {
         "timeout_ms": 5000,
         "retry_count": 2,
@@ -195,7 +187,14 @@
           "transient_load"
         ]
       },
-      "expected_outcomes": []
+      "expected_outcomes": [
+        {
+          "condition": "page contains 'No transactions on file.'",
+          "classification": "business_outcome",
+          "code": "NO_TRANSACTIONS",
+          "handling": "member has no transaction history; there is no real data to extract"
+        }
+      ]
     }
   ]
 }

@@ -771,3 +771,76 @@ screenshot). A real fix would need a new locator strategy — something like "Nt
 current/topmost row of table X, addressed by column position rather than content" — which is a
 genuine schema/recorder/replay change, not a one-line patch; noted as a concrete next step in
 REPORT.md rather than attempted under time pressure just to make this one demo pass.
+
+## D22 — 2026-08-20 — Actually built the D21 fix, and it surfaced two more real, related gaps
+along the way
+
+User asked to fix D21's finding for real rather than leave it as a documented limitation. Built
+three fixes, verified live end to end, in order of discovery:
+
+**1. A fourth locator strategy: `table_position`.** New `LocatorTarget.strategy` value
+(`artifact/schema.py`). `agent/recorder.py::_try_table_position_locator` detects the exact shape
+that broke in D21 — a `<td>` cell with no per-row `<th>` label, inside a table that *does* have
+`<th scope="col">` column headers — and instead of anchoring on the cell's own value, walks the
+real DOM (`ancestor::tr`, `ancestor::table`, a JS `evaluate` counting preceding siblings) to
+record `{table_headers, row_index, column_index}`: which table (identified by its headers, which
+don't depend on data), which row, which column. `replay/engine.py::_locate_table_position`
+resolves it the same way at replay time. Verified live with a real browser and two versions of
+the same table shape with completely different data (`scripts/smoke_test_table_position.py`):
+building against one page's row 0 and resolving against a different page's row 0 correctly
+returns *that* page's own value, not the original. Then re-ran the real, live discovery for
+`lookup_latest_transaction` — the tier log now shows `table_position` used automatically, no
+prompting — and replaying the fresh artifact against member 23456 (the exact case that failed
+with `hard_failure` in D21) now returns `status=success` with that member's *actual* latest
+transaction date (`2026-08-12`, correctly different from the discovery member's `2026-08-15`) —
+real proof, not just a passing unit test.
+
+**2. A second, unrelated real bug the same live run exposed: the default checkpoint was
+backwards.** `scripts/run_discovery.py`'s fallback for any `capability_id` not in the hardcoded
+`CHECKPOINTS` dict was `Checkpoint(type="url_match", expected=args.target)` — checking that the
+*final* page equals the *starting* page. That's wrong for essentially every real capability,
+since the entire point of running one is to navigate somewhere else; replaying the fresh
+transaction capability failed at the checkpoint step even though every actual step (including
+the new `table_position` extract) had already succeeded. Fixed with `_default_checkpoint`: use
+the real final URL's last path segment (e.g. `transactions`, from `/member/12345/transactions`)
+instead of the full starting URL — a `url_match` substring check against just that segment
+correctly matches a differently-parameterized replay URL (`/member/23456/transactions`) without
+needing to understand the route's parameterization. 3 new offline tests
+(`tests/test_run_discovery.py`) plus re-verified live.
+
+**3. A third real gap, once both of the above were fixed and replay finally reached real data
+checks: an empty-state placeholder silently reported as `success`.** Replaying against member
+34567 (seeded with zero transactions) returned `status=success`,
+`outputs={'most_recent_date': 'No transactions on file.'}` — `transactions.html`'s empty-state
+row is still "row 0, column 0" of the table, so the position-based locator resolved to it
+without knowing it wasn't real data. This is precisely the failure mode the assignment names as
+"the most common design mistake here" (business outcome silently treated as success), just
+appearing from the opposite direction of the label/value cases: there the *locator* failed to
+resolve and the fix was checking `expected_outcomes` on failure; here the locator resolved fine
+to the wrong *kind* of content. Fixed the same declarative way as every other business outcome
+in this build: added a `lookup_latest_transaction` entry to `agent/compiler.py`'s
+`_KNOWN_OUTCOMES` — `condition="page contains 'No transactions on file.'"`,
+`classification="business_outcome"`, `code="NO_TRANSACTIONS"` — on the extract step, which
+`replay/engine.py` already checks *after* a successful action, not only on failure (the same
+mechanism D13/D14 established). Re-verified live: same replay now returns
+`status=business_outcome`, `business_outcome_code=NO_TRANSACTIONS` instead of a bogus success.
+
+**Also fixed, found while re-verifying:** `agent/compiler.py::infer_output_schema` used to
+declare every key `finish()` reported, whether or not any step actually extracted it — the exact
+"4 of 6 declared outputs have no backing step" half of D21's finding, still true even after the
+locator fix. Now takes `steps` and only declares a key if some step's `extract_as` matches it,
+printing a warning (never silently) for anything dropped. One test needed a real fix rather than
+a signature update: `test_save_capability_does_not_corrupt_output_schema_with_a_secret_like_field_name`
+asserted an *unbacked* `sub_account_number` key survived redaction — under the new, correct
+behavior it's dropped before redaction ever sees it, so the test's `FakeRecorder` now includes a
+real extract step backing that key, preserving the test's actual intent (redaction doesn't
+corrupt output_schema) without relying on the now-fixed over-declaration bug.
+
+All three artifact fixes (table_position + checkpoint + output_schema) were also manually
+reapplied to the already-compiled `capabilities/lookup_latest_transaction.v1.json` — verified via
+round-trip and three full live replays (success for two different members with different real
+data, `business_outcome`/`NO_TRANSACTIONS` for the member with none) — same discipline as D13/D14:
+repair the artifact to match what the fixed code now produces, backed by real transcript/replay
+output, rather than re-spend API credits on a fourth discovery run for schema-only corrections.
+`lookup_latest_transaction` is now a third fully-verified capability, to the same standard as the
+two the assignment actually requires. Full suite: 108/108 tests pass (up from 98).
