@@ -26,6 +26,29 @@ scaling infrastructure, and nothing here needs it. Six modules, each with one jo
 - **`guardrails/`** and **`escalation/`** — cross-cutting: allowlist + redaction wired into both
   discovery and replay; a file-backed lease for human handoff.
 
+The `Capability` artifact is the seam: everything to its left is LLM-driven and runs once per new
+task; everything to its right is deterministic and runs every time after.
+
+```mermaid
+graph LR
+    subgraph Discovery["Discovery — once, LLM-driven"]
+        Claude["Claude<br/>(agent/discovery.py)"] -->|"tool call"| Tools["agent/tools.py<br/>execute on live page"]
+        Tools -->|"accessibility tree"| Perception["agent/perception.py"]
+        Perception -->|"observation"| Claude
+        Tools -->|"accepted action"| Recorder["agent/recorder.py<br/>builds one Step"]
+    end
+    Recorder --> Compiler["agent/compiler.py<br/>declares expected_outcomes"]
+    Compiler -->|writes| Artifact[("Capability<br/>artifact/schema.py")]
+    Artifact -->|reads| Replay["replay/engine.py"]
+    subgraph ReplayPath["Replay — every time, deterministic"]
+        Replay -->|"walks Steps,<br/>no LLM call"| Result["success / business_outcome /<br/>recoverable / hard_failure"]
+    end
+    Guardrails["guardrails/<br/>allowlist + redact"] -. enforced in both .-> Tools
+    Guardrails -. enforced in both .-> Replay
+    Escalation["escalation/<br/>lease + operator console"] -. can pause .-> Tools
+    Escalation -. can pause .-> Replay
+```
+
 **Trade-off — perception API.** The build brief specified `page.accessibility.snapshot()`, which
 no longer exists in current Playwright (`AttributeError: 'Page' object has no attribute
 'accessibility'`, verified directly). Rebuilt on `Locator.aria_snapshot()` (YAML text) instead,
@@ -55,6 +78,36 @@ one of `business_outcome` / `recoverable` / `hard_failure`. These are declared b
 own happy path; finalizing a capability for production means documenting the branches you know
 exist, same spirit as `reasoning`), and replay evaluates them as **literal, deterministic
 checks** against the live page — never a guess, never an LLM call.
+
+```mermaid
+classDiagram
+    class Capability {
+        capability_id, version, description
+        risk_level: safe | risky
+        input_schema, output_schema
+        checkpoint: Checkpoint
+        steps: List~Step~
+    }
+    class Step {
+        step_id, action_type
+        target: LocatorTarget
+        value: literal | param_ref
+        expected_outcomes: List~ExpectedOutcome~
+    }
+    class LocatorTarget {
+        strategy: role_name | structural | text | table_position
+        primary, fallbacks
+        reasoning: string, required
+    }
+    class ExpectedOutcome {
+        condition: string
+        classification: business_outcome | recoverable | hard_failure
+        code, handling
+    }
+    Capability "1" *-- "many" Step
+    Step "1" *-- "0..1" LocatorTarget
+    Step "1" *-- "many" ExpectedOutcome
+```
 
 This exact design point produced the most interesting bug in this build (D14): a declared
 `PERMISSION_DENIED` outcome was attached to the wrong step because it was reasoned from
