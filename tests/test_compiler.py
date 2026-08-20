@@ -61,6 +61,31 @@ def test_compile_attaches_business_outcomes_to_matching_steps():
     assert navigate_step.expected_outcomes == []
 
 
+def test_open_subaccount_permission_denied_attaches_to_the_open_subaccount_link_not_continue():
+    """Regression test for a real bug (DECISIONS.md D14): member_detail.html never renders the
+    "Open sub-account" link at all for a locked member (only the msg-denied branch) -- so a
+    locked member never even reaches the "Continue" step. The PERMISSION_DENIED outcome has to
+    be declared on the "Open sub-account" link click (where the flow actually dead-ends for a
+    locked member), not on "Continue" (which a locked member's flow never reaches)."""
+    steps = [
+        Step(step_id="s4", action_type="click", target=_lt("link", "View")),
+        Step(step_id="s5", action_type="click", target=_lt("link", "Open sub-account")),
+        Step(step_id="s7", action_type="click", target=_lt("button", "Continue")),
+    ]
+    recorder = FakeRecorder(steps)
+    checkpoint = Checkpoint(type="text_match", expected="created for")
+    cap = compile_capability(
+        capability_id="open_subaccount", version="1.0.0", run_id="run_test",
+        target_url="http://localhost:5050/search", risk_level="risky",
+        recorder=recorder, outputs={}, checkpoint=checkpoint,
+    )
+
+    open_link_step = next(s for s in cap.steps if s.step_id == "s5")
+    continue_step = next(s for s in cap.steps if s.step_id == "s7")
+    assert {o.code for o in open_link_step.expected_outcomes} == {"PERMISSION_DENIED"}
+    assert continue_step.expected_outcomes == []
+
+
 def test_compile_produces_valid_capability_with_reasoning_on_every_locator():
     recorder = FakeRecorder(_lookup_steps())
     checkpoint = Checkpoint(type="element_present", locator={"role": "rowheader", "name": "Savings Balance"},

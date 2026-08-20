@@ -69,12 +69,19 @@ _KNOWN_OUTCOMES: dict[str, list[dict]] = {
             ),
         },
         {
-            "match": {"action_type": "click", "role": "button", "name": "Continue"},
+            # See DECISIONS.md D14: this used to be declared on the "Continue" click (s7),
+            # assuming the flow would reach the sub-account form and get turned away there by
+            # app.py's server-side status check. It doesn't — member_detail.html never renders
+            # the "Open sub-account" link at all for a locked member (only the msg-denied
+            # branch), so the wall is hit one click earlier, on this link, which is why this
+            # rule shares its match with the MEMBER_NOT_FOUND rule above.
+            "match": {"action_type": "click", "role": "link", "name": "Open sub-account"},
             "outcome": ExpectedOutcome(
-                condition="page contains 'Access denied. Member'",
+                condition="page contains 'Access denied. This account is restricted'",
                 classification="business_outcome",
                 code="PERMISSION_DENIED",
-                handling="member account is locked; sub-account creation is not permitted",
+                handling="member account is locked; there is no 'Open sub-account' link to "
+                "click through on the member detail page",
             ),
         },
     ],

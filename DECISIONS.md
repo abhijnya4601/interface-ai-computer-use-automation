@@ -475,3 +475,38 @@ This is the clearest example in this build of why "round-trips through
 criterion) is necessary but not sufficient — both bugs produced perfectly schema-valid JSON.
 Nothing caught them until the actual field values were read and checked against what the real
 run actually did.
+
+## D14 — 2026-08-19 — A third real bug: a declared business outcome on the wrong step
+
+Ran the full replay verification suite for `open_subaccount` (success with a new member,
+`confirm=True` required, both business outcomes) matching D10's rigor for
+`lookup_member_balance`. `member_id=23456` (never used to record) with `confirm=True` genuinely
+created sub-account #3 — confirmed directly against `app/bank.db`, not just trusting the
+`status: success` result. `member_id=88888` (not seeded) correctly returned `business_outcome` /
+`MEMBER_NOT_FOUND`. But `member_id=99999` (locked) came back `hard_failure` at step `s5` (`Open
+sub-account` link not found) instead of the expected `business_outcome` / `PERMISSION_DENIED`.
+
+Checked the real page: `curl http://localhost:5050/member/99999` — `member_detail.html` renders
+only the `msg-denied` branch for a locked member; it never emits an `Open sub-account` link at
+all, only for the active/found branch (see `app/templates/member_detail.html`). The
+`_KNOWN_OUTCOMES` entry in `agent/compiler.py` had declared `PERMISSION_DENIED` on the
+`"Continue"` button click (step `s7`) — reasoning from `app.py`'s server-side check (locked
+members get turned away when *submitting* the new-subaccount form) rather than from what the UI
+actually does. But a locked member's flow never reaches `s7` at all: it dead-ends one click
+earlier, at `s5`, because the link to even *reach* the form was never rendered. Moved the
+declaration to `s5` (same step that already carries `MEMBER_NOT_FOUND`, for the analogous
+"the link this step needs doesn't exist" reason), corrected the condition text to match
+`member_detail.html`'s actual locked-branch copy ("Access denied. This account is restricted"),
+and removed the stale declaration from `s7`. Patched the same fields directly in the real
+`capabilities/open_subaccount.v1.json` (verified via round-trip), added a regression test
+(`test_open_subaccount_permission_denied_attaches_to_the_open_subaccount_link_not_continue`),
+and re-ran the replay for real: now correctly returns `business_outcome` / `PERMISSION_DENIED`.
+
+All three D13/D14 bugs share a root cause worth naming: `agent/compiler.py`'s declared
+`_KNOWN_OUTCOMES` are authored from *domain knowledge of the app*, not from what the one real
+discovery run actually observed (see `agent/compiler.py`'s own docstring on this trade-off) —
+which means they're exactly as reliable as that domain knowledge, and wrong domain knowledge
+produces a schema-valid but behaviorally wrong artifact that nothing catches except actually
+replaying every declared branch against the real app. This build did that for both capabilities'
+full outcome matrices; a production version would want this as a standing test suite run on
+every new capability version, not a one-time manual check. Full suite: 75/75 tests pass.
