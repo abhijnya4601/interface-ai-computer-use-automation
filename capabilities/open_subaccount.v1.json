@@ -1,7 +1,7 @@
 {
   "capability_id": "open_subaccount",
   "version": "1.0.0",
-  "created_from_run_id": "run_8ee69bcbf8",
+  "created_from_run_id": "run_094a855f92",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "http://localhost:5050/search",

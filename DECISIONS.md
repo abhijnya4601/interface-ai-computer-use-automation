@@ -526,3 +526,45 @@ in any prior test in this build, and never used to record — correctly returnin
 (matching seed data) with no API key set anywhere in that clone. This closes the loop on
 "deterministic replay needs no LLM" and "genuine parameterization" one more time, independently,
 from a location that has never seen any of this project's local state.
+
+## D16 — 2026-08-19 — Real bug found via an actual human using the escalation UI: wall-clock
+timeout counted human review time against the run's own budget
+
+Ran the full interactive escalation flow with an actual human (not the automated
+`--auto-approve-escalation` stand-in): a real discovery run for `open_subaccount`, non-headless,
+no auto-approval — genuinely waiting for a person to open `escalation/operator_page.py` and
+click a button. The person briefly opened the wrong page (`localhost:5050`, the bank app itself,
+instead of `localhost:5001`, the operator console — an easy mix-up between "the page the
+automation controls" and "the page the human controls"), then found the right one and clicked
+**Approve & Resume**. The lease flip worked correctly (`decision='approved'` recorded exactly
+right) — but the overall run then reported `status=timeout`, discarding a run that had actually
+been approved and was ready to finish.
+
+Root cause, found by reading `agent/discovery.py`'s loop: `start_time = time.monotonic()` is set
+once at the top of `run_discovery` and never adjusted. `trigger_escalation` **blocks** — by
+design, since a human might take real time to review — but the wall-clock check
+(`time.monotonic() - start_time > timeout_s`) doesn't know the difference between the agent
+actively working and the agent sitting idle waiting on a person. The default `timeout_s=300s`
+(5 minutes) is generous for the agent's own pace, but a person reading an unfamiliar escalation
+screen and finding the right URL for the first time can easily take longer than that — and every
+second of that gets silently charged against the same budget.
+
+This is a real design flaw the assignment's own "stopping conditions" section implicitly assumes
+away: a wall-clock timeout is supposed to catch a run that isn't making progress, not penalize a
+human for taking their time to make a good decision. Fixed in both places `trigger_escalation` is
+called (the dead-end path and the model-invoked `escalate` tool): capture `time.monotonic()`
+immediately before and after the blocking call, and add the delta to `start_time` — this
+shifts the timeout's clock forward by exactly however long the human took, so only genuine
+agent-working time counts against `timeout_s`.
+
+Verified with a new regression test, `scripts/smoke_test_escalation_timeout.py`: runs the real
+loop (real browser, real Flask app, real `escalation/controller.py`, only the Anthropic client
+faked) with a deliberately short `timeout_s=3.0` and an escalation wait engineered to last 6
+seconds — longer than the timeout. Real output: total elapsed 7.2s, and the run still finished
+`status=success`, proving the fix. Full suite: 75/75 unit tests still pass.
+
+Notable: this bug was invisible to every automated demo run in this build (`demo_escalation.py`,
+`--auto-approve-escalation`), because the scripted approver always resumed within ~2 seconds —
+comfortably inside the 300s budget. It only surfaced once an actual human used the actual UI at
+actual human speed, which is exactly the kind of thing "at least one genuine run" catches that a
+scripted stand-in cannot.

@@ -155,7 +155,13 @@ def run_discovery(
             reason = (f"dead-end: {DEAD_END_REPEAT_THRESHOLD} consecutive turns produced no "
                       "observable state change")
             _log({"type": "dead_end", "reason": reason})
+            escalation_started = time.monotonic()
             trigger_escalation(reason, page, run_id=run_id)
+            # A human can reasonably take minutes to review and decide; that thinking time must
+            # not burn the run's own wall-clock budget (DECISIONS.md D16) — shift start_time
+            # forward by however long the wait actually took, so only real elapsed *working*
+            # time counts against timeout_s.
+            start_time += time.monotonic() - escalation_started
             _log({"type": "escalation_resumed"})
             recent_hashes.clear()
             last_action_result = "escalation resumed — re-observing current state"
@@ -264,7 +270,11 @@ def run_discovery(
             elif name == "escalate":
                 reason = tool_input.get("reason", "model requested escalation")
                 _log({"type": "escalate_requested", "reason": reason})
+                escalation_started = time.monotonic()
                 lease = trigger_escalation(reason, page, run_id=run_id)
+                # See the dead-end escalation path above / DECISIONS.md D16: human review time
+                # must not count against the run's own wall-clock timeout.
+                start_time += time.monotonic() - escalation_started
                 decision = lease.context.get("decision")
                 human_note = lease.context.get("human_actions_summary", "")
                 _log({"type": "escalation_resumed", "decision": decision, "human_note": human_note})
