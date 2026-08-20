@@ -76,6 +76,24 @@ The parts that need a real browser and/or a real LLM:
 
 ## 3. Demo path
 
+**Headless vs. headed — what you'll actually see.** Every `run_discovery.py` command below
+includes `--headless`, meaning no browser window opens — the agent runs invisibly and you only
+see status printed to your terminal. **Drop `--headless` from any command if you want to watch
+the real Chromium window do the work live** — that's the more interesting way to first see this
+run. `run_replay.py` is headless by default too; add `--headed` to it if you want to watch a
+replay instead of just reading its printed result.
+
+**Handling escalation — three ways, pick one per run:**
+1. **`--auto-approve-escalation`** — fully unattended; a background process approves it for you
+   after a short delay. Used below wherever a command needs to complete without you (e.g.
+   recording the risky capability once, non-interactively).
+2. **`--open-console-on-escalation`** (recommended for trying this yourself) — starts the
+   operator console for you and opens it in your browser the instant the run actually escalates,
+   so you can click Approve/Decline live without hunting for a port or missing the moment. This
+   is what "Testing human-in-the-loop escalation yourself" below uses.
+3. **Neither flag** — the run blocks and waits. Start `escalation/operator_page.py` yourself in
+   a separate terminal beforehand if you want to approve it manually without the auto-open.
+
 **Terminal 1 — start the mock bank app:**
 
 ```bash
@@ -146,7 +164,7 @@ python3 scripts/run_discovery.py \
 - **`--target`** stays `http://localhost:5050/search` unless you've pointed the mock app at a
   different entry route yourself.
 - Drop `--headless` if you want to watch the browser; add `--open-console-on-escalation` if the
-  task might need a state-changing action confirmed (see "Forcing a human escalation by hand"
+  task might need a state-changing action confirmed (see "Testing human-in-the-loop escalation yourself"
   below for what that looks like end to end).
 
 Whatever gets compiled replays exactly like any other capability:
@@ -205,32 +223,41 @@ python3 scripts/run_replay.py \
   --params '{"member_id": "34567"}'   # empty history -> NO_TRANSACTIONS (business outcome)
 ```
 
-### Forcing a human escalation by hand
+### Testing human-in-the-loop escalation yourself
 
-This is the interactive version — you play the banker who approves or declines a real pending
-request, rather than letting `--auto-approve-escalation` do it unattended:
+**Why this happens at all — the model decides, a human doesn't force it.** Nothing in this repo
+maintains a fixed list of "risky goals that need a human." The agent's own system prompt
+(`agent/discovery.py::_system_prompt`) tells it: if completing the goal requires a state-changing,
+hard-to-reverse action, stop and call `escalate` instead of taking that step yourself. Whether any
+given goal actually triggers this is the model's live judgment call, made fresh each run against
+what it's about to do — not something decided in advance by a human or a config file. A human's
+only role is what happens *after* that: reviewing the specific pending action and deciding
+Approve or Decline. (`risk_level: risky` on a compiled capability is inferred *afterward*, from
+whether this happened during discovery — see `_infer_risk_level`, D23 — never the other way
+around.)
+
+To watch this yourself, in one terminal, with the console opening automatically:
 
 ```bash
-# Terminal A: the operator console
 source .venv/bin/activate
-set -a; source .env; set +a   # loads OPERATOR_USERNAME/OPERATOR_PASSWORD if you set them
-python3 escalation/operator_page.py    # http://localhost:5001, prints a one-time
-                                        # credential to the console if you didn't set one
+set -a; source .env; set +a
 
-# Terminal B: an irreversible goal, WITHOUT --auto-approve-escalation, so it actually blocks
 python3 scripts/run_discovery.py \
   --goal "Open a new Christmas Club sub-account for member 34567 with a \$50 opening deposit, and complete the account creation." \
   --target "http://localhost:5050/search" \
-  --capability-id open_subaccount --max-steps 12 --headless
+  --capability-id open_subaccount --max-steps 12 --open-console-on-escalation
 ```
 
-When the run escalates, open `http://localhost:5001` — your browser will prompt for a
-username/password (HTTP Basic Auth, per D18); use whatever `OPERATOR_USERNAME`/`OPERATOR_PASSWORD`
-you set, or the one-time credential Terminal A printed at startup if you didn't set one. Then
-you'll see the reason, the current URL, and a screenshot of the live session, with Approve /
-Decline / plain-Resume buttons. See
-`scripts/demo_escalation.py` for a fully automated version of this same sequence (real browser,
-real separate operator process, real HTTP calls) used to produce
+No `--headless` here on purpose — watch the real browser window reach the confirmation page, then
+watch your own browser pop open the operator console the moment it actually escalates. Log in
+with the credentials printed in your terminal (or your own `OPERATOR_USERNAME`/`OPERATOR_PASSWORD`
+if you set them), read the real reason and screenshot, and click Approve or Decline. Prefer two
+terminals and starting the console yourself instead? Drop `--open-console-on-escalation` and run
+`python3 escalation/operator_page.py` in a separate terminal first, then open
+`http://localhost:5001` by hand once it escalates.
+
+See `scripts/demo_escalation.py` for a fully automated version of this same sequence (real
+browser, real separate operator process, real HTTP calls, zero manual clicking) used to produce
 `evidence/escalation_demo_sequence.json`.
 
 ### Teach it something it's never seen
@@ -260,7 +287,7 @@ Two things worth watching for, both real and both verified live twice now (once 
 1. **It may escalate on its own.** Submitting a form that changes a real record is exactly the
    "state-changing, hard-to-reverse action" the system prompt tells the model to stop and confirm
    before taking — both `dispute_transaction` and `update_member_address` did, unprompted, on
-   their first-ever run. If it does, follow the "Forcing a human escalation by hand" steps above
+   their first-ever run. If it does, follow the "Testing human-in-the-loop escalation yourself" steps above
    to approve or decline it — no `--auto-approve-escalation` needed if you want to do that part
    yourself.
 2. **A capability discovered this way that *did* escalate gets compiled `risk_level: risky`
@@ -294,6 +321,30 @@ these cover genuinely different things to watch for, each verified live at least
   is Christmas Club). This now works (D28) — the `type` tool falls back to `select_option` for a
   `<select>` element, and the model can see every option's label via the accessibility tree, not
   just the current selection.
+
+### Everything the mock app can learn, in one place
+
+Every goal type demonstrated above, gathered into one table — `--capability-id` is what to pass,
+`safe` capabilities never need `--confirm` on replay, `risky` ones always do:
+
+| What it does | `--capability-id` | Risk | Member IDs worth trying | What you'll see |
+|---|---|---|---|---|
+| Look up a savings balance | `lookup_member_balance` | safe | `12345`/`23456`/`34567`/`56789` (success), `99999` (locked), `00000` (not seeded) | `success`, `PERMISSION_DENIED`, `MEMBER_NOT_FOUND` |
+| Open a new sub-account | `open_subaccount` | risky | any active member; try a non-default account type (Vacation Club, General Savings) | escalates before the final submit; `--confirm` required to replay |
+| Find the most recent transaction | `lookup_latest_transaction` | safe | `12345`/`23456` (have history), `34567`/`45678`/`56789` (empty) | `success`, `NO_TRANSACTIONS` |
+| File a transaction dispute | `dispute_transaction` | risky | any member with transaction history | escalates on its own; `rm` the `.json` first for a genuinely blank-slate test |
+| Update a mailing address | `update_member_address` | risky | any member | escalates on its own; same blank-slate note as above |
+
+**To repeat any of this cleanly**, reset the mock bank back to its original seed data — this
+clears anything a previous run changed (a new sub-account, a disputed transaction, a changed
+address) without needing to restart the Flask app itself:
+
+```bash
+cd app && python3 -c "import models; models.init_db(); models.seed()" && cd ..
+```
+
+Run this between attempts if you want every member ID above to behave exactly as described,
+regardless of what you tried before.
 
 ## 4. Evidence
 
