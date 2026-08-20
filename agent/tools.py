@@ -159,7 +159,7 @@ def execute_click(page: Page, role: str, name: str) -> str:
         # Playwright failure (element detached, not visible, not clickable, ...) -- narrowing
         # this to TimeoutError only meant any of those instead propagated straight out of
         # run_discovery() uncaught, crashing the whole run instead of a graceful tool_error the
-        # model could see and reason about. Found by inspection, not a live crash (D28).
+        # model could see and reason about. Found by inspection, not a live crash.
         raise ToolExecutionError(f"click on role={role!r} name={name!r} failed: {exc}") from exc
     return f"clicked {role} '{name}' (in {where})"
 
@@ -169,7 +169,7 @@ def execute_type(page: Page, role: str, name: str, text: str) -> str:
     Two real element shapes share the "type" tool: a plain text input (`fill`) and a `<select>`
     (resolves to role "combobox", needs `select_option`, not `fill` -- `fill()` raises
     immediately with a plain `Error`, not a timeout, verified directly against a real Playwright
-    page (D28), which is exactly why the fallback below has to catch `PlaywrightError`, not just
+    page, which is exactly why the fallback below has to catch `PlaywrightError`, not just
     a timeout: the original narrower except never actually caught it, so this fallback was dead
     code -- the model could never successfully select a non-default option, it would just crash
     the run instead. `select_option` itself is tried by value first (the HTML attribute, e.g.

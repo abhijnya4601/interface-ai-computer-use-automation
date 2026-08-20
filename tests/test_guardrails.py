@@ -16,7 +16,7 @@ def test_action_type_outside_allowlist_raises():
         guardrail_check({"type": "download_file"}, current_url="http://localhost:5050/search")
 
 
-# ---- discovery/replay domain separation (D18) -------------------------------------------------
+# ---- discovery/replay domain separation ---------------------------------------------------
 
 def test_discovery_phase_allowed_on_discovery_allowlisted_domain():
     guardrail_check({"type": "navigate", "url": "http://localhost:5050/search"}, phase="discovery")
@@ -41,7 +41,7 @@ def test_replay_phase_allowed_on_general_allowed_domains_even_if_not_discovery_a
 
 
 def test_default_phase_is_replay():
-    # callers that don't pass phase= (e.g. pre-D18 code) keep working exactly as before
+    # callers that don't pass phase= keep working exactly as before
     guardrail_check({"type": "navigate", "url": "http://localhost:5050/search"})
 
 

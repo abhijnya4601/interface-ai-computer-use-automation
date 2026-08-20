@@ -1,5 +1,5 @@
 """
-Regression test for a real bug (DECISIONS.md D30): the dead-end escalation path discarded the
+Regression test for a real bug: the dead-end escalation path discarded the
 `Lease` `trigger_escalation()` returned entirely, so whatever a human typed while resolving a
 dead-end never reached the model on the next turn -- unlike the escalate() tool-call path, which
 already threads `human_actions_summary` through. Found live: a user's human note explaining what

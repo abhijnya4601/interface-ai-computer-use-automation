@@ -1,8 +1,8 @@
 """
-Live smoke test for the table_position locator strategy (D22, fixing D21's real find). Uses
+Live smoke test for the table_position locator strategy. Uses
 `page.set_content()` with two versions of the same table shape (different data, same structure)
 so this doesn't need the Flask app running — a real browser is enough. Proves the exact scenario
-that failed in D21: build a locator against one row's data, then successfully resolve the
+that failed before this locator strategy existed: build a locator against one row's data, then successfully resolve the
 *analogous* cell on a page with completely different data (not the old value).
 
 Run: python scripts/smoke_test_table_position.py
@@ -72,7 +72,7 @@ def main():
         resolved_text = resolved.text_content() if resolved else None
         check("resolved to TABLE_B's actual latest date ('2026-08-12'), not TABLE_A's stale value",
               resolved_text == "2026-08-12")
-        print(f"resolved cell text on TABLE_B: {resolved_text!r} (this IS the D21 fix)\n")
+        print(f"resolved cell text on TABLE_B: {resolved_text!r} (this IS the table_position fix)\n")
 
         # --- also confirm a labeled row (th scope=row) is correctly NOT treated as table_position ---
         page.set_content("""

@@ -78,9 +78,9 @@ def main():
         with sync_playwright() as p:
             context = p.chromium.launch_persistent_context(
                 str(Path(__file__).parent.parent / ".playwright-profile-escalation-demo"),
-                headless=True,  # see DECISIONS.md: mechanism (lease flip, real resume, re-
-                                 # observation) is demonstrated live; no display is available in
-                                 # this environment for a literal visible takeover
+                headless=True,  # mechanism (lease flip, real resume, re-observation) is
+                                 # demonstrated live; no display is available in this
+                                 # environment for a literal visible takeover
             )
             page = context.pages[0] if context.pages else context.new_page()
             result = run_discovery(

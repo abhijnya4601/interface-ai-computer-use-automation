@@ -1,5 +1,5 @@
 """
-Regression test for a real bug (DECISIONS.md D16): the discovery loop's wall-clock timeout used
+Regression test for a real bug: the discovery loop's wall-clock timeout used
 to count time spent BLOCKED waiting for a human escalation decision against the same budget as
 the agent's own working time. A human taking a few minutes to review and click Approve would
 make an otherwise-successful run report status=timeout the instant it resumed.

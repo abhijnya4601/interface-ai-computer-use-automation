@@ -3,7 +3,7 @@ Fixtures for offline (no-browser) perception tests.
 
 These are not invented — they are the literal `page.locator("html").aria_snapshot()` /
 `frame.locator("html").aria_snapshot()` output captured from a real Chromium run against the
-real Flask app during development (see DECISIONS.md D6). Using real captured output rather than
+real Flask app during development. Using real captured output rather than
 hand-guessed shapes means these tests would have caught the two real surprises this build hit
 (the removed `page.accessibility` API and the iframe boundary) had they existed before that
 investigation, instead of after.

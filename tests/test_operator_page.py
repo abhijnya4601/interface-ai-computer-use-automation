@@ -1,5 +1,5 @@
 """
-Offline tests for the operator console's authentication (D18) — the single most safety-critical
+Offline tests for the operator console's authentication — the single most safety-critical
 access point in the system (whoever can reach it can approve an irreversible financial action).
 Uses Flask's test client, no live server or browser needed.
 
@@ -84,7 +84,7 @@ def test_screenshot_route_also_requires_auth(client):
 
 
 def test_index_response_is_never_cached(client):
-    """Found live (D24): a browser back-button or reload could redisplay an already-resolved
+    """Found live: a browser back-button or reload could redisplay an already-resolved
     'escalated' view from cache after a real operator had already clicked Approve, making a
     resolved request look like it was still pending. The page shows live state, so it must never
     be served from cache."""

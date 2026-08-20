@@ -54,7 +54,7 @@ def test_parse_confirm_frame_finds_confirm_button():
 
 
 def test_parse_top_level_wrapper_does_not_reach_iframe_content():
-    """Documents the real, verified limitation build_observation works around (DECISIONS.md D6)."""
+    """Documents the real, verified limitation build_observation works around."""
     tree = _parse_aria_snapshot(CONFIRM_WRAPPER_TOP_LEVEL_YAML)
     iframe_nodes = _find_nodes_by_role(tree, "iframe")
     assert len(iframe_nodes) == 1

@@ -93,8 +93,8 @@ def test_typed_value_matching_goal_becomes_param_ref():
 
 
 def test_typed_value_that_merely_appears_as_a_goal_substring_is_not_misdetected():
-    """Regression test for a real bug (DECISIONS.md D13): a $50 deposit amount typed while
-    recording a goal like "...member 12345 with a $50 opening deposit..." must NOT be tagged as
+    """Regression test for a real bug: a $50 deposit amount typed while recording a goal like
+    "...member 12345 with a $50 opening deposit..." must NOT be tagged as
     the member_id param just because "50" is also a substring of the goal text."""
     rec = Recorder(goal="Open a new sub-account for member 12345 with a $50 opening deposit.")
     page = FakePage({("textbox", "Opening Deposit ($)"): 1})
@@ -131,7 +131,7 @@ def test_record_extract_sets_extract_as():
     assert step.extract_as == "savings_balance"
 
 
-# ---- table_position locator (D22) -- guard-clause paths only; the real DOM-walking logic ----
+# ---- table_position locator -- guard-clause paths only; the real DOM-walking logic ----
 # ---- is verified live in scripts/smoke_test_table_position.py, which needs a real browser ----
 
 def test_table_position_short_circuits_for_non_cell_roles_without_touching_page():

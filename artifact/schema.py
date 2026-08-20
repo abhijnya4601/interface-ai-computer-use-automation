@@ -35,7 +35,7 @@ class LocatorTarget(BaseModel):
         ...,
         description=(
             'e.g. {"role": "button", "name": "Go"}, or for strategy="table_position" '
-            '{"table_headers": [...], "row_index": 0, "column_index": 2} — see D22: a data-table '
+            '{"table_headers": [...], "row_index": 0, "column_index": 2} — a data-table '
             "cell with no per-row label has nothing stable to anchor on except its own value, "
             "which is exactly what changes between replays, so it's addressed by position "
             "(which table, by its column headers; which row; which column) instead."

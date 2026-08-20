@@ -1,5 +1,5 @@
 """
-Offline tests for guardrails/encryption.py (D19). No network, no browser.
+Offline tests for guardrails/encryption.py. No network, no browser.
 """
 import pytest
 from cryptography.fernet import InvalidToken

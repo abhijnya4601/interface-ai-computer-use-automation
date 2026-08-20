@@ -12,7 +12,7 @@ noise is visible in the accessibility tree, only the semantic role/name/value th
 reader (or this agent) would see. Screenshots are reserved for failure evidence, not decision
 input — see escalation/controller.py and replay/engine.py's hard-failure path.
 
-IMPORTANT — see DECISIONS.md D6 for the full story: the build spec calls for
+IMPORTANT — the build spec calls for
 `page.accessibility.snapshot()`, but that API was removed from Playwright (tested directly
 against a real browser: `AttributeError: 'Page' object has no attribute 'accessibility'` on
 playwright==1.62.0). The supported replacement is `Locator.aria_snapshot()`, which returns a
@@ -144,7 +144,7 @@ def build_observation(page, last_action_result: str = "") -> dict:
     Requires a live Playwright `page`. Snapshots the main frame via aria_snapshot, then grafts
     in each child frame's own snapshot wherever the main tree has a bare `iframe` leaf, so
     content inside e.g. the sub-account confirmation iframe is reachable by the agent exactly
-    as if it weren't cross-document. See module docstring / DECISIONS.md D6.
+    as if it weren't cross-document. See module docstring for the full story.
     """
     main_text = page.locator("html").aria_snapshot()
     tree = _parse_aria_snapshot(main_text)

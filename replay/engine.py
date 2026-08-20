@@ -65,11 +65,11 @@ def _contexts(page):
 
 def _locate_table_position(page, primary: dict):
     """
-    Resolve a table_position locator (D22): find the table whose column headers match, then the
+    Resolve a table_position locator: find the table whose column headers match, then the
     row_index-th data row, then the column_index-th cell in it. Position-based rather than
     content-based, specifically because a data-table cell with no per-row label has nothing
-    stable to anchor on except its own value — which is exactly what changes between replays
-    (see DECISIONS.md D21). Returns a Locator or None.
+    stable to anchor on except its own value — which is exactly what changes between replays.
+    Returns a Locator or None.
     """
     headers = primary.get("table_headers") or []
     row_index = primary.get("row_index")

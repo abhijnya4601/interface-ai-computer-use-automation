@@ -130,7 +130,7 @@ def test_verify_checkpoint_element_present_false():
     assert _verify_checkpoint(cap, page) is False
 
 
-# ---- _locate_table_position (D22) -- guard-clause paths; the real DOM-walking logic is ----
+# ---- _locate_table_position -- guard-clause paths; the real DOM-walking logic is ----
 # ---- verified live in scripts/smoke_test_table_position.py, which needs a real browser ----
 
 def test_locate_table_position_returns_none_with_no_headers():

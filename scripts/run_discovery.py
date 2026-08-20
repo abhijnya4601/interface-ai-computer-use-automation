@@ -69,7 +69,7 @@ RISK_LEVELS = {"lookup_member_balance": "safe", "open_subaccount": "risky"}
 
 def _default_checkpoint(final_url: str, target_url: str) -> Checkpoint:
     """
-    Fallback checkpoint for any capability_id not in CHECKPOINTS above (D22 — the earlier
+    Fallback checkpoint for any capability_id not in CHECKPOINTS above (the earlier
     fallback, `Checkpoint(type="url_match", expected=target_url)`, checked whether the FINAL
     page was still the STARTING page, which is wrong for virtually every real capability, since
     the whole point of running one is to navigate somewhere else). Uses the final URL's last
@@ -147,7 +147,7 @@ def _open_console_watcher(stop_event: threading.Event):
 def _auto_approve_watcher(stop_event: threading.Event, auth_headers: dict):
     """Background thread: as soon as the lease flips to human, wait briefly (as a stand-in for
     a human actually reading the context) then post a real HTTP Approve & Resume, authenticated
-    the same way a real operator's browser would be (D18 — the console requires auth)."""
+    the same way a real operator's browser would be (the console requires auth)."""
     while not stop_event.is_set():
         if controller.read_lease().state == "human":
             time.sleep(2)  # stand-in for a human reading the escalation context

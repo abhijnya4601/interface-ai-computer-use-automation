@@ -44,7 +44,7 @@ def test_infer_output_schema_from_outputs_dict():
 
 
 def test_infer_output_schema_drops_unbacked_keys():
-    """D22: an output the LLM reported via finish() but never actually extract()-ed must not be
+    """An output the LLM reported via finish() but never actually extract()-ed must not be
     declared in output_schema -- replay has no recorded step that could reproduce it."""
     steps = [Step(step_id="s1", action_type="extract", extract_as="most_recent_date")]
     schema = infer_output_schema(
@@ -78,7 +78,7 @@ def test_compile_attaches_business_outcomes_to_matching_steps():
 
 
 def test_open_subaccount_permission_denied_attaches_to_the_open_subaccount_link_not_continue():
-    """Regression test for a real bug (DECISIONS.md D14): member_detail.html never renders the
+    """Regression test for a real bug: member_detail.html never renders the
     "Open sub-account" link at all for a locked member (only the msg-denied branch) -- so a
     locked member never even reaches the "Continue" step. The PERMISSION_DENIED outcome has to
     be declared on the "Open sub-account" link click (where the flow actually dead-ends for a
@@ -137,7 +137,7 @@ def test_save_capability_round_trips_and_is_human_readable(tmp_path):
 
 
 def test_save_capability_does_not_corrupt_output_schema_with_a_secret_like_field_name(tmp_path):
-    """Regression test for a real bug (DECISIONS.md D13): a field legitimately named
+    """Regression test for a real bug: a field legitimately named
     'sub_account_number' collided with the 'account_number' redaction marker, and applying
     redact() to the whole capability dump replaced its {"type": "string"} schema descriptor
     with the string "***REDACTED***", corrupting the artifact's structure."""
@@ -178,7 +178,7 @@ def test_save_capability_still_redacts_secret_like_values_inside_steps(tmp_path)
 
 
 def test_lookup_latest_transaction_declares_no_transactions_business_outcome():
-    """D22: an empty transaction history renders a placeholder row that a position-based
+    """An empty transaction history renders a placeholder row that a position-based
     locator would otherwise silently treat as real data."""
     steps = [
         Step(step_id="s6", action_type="extract",
@@ -198,8 +198,8 @@ def test_lookup_latest_transaction_declares_no_transactions_business_outcome():
 
 
 def test_dispute_transaction_declares_permission_denied_on_view_transactions_link():
-    """D29: found live -- dispute_transaction and update_member_address were compiled after D14
-    established the "locked member never renders the link" pattern for open_subaccount, but
+    """Found live -- dispute_transaction and update_member_address were compiled after the
+    "locked member never renders the link" pattern was established for open_subaccount, but
     never got their own _KNOWN_OUTCOMES entries, since they're outside the two capabilities the
     assignment requires. Replaying either against a locked member_id was reporting hard_failure
     instead of the real, expected PERMISSION_DENIED business outcome -- verified live before and
@@ -223,7 +223,7 @@ def test_dispute_transaction_declares_permission_denied_on_view_transactions_lin
 
 
 def test_update_member_address_declares_permission_denied_on_its_own_link():
-    """Same D29 finding and fix, for the other capability that shares the gap."""
+    """Same finding and fix, for the other capability that shares the gap."""
     steps = [
         Step(step_id="s4", action_type="click", target=_lt("link", "View")),
         Step(step_id="s5", action_type="click", target=_lt("link", "Update Mailing Address")),
@@ -240,11 +240,11 @@ def test_update_member_address_declares_permission_denied_on_its_own_link():
 
 
 def test_attach_expected_outcomes_is_idempotent():
-    """D32: found live -- a full outcome-matrix sweep across all 5 real capabilities caught
+    """Found live -- a full outcome-matrix sweep across all 5 real capabilities caught
     lookup_latest_transaction silently missing MEMBER_NOT_FOUND/PERMISSION_DENIED on its
-    compiled artifact, even though agent/compiler.py's _KNOWN_OUTCOMES has always declared them
-    -- stale-artifact drift, the same class of gap as D29. Patching it the established way (D22/
-    D29: re-run _attach_expected_outcomes against the loaded artifact's steps, re-save) doubled
+    compiled artifact, even though agent/compiler.py's _KNOWN_OUTCOMES has always declared
+    them -- stale-artifact drift. Patching it the established way (re-run
+    _attach_expected_outcomes against the loaded artifact's steps, re-save) doubled
     the NO_TRANSACTIONS outcome already correctly present on the extract step, because
     `outcomes = list(step.expected_outcomes)` started from what was already there and every
     matching rule got appended unconditionally, with no check for "is this exact rule already

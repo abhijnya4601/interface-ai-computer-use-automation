@@ -1,8 +1,8 @@
 # /evidence/ — what's here and where to start
 
 This directory has grown to 87 files across many discovery/replay/escalation runs made while
-building and hardening this system (`../DECISIONS.md` has the full story behind each one). If
-you're reviewing rather than exploring everything, start with the four files below — a real,
+building and hardening this system. If you're reviewing rather than exploring everything, start
+with the four files below — a real,
 end-to-end, traceable example: one discovery run, the artifact it compiled, a clean replay, and a
 replay that hits an exceptional state.
 
@@ -43,9 +43,9 @@ Per the "ideally include one" ask, there are several, each a different kind:
   catalog built from `../capabilities/` (`agent_interface/catalog.py`); it chose to call
   `lookup_member_balance` for a member never mentioned in its own description, the real
   deterministic replay engine executed it (no LLM in that path), and Claude answered correctly.
-  See `REPORT.md` §8 / `DECISIONS.md` D27 for the full design reasoning.
+  See `REPORT.md` §8 for the full design reasoning.
 - **`agent_capability_interface_demo_1787218696.json`** — the *first* run of the same script,
-  before the D27 fix: Claude declined to call the tool at all, misreading its description as
+  before the fix: Claude declined to call the tool at all, misreading its description as
   hardcoded to one member. Kept deliberately, not deleted, as real evidence of the bug the live
   run found and the fix that followed.
 

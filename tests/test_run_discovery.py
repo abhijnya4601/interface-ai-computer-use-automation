@@ -1,6 +1,6 @@
 """
-Offline tests for scripts/run_discovery.py's pure helper logic — _default_checkpoint (D22),
-_infer_risk_level (D23), and _console_watcher_step (D25) — none need a browser or API key.
+Offline tests for scripts/run_discovery.py's pure helper logic — _default_checkpoint,
+_infer_risk_level, and _console_watcher_step — none need a browser or API key.
 """
 import socket
 import sys
@@ -50,7 +50,7 @@ def test_infer_risk_level_defaults_to_safe_when_no_escalation_occurred():
 
 
 def test_infer_risk_level_defaults_to_risky_when_capability_id_is_unknown_but_it_escalated():
-    """D23: found live discovering update_member_address (never added to RISK_LEVELS) -- the
+    """Found live discovering update_member_address (never added to RISK_LEVELS) -- the
     model escalated mid-run to confirm a state-changing address update, but the unconditional
     "safe" default would have compiled it as risk_level=safe, letting replay execute it later
     with zero --confirm gate. A capability whose own discovery needed a human sign-off has no
@@ -84,7 +84,7 @@ def test_port_is_open_false_for_a_port_nothing_is_listening_on():
 
 
 def test_console_watcher_opens_once_when_lease_flips_to_human():
-    """D25: an operator playing the banker role has no way to know a run escalated unless they're
+    """An operator playing the banker role has no way to know a run escalated unless they're
     watching the terminal -- --open-console-on-escalation should pop the console into their
     browser automatically, exactly once per escalation, not once per poll tick."""
     should_open, already_opened = _console_watcher_step("human", already_opened=False)

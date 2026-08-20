@@ -12,7 +12,7 @@ allowed_domains:
 # allowed_domains above. Every discovery turn sends the observed page content to a third-party
 # LLM API; a real deployment must NEVER let discovery run against a live production session with
 # real customer data, only staging/test environments seeded with synthetic data (see REPORT.md
-# Safety / DECISIONS.md D18). Keeping this as its own list, checked with phase="discovery", makes
+# Safety section). Keeping this as its own list, checked with phase="discovery", makes
 # that rule an enforced technical control instead of just a documented one: adding a production
 # domain to allowed_domains (for replay) does NOT automatically permit discovery there too.
 discovery_allowed_domains:

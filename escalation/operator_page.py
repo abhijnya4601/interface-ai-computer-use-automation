@@ -4,7 +4,7 @@ allows this UI to be minimal as long as the mechanism underneath (the lease flip
 non-headless persistent Playwright session) is real. Shows the current escalation context and
 screenshot, and a Resume button that writes the resume signal controller.py is polling for.
 
-Requires HTTP Basic Auth (D18): whoever can reach this page can approve an irreversible
+Requires HTTP Basic Auth: whoever can reach this page can approve an irreversible
 financial action, so "no auth at all" is a genuine safety gap, not a cosmetic one — the
 assignment's "operator UI can be bare" allowance is about polish, not about access control.
 Credentials come from OPERATOR_USERNAME / OPERATOR_PASSWORD env vars; if OPERATOR_PASSWORD isn't

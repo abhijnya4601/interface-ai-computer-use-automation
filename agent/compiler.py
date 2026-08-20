@@ -5,8 +5,8 @@ versioned, serializable `Capability` and writes it to `capabilities/<capability_
 One thing this module does beyond simply repackaging the recorder's steps: it declares
 `expected_outcomes` on the steps where a business outcome or a known runtime condition can
 occur, based on domain knowledge of the target app established while building it (see
-`_KNOWN_OUTCOMES` below and DECISIONS.md) — not solely from what the single recorded discovery
-run happened to observe. A single happy-path discovery run only ever sees the happy path; the
+`_KNOWN_OUTCOMES` below) — not solely from what the single recorded discovery run happened to
+observe. A single happy-path discovery run only ever sees the happy path; the
 not-found and permission-denied branches (see app/templates/search.html's "No results." row and
 member_detail.html's msg-denied branch) are real behaviors of the target app that a human
 reviewer finalizing this artifact for production use would document from having explored the
@@ -69,8 +69,8 @@ _KNOWN_OUTCOMES: dict[str, list[dict]] = {
             ),
         },
         {
-            # See DECISIONS.md D14: this used to be declared on the "Continue" click (s7),
-            # assuming the flow would reach the sub-account form and get turned away there by
+            # This used to be declared on the "Continue" click (s7), assuming the flow would
+            # reach the sub-account form and get turned away there by
             # app.py's server-side status check. It doesn't — member_detail.html never renders
             # the "Open sub-account" link at all for a locked member (only the msg-denied
             # branch), so the wall is hit one click earlier, on this link, which is why this
@@ -105,7 +105,7 @@ _KNOWN_OUTCOMES: dict[str, list[dict]] = {
             ),
         },
         {
-            # D22: found live, not contrived — a member with zero transactions renders one row
+            # Found live, not contrived — a member with zero transactions renders one row
             # with transactions.html's msg-empty text instead of a data row. The table_position
             # locator (row 0, column 0) still resolves to *a* cell at that position — it has no
             # way to know the row is a placeholder rather than data — so without this declared
@@ -132,11 +132,11 @@ _KNOWN_OUTCOMES: dict[str, list[dict]] = {
             ),
         },
         {
-            # D29: found live -- same wall as D14's open_subaccount/PERMISSION_DENIED, one hop
-            # further down the same page. member_detail.html never renders "View Transactions"
-            # for a locked member (only the msg-denied branch), so replaying against a locked
+            # Found live -- same wall as open_subaccount's PERMISSION_DENIED, one hop further
+            # down the same page. member_detail.html never renders "View Transactions" for a
+            # locked member (only the msg-denied branch), so replaying against a locked
             # member_id was reporting hard_failure instead of the real, expected business
-            # outcome -- this capability was compiled after D14 fixed the pattern once, but
+            # outcome -- this capability was compiled after that pattern was fixed once, but
             # never got its own entry here, since it's outside the two capabilities the
             # assignment requires.
             "match": {"action_type": "click", "role": "link", "name": "View Transactions"},
@@ -160,7 +160,7 @@ _KNOWN_OUTCOMES: dict[str, list[dict]] = {
             ),
         },
         {
-            # D29, same pattern as dispute_transaction above.
+            # Same pattern as dispute_transaction above.
             "match": {"action_type": "click", "role": "link", "name": "Update Mailing Address"},
             "outcome": ExpectedOutcome(
                 condition="page contains 'Access denied. This account is restricted'",
@@ -188,9 +188,9 @@ def _step_matches(step: Step, match: dict) -> bool:
 
 def _attach_expected_outcomes(capability_id: str, steps: list[Step]) -> list[Step]:
     """
-    D32: found live — re-running this against an already-compiled artifact (the exact,
-    established pattern for patching an artifact after a _KNOWN_OUTCOMES rule changes, D22/D29)
-    used to duplicate any outcome the step already carried, since `outcomes` started from
+    Found live — re-running this against an already-compiled artifact (the established pattern
+    for patching an artifact after a _KNOWN_OUTCOMES rule changes) used to duplicate any outcome
+    the step already carried, since `outcomes` started from
     `step.expected_outcomes` (whatever was already there) and every matching rule was appended
     unconditionally, with no check for "is this exact rule already present." Idempotent now: a
     rule is only appended if no existing outcome already has the same (condition, code) —
@@ -224,9 +224,9 @@ def infer_input_schema(steps: list[Step]) -> dict:
 
 def infer_output_schema(outputs: dict, steps: list[Step]) -> dict:
     """
-    Declares only the output keys that have a recorded Step actually backing them (D22): a
+    Declares only the output keys that have a recorded Step actually backing them: a
     discovery run's `finish()` can report values the LLM read directly off the observation
-    without ever calling `extract()` on them (see DECISIONS.md D21) — declaring those in
+    without ever calling `extract()` on them — declaring those in
     `output_schema` anyway produces a schema-valid artifact whose promised outputs replay has no
     recorded way to reproduce. A key in `outputs` with no step whose `extract_as` matches it is
     dropped (with a printed warning, never silently) rather than promised and then missing.
@@ -277,7 +277,7 @@ def save_capability(capability: Capability, path: Path | None = None) -> Path:
     Serializes and writes the capability, running `redact()` only over `steps` — never over
     `input_schema`/`output_schema`. Those two are pure type metadata (e.g. `{"type": "string"}`),
     never actual data, so there is nothing in them to redact; running redact() over the whole
-    `model_dump()` corrupted a real artifact once (DECISIONS.md D13): a field legitimately named
+    `model_dump()` corrupted a real artifact once: a field legitimately named
     `sub_account_number` matched the `account_number` secret-key marker, and redact() replaced
     its entire schema-type dict with the string "***REDACTED***" — silently breaking the
     artifact's structural validity, not protecting any actual secret (there was never a real

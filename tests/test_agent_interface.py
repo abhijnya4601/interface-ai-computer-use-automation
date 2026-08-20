@@ -80,7 +80,7 @@ def test_build_tool_catalog_falls_back_to_a_placeholder_for_missing_description(
 
 
 def test_build_tool_catalog_generalizes_a_hardcoded_example_member_id(tmp_path):
-    """D27: found live -- Claude read a tool description literally saying "member 12345" as that
+    """Found live -- Claude read a tool description literally saying "member 12345" as that
     capability being hardcoded to member 12345, and declined to call it for a different
     member_id it was actually asked about, even though input_schema clearly declares member_id
     as a parameter. The description an agent sees must not contain the specific example ID the

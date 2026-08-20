@@ -53,7 +53,7 @@ graph LR
 no longer exists in current Playwright (`AttributeError: 'Page' object has no attribute
 'accessibility'`, verified directly). Rebuilt on `Locator.aria_snapshot()` (YAML text) instead,
 with per-frame snapshotting to cross iframe boundaries — a top-level snapshot does *not* reach
-iframe content by default (also verified directly, not assumed). Full story in `DECISIONS.md` D6.
+iframe content by default (also verified directly, not assumed).
 
 **Trade-off — model.** `claude-sonnet-5`, not the largest available model: this is a production
 capability-discovery agent for a bank, where cost/latency and reliably following one explicit
@@ -109,7 +109,7 @@ classDiagram
     Step "1" *-- "many" ExpectedOutcome
 ```
 
-This exact design point produced the most interesting bug in this build (D14): a declared
+This exact design point produced the most interesting bug in this build: a declared
 `PERMISSION_DENIED` outcome was attached to the wrong step because it was reasoned from
 server-side route logic instead of what the UI actually renders. The fix wasn't "trust the
 schema less," it was "replay every declared branch against the real app" — which the schema's
@@ -124,7 +124,7 @@ Replay resolves every `Step.target` the same way the recorder declared it: tier 
 warning), tier 4 `table_position` (a data-table cell with no per-row label, addressed by its
 table's column headers + row/column index instead of content — found live extending past the two
 required capabilities into a transaction-history table, where a value-anchored locator broke the
-moment a different member's data differed, D21→D22). **The tier log doubles as a free
+moment a different member's data differed). **The tier log doubles as a free
 drift-detection signal**: rising tier-2/3/4 usage across replays means the UI drifted, at zero
 extra infrastructure cost — the same signal covers per-tenant drift in section 4.
 
@@ -149,10 +149,9 @@ features with zero prior capability and fresh goal wording each time (`lookup_la
 outcome matrix was re-swept live across all 5 capabilities after every round of changes rather
 than trusting earlier verification still held. That discipline is exactly what caught this
 section's own named failure mode, twice, inverted (a business outcome misreported as a break, not
-the usual direction) — two capabilities missing `expected_outcomes` a third already had (D14→D29),
-and a stale artifact plus a genuine idempotency bug in the rule-patching function itself, found
-while fixing the first (D32). Full account of every one of these, including exact commands to
-reproduce: `DECISIONS.md`.
+the usual direction) — two capabilities missing `expected_outcomes` a third already had, and later
+a stale artifact plus a genuine idempotency bug in the rule-patching function itself, found while
+fixing the first. Both closed the same way: re-verified live, immediately, not left as a claim.
 
 ## 4. Heterogeneity & multi-tenant
 
@@ -187,16 +186,16 @@ voluntarily calling `escalate` (observed live: given a goal requiring an irrever
 the model escalated on its own, citing the exact policy rule from its system prompt).
 
 Three gaps here were found by actually running this live — twice by a user genuinely operating
-the escalation UI, not just by me (D12, D30, D31): the resume signal originally carried only a
-free-text note with no way to distinguish "approved" from "declined," and separately the dead-end
-path threaded nothing back at all, so a human's own note on resume silently went nowhere in either
-case — both fixed by threading a structured `decision` + note back through the lease's context,
-which is what let `open_subaccount` get recorded to completion by one real, unattended run instead
-of a human sitting and clicking through it live. The third was pure UX, not data loss: the
-operator console makes escalation obvious to whoever's looking *there*, but the automation's own
-browser window — the one actually being handed over — showed nothing. Fixed with a small on-page
-banner, `aria-hidden` (verified live it never leaks into the model's own perception) and removed
-on resume. Full write-ups: `DECISIONS.md` D12, D30, D31.
+the escalation UI, not just by me: the resume signal originally carried only a free-text note with
+no way to distinguish "approved" from "declined," and separately the dead-end path threaded
+nothing back at all, so a human's own note on resume silently went nowhere in either case — both
+fixed by threading a structured `decision` + note back through the lease's context, which is what
+let `open_subaccount` get recorded to completion by one real, unattended run instead of a human
+sitting and clicking through it live. The third was pure UX, not data loss: the operator console
+makes escalation obvious to whoever's looking *there*, but the automation's own browser window —
+the one actually being handed over — showed nothing. Fixed with a small on-page banner,
+`aria-hidden` (verified live it never leaks into the model's own perception) and removed on
+resume.
 
 ## 6. Safety
 
@@ -211,11 +210,11 @@ launches.
 
 `redact(obj)` runs two passes: by **key** (`{ssn, account_number, password, token}`, substring —
 not applied to `input_schema`/`output_schema` after `account_number` collided with a
-legitimately-named `sub_account_number` field and corrupted its type descriptor, D13), and by
-**value shape** (D17: an SSN- or card-number-like digit run is masked regardless of key name —
-verified against 1,000 random SHA256 hashes with zero false positives, and deliberately does
-*not* flag a name or currency balance, since those belong in a capability's declared outputs).
-Full PII detection remains an explicit cut.
+legitimately-named `sub_account_number` field and corrupted its type descriptor), and by **value
+shape** (an SSN- or card-number-like digit run is masked regardless of key name — verified against
+1,000 random SHA256 hashes with zero false positives, and deliberately does *not* flag a name or
+currency balance, since those belong in a capability's declared outputs). Full PII detection
+remains an explicit cut.
 
 The compliance frame that actually applies to a US bank is **GLBA** (the Safeguards Rule), not
 HIPAA (healthcare-specific). Three follow-on gaps this raised got real, verified fixes rather than
@@ -237,24 +236,23 @@ all three: one static key, no rotation, no HSM custody — a real KMS is the cre
 - **Operator console UI is intentionally bare** (three plain buttons, no styling) — the scope
   note allows this; *access* to it is what had to be real, and is (section 6).
 - **Parameter detection is a fixed `member (\d+)` pattern, exact-match only** — not a general
-  slot-filler. Deliberate, and it's exactly what produced a real bug (D13): an earlier
-  blind-substring version misattributed a $50 deposit to `member_id` because "50" also appeared
-  in the goal text. Now only tags `param_ref` on an exact match to the extracted ID.
-- **`redact()`'s value-shape pass covers SSN/card-number shapes only (D17)**, not full PII — that
-  needs NLP-grade entity detection, deliberately out of scope.
+  slot-filler. Deliberate, and it's exactly what produced a real bug: an earlier blind-substring
+  version misattributed a $50 deposit to `member_id` because "50" also appeared in the goal text.
+  Now only tags `param_ref` on an exact match to the extracted ID.
+- **`redact()`'s value-shape pass covers SSN/card-number shapes only**, not full PII — that needs
+  NLP-grade entity detection, deliberately out of scope.
 - **Tier-2 structural locator is simplified** ("first match in DOM order," not a richer
   relative-position description) — real but only exercised via fake match counts in
   `tests/test_recorder.py`, since this app's own role+name pairs are unique by design.
 - **Action vocabulary is `click`/`type`/`navigate`/`extract` only** — no drag or file-upload
   primitive. `<select>` dropdowns *are* covered (`type` falls back to `select_option()`) — a
-  code-review pass (D28) found this fallback, and every non-timeout Playwright error in
+  code-review pass found this fallback, and every non-timeout Playwright error in
   `agent/tools.py`, was silently unreachable due to an overly narrow `except`, fixed and verified
   live with a goal needing `open_subaccount`'s non-default account type.
 - **Only one stretch goal attempted** (§8) — depth over breadth per the assignment's own
   guidance; time otherwise went into verifying every core requirement's full outcome matrix live
   (the two required capabilities × all 4 replay scenarios each, a live escalation demo, many real
-  bugs found and fixed — see `DECISIONS.md`) rather than adding surfaces on top of a
-  less-verified core.
+  bugs found and fixed) rather than adding surfaces on top of a less-verified core.
 - **What I'd build next**: the base+patch tenant model made concrete against a second app
   variant; a real KMS (rotation, envelope encryption, audit-logged key access) in place of
   `EVIDENCE_ENCRYPTION_KEY`'s single static key.
@@ -268,7 +266,7 @@ to a tool is direct, not a translation layer that could drift from what `replay(
 `Capability.description` (a real schema gap: nothing previously carried what a capability *does*,
 only its typed I/O), populated from the discovery goal and manually patched onto all 5 existing
 artifacts using their own recorded goals — same discipline as every other artifact patch in this
-build (D13/D14/D22/D23).
+build.
 
 **Safety property, not an afterthought**: `confirm` is a parameter of `invoke_capability()`, never
 a field in the tool schema an LLM sees. Exposing it would let a model set `confirm=True` on its
@@ -288,4 +286,4 @@ Re-ran the same live demo after the fix: Claude correctly called
 `lookup_member_balance({"member_id": "23456"})`, the real deterministic replay engine (no LLM in
 this path) returned that member's actual balance, and Claude's final answer was correct. Both the
 broken-first and fixed-second runs' full transcripts are in `/evidence/`, not quietly discarded.
-10 new tests (`tests/test_agent_interface.py`). Full write-up: `DECISIONS.md` D27.
+10 new tests (`tests/test_agent_interface.py`).

@@ -1,5 +1,5 @@
 """
-Encryption at rest (D19) — the one compliance gap D18 left as a documented cut, revisited.
+Encryption at rest — a compliance gap initially left as a documented cut, then revisited.
 
 What changed: the earlier reasoning ("a hardcoded local key is security theater") was too
 conservative. This sources its key from `EVIDENCE_ENCRYPTION_KEY` in `.env` — the exact same
@@ -17,7 +17,7 @@ a public repo — encrypting the deliverable evidence would defeat the grading r
 serve compliance. This module exists to prove the capability is real (built, tested, working end
 to end) and to be the thing a real deployment's `evidence`/`capabilities` write paths would call;
 see `scripts/demo_encryption_at_rest.py` for that proof against a throwaway file, and
-`REPORT.md`/`DECISIONS.md` D19 for the reasoning in full.
+`REPORT.md` for the reasoning in full.
 
 Remaining honest limitation even with this in place: single static key, no rotation, no
 per-tenant/per-record keys, no HSM-backed custody. A larger real deployment would want a real
@@ -55,8 +55,8 @@ def _load_key() -> bytes:
 
 def encrypt_at_rest(data: bytes) -> bytes:
     """Encrypt bytes for storage. Raises EncryptionKeyMissing if no key is configured — fails
-    closed, same posture as the operator console's auth (D18): never silently write plaintext
-    when encryption was expected."""
+    closed, same posture as the operator console's auth: never silently write plaintext when
+    encryption was expected."""
     return Fernet(_load_key()).encrypt(data)
 
 

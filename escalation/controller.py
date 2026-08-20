@@ -159,8 +159,8 @@ def resume() -> Lease:
     chose/did) are carried forward into the fresh lease's context, even though `state` is back
     to "automation" — this is the caller's only way to learn what the human decided, since the
     lease is the one piece of shared state both sides read. Without this, a resumed discovery
-    loop has no way to tell "approved, proceed" apart from "declined, don't" (see DECISIONS.md
-    D11/D12) and would have to guess.
+    loop has no way to tell "approved, proceed" apart from "declined, don't" and would have to
+    guess.
     """
     decision = None
     human_actions_summary = ""

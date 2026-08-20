@@ -25,14 +25,14 @@ Two things worth understanding about the design:
    silently limited.
 
    Earlier this used a blind "does this literal appear anywhere in the goal string" substring
-   check instead of an exact match against the extracted ID — that produced a real bug (see
-   DECISIONS.md D13): recording `open_subaccount` for the goal "...member 12345 with a $50
+   check instead of an exact match against the extracted ID — that produced a real bug: recording
+   `open_subaccount` for the goal "...member 12345 with a $50
    opening deposit...", the deposit amount "50" is *also* a substring of the goal (inside
    "$50"), so it got tagged `{"param_ref": "member_id"}` too. Replaying with a different
    member_id would then have typed the member_id into the deposit field. Matching only the
    goal's actual extracted ID, exactly, closes that hole.
 
-3. **`table_position` locator, for cells with no per-row label** (D22, fixing D21's real find):
+3. **`table_position` locator, for cells with no per-row label**:
    `extract`ing a labeled value (`<th scope="row">Savings Balance</th><td>$1,842.30</td>`)
    anchors on the label — stable, since the label doesn't depend on the data. A plain data-table
    row (`<td>2026-08-15</td><td>Grocery Store Purchase</td>...`, no per-row label) has nothing
@@ -124,14 +124,14 @@ class Recorder:
                   "tier-3 text locator — most brittle, watch this in future replays")
         return target
 
-    # ---- table_position locator (D22) -------------------------------------------------------
+    # ---- table_position locator -------------------------------------------------------------
 
     def _try_table_position_locator(self, role: str, name: str, page) -> LocatorTarget | None:
         """
         If (role, name) resolves to a single <td> cell sitting in a data-table row with no
         per-row label (<th>), but the table itself has column headers (<th scope="col">), build
         a position-based locator instead of the normal role_name-by-value tier — see module
-        docstring point 3 / DECISIONS.md D22. Returns None (caller falls back to the normal
+        docstring point 3. Returns None (caller falls back to the normal
         tiers) if the shape doesn't match; never raises.
         """
         if role.lower() != "cell":
@@ -179,7 +179,7 @@ class Recorder:
                     reasoning=(
                         f"role='cell' name={name!r} sits in a data table (columns {headers}) with "
                         "no per-row label — anchoring on the cell's own value would break the "
-                        "moment the underlying data changes (see DECISIONS.md D21/D22), since "
+                        "moment the underlying data changes, since "
                         "that value is exactly what's different on every replay. Addressed by "
                         f"position instead: row {row_index} (0-indexed among data rows), column "
                         f"{col_index} ({column_label!r})."

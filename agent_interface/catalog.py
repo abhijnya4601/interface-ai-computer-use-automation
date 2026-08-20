@@ -20,8 +20,8 @@ def _generalize_description(description: str, input_schema: dict) -> str:
     `Capability.description` is the literal, historical discovery goal (e.g. "Look up member
     12345 and read their current savings balance.") -- exactly right for human/provenance
     review, but actively misleading as a tool description for an LLM choosing how to call this
-    capability. Found live (DECISIONS.md D27): Claude read "member 12345" as this capability
-    being hardcoded to that one member and declined to call it for a different member_id, even
+    capability. Found live: Claude read "member 12345" as this capability being hardcoded to
+    that one member and declined to call it for a different member_id, even
     though `input_schema` clearly declares member_id as a required parameter. Reuses the exact
     same regex the recorder uses to detect the parameterized ID in the first place, rather than
     inventing new detection logic, and only rewrites it when member_id is actually a declared

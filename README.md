@@ -6,9 +6,8 @@ versioned, reusable **capability** artifact, and that artifact is replayed **det
 — no LLM in the loop — with real runtime-error and business-outcome handling, safety guardrails,
 and a human-in-the-loop escalation/handoff path.
 
-See [`REPORT.md`](REPORT.md) for the design write-up and [`DECISIONS.md`](DECISIONS.md) for a
-running log of every non-obvious decision (including several real bugs found while building this,
-with what broke and how they were fixed).
+See [`REPORT.md`](REPORT.md) for the design write-up, including the trade-offs made and several
+real bugs found while building this — what broke and how they were fixed.
 
 ## 1. Setup
 
@@ -26,7 +25,7 @@ playwright install chromium      # downloads a real Chromium binary, no root nee
 echo "ANTHROPIC_API_KEY=sk-ant-..." > .env   # gitignored, never committed
 ```
 
-**Operator console credentials (D18):** `escalation/operator_page.py` requires HTTP Basic Auth —
+**Operator console credentials:** `escalation/operator_page.py` requires HTTP Basic Auth —
 whoever can reach it can approve an irreversible financial action, so it never serves
 unauthenticated. Set a stable credential in `.env`:
 
@@ -41,7 +40,7 @@ terminal at startup instead of ever running open — it never silently serves wi
 **A note on port 5000:** the mock app runs on **5050**, not 5000. macOS's built-in AirPlay
 Receiver squats on port 5000 and answers HTTP requests before Flask ever sees them — every
 `localhost:5000` reference you might expect from a typical Flask tutorial is `localhost:5050`
-throughout this repo instead. See `DECISIONS.md` D2.
+throughout this repo instead.
 
 **A note on conda:** if you have conda/Anaconda installed and your shell auto-activates a `(base)`
 environment, `source .venv/bin/activate` can silently fail to actually put this project's `.venv`
@@ -63,13 +62,14 @@ The parts that need a real browser and/or a real LLM:
   stand-ins. Runs in under 2 seconds, no network.
 - **Needs a real browser, no API key:** `scripts/verify_perception_live.py`,
   `scripts/smoke_test_discovery.py` (scripted fake LLM), `scripts/smoke_test_replay.py`,
-  `scripts/smoke_test_escalation_timeout.py` (regression test for a real timing bug — see
-  `DECISIONS.md` D16), `scripts/smoke_test_operator_auth.py` (live integration test for the
-  operator console's authentication — see `DECISIONS.md` D18), `scripts/smoke_test_dead_end_human_note.py`
-  (regression test for a human's resume note reaching the model — see `DECISIONS.md` D30). These
-  exist specifically to validate mechanics without spending API credits — see `DECISIONS.md` D8.
+  `scripts/smoke_test_escalation_timeout.py` (regression test for a real timing bug — a
+  human's escalation-review time was being counted against the run's own wall-clock budget),
+  `scripts/smoke_test_operator_auth.py` (live integration test for the operator console's
+  authentication), `scripts/smoke_test_dead_end_human_note.py` (regression test for a human's
+  resume note reaching the model on a dead-end resume). These exist specifically to validate
+  mechanics without spending API credits.
 - **No browser, no API key:** `python3 scripts/demo_encryption_at_rest.py` proves the
-  encryption-at-rest module (`guardrails/encryption.py`, D19) works end to end against a real
+  encryption-at-rest module (`guardrails/encryption.py`) works end to end against a real
   file on disk — generates a throwaway key if `EVIDENCE_ENCRYPTION_KEY` isn't set in `.env`.
 - **Needs a real browser AND a real API key:** `scripts/run_discovery.py` and anything under
   "demo path" below. This is the one part of the system that has to be real — see `REPORT.md`.
@@ -233,8 +233,7 @@ given goal actually triggers this is the model's live judgment call, made fresh 
 what it's about to do — not something decided in advance by a human or a config file. A human's
 only role is what happens *after* that: reviewing the specific pending action and deciding
 Approve or Decline. (`risk_level: risky` on a compiled capability is inferred *afterward*, from
-whether this happened during discovery — see `_infer_risk_level`, D23 — never the other way
-around.)
+whether this happened during discovery (`_infer_risk_level`) — never the other way around.)
 
 To watch this yourself, in one terminal, with the console opening automatically:
 
@@ -266,8 +265,8 @@ browser, real separate operator process, real HTTP calls, zero manual clicking) 
 (`dispute_transaction`, `update_member_address`) exist specifically because this exact "make it
 learn something new" question came up during review, and both were proven live rather than just
 described: point discovery at a real app feature with **zero** prior capability, on a goal never
-seen before, and watch it build one from scratch (`DECISIONS.md` D23 has the full write-up of both
-runs, including a real bug the first one surfaced).
+seen before, and watch it build one from scratch — both runs escalated on the model's own
+judgment and surfaced a real bug along the way (see `REPORT.md` §3).
 
 To get a genuinely blank slate yourself — not just a capability_id you personally haven't typed
 yet — delete its compiled artifact first, then discover it fresh:
@@ -281,8 +280,7 @@ python3 scripts/run_discovery.py \
   --capability-id dispute_transaction --headless
 ```
 
-Two things worth watching for, both real and both verified live twice now (once per feature,
-`DECISIONS.md` D23):
+Two things worth watching for, both real and both verified live twice now (once per feature):
 
 1. **It may escalate on its own.** Submitting a form that changes a real record is exactly the
    "state-changing, hard-to-reverse action" the system prompt tells the model to stop and confirm
@@ -291,13 +289,13 @@ Two things worth watching for, both real and both verified live twice now (once 
    to approve or decline it — no `--auto-approve-escalation` needed if you want to do that part
    yourself.
 2. **A capability discovered this way that *did* escalate gets compiled `risk_level: risky`
-   automatically** (D23's `_infer_risk_level` — no capability needs to be hand-listed for this),
-   so replaying it back will refuse without `--confirm`, same as `open_subaccount`.
+   automatically** (`_infer_risk_level` — no capability needs to be hand-listed for this), so
+   replaying it back will refuse without `--confirm`, same as `open_subaccount`.
 
 One honest limit to know before replaying `update_member_address`: parameter detection only
-generalizes the `member_id` (D13) — replaying it against a different member re-targets *that*
-member correctly, but writes back the same address values recorded during discovery, not new
-ones. It's "apply this recorded change to someone else," not "make up a new value per member."
+generalizes the `member_id` — replaying it against a different member re-targets *that* member
+correctly, but writes back the same address values recorded during discovery, not new ones. It's
+"apply this recorded change to someone else," not "make up a new value per member."
 
 ### A fuller menu — other goals worth trying, and what to expect
 
@@ -318,7 +316,7 @@ these cover genuinely different things to watch for, each verified live at least
   oddly or need two separate discovery calls. Worth trying specifically *because* it's untested.
 - **A goal that needs a non-default `<select>` option** — e.g. "Open a Vacation Club sub-account
   for member 45678 with a $25 opening deposit, and complete the account creation." (the default
-  is Christmas Club). This now works (D28) — the `type` tool falls back to `select_option` for a
+  is Christmas Club). This now works — the `type` tool falls back to `select_option` for a
   `<select>` element, and the model can see every option's label via the accessibility tree, not
   just the current selection.
 
@@ -348,8 +346,8 @@ regardless of what you tried before.
 
 ## 4. Evidence
 
-`/evidence/` holds the real artifacts from every run described in `DECISIONS.md` — 18 discovery
-transcripts, 27 replay results (success / business outcomes / an injected hard failure, across
+`/evidence/` holds the real artifacts from every run made while building and testing this — 18
+discovery transcripts, 27 replay results (success / business outcomes / an injected hard failure, across
 all 5 capabilities), 14 real escalations with screenshots, the fully-automated escalation demo
 sequence, a captured guardrail-violation transcript, and two real Claude tool-use transcripts from
 the agent-facing capability interface (§6). Nothing in it is synthesized after the fact; every
@@ -377,8 +375,7 @@ evidence/         real run output (see above)
 ## 6. Stretch goal: agent-facing capability interface
 
 `capabilities/*.json` exposed as a catalog an AI agent can discover and invoke by name with typed
-args — full design reasoning in `REPORT.md` §8, full write-up (including a real bug the first
-live run found) in `DECISIONS.md` D27.
+args — full design reasoning, including a real bug the first live run found, in `REPORT.md` §8.
 
 ```bash
 # terminal 1 — the mock app, same as any other demo

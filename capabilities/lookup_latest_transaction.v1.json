@@ -191,7 +191,7 @@
             "text": "2026-08-15"
           }
         ],
-        "reasoning": "role='cell' name='2026-08-15' sits in a data table (columns ['Date', 'Description', 'Amount', 'Status', 'Actions']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes (see DECISIONS.md D21/D22), since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 0 ('Date')."
+        "reasoning": "role='cell' name='2026-08-15' sits in a data table (columns ['Date', 'Description', 'Amount', 'Status', 'Actions']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes, since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 0 ('Date')."
       },
       "value": null,
       "extract_as": "most_recent_date",
