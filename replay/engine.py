@@ -381,4 +381,9 @@ def replay(
             return Result(status="success", outputs=redact(outputs))
         finally:
             print(f"[replay {run_id}] locator tier log: {tier_log}")
+            if not headless:
+                # headed run -- a human is presumably watching; leave the final page up for a
+                # few seconds instead of yanking the window shut the instant the result is ready.
+                print(f"[replay {run_id}] leaving the browser open for 5s so you can see the final state...")
+                time.sleep(5)
             browser.close()

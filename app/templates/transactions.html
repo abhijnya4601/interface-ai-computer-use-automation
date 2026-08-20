@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
-<head><title>Transaction History</title></head>
+<head><title>Transaction History</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
 <body>
 <div class="pg-wrap">
 <h1>Transaction History — {{ member.first_name }} {{ member.last_name }} ({{ member.member_id }})</h1>

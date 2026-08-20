@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
-<head><title>Dispute Submitted</title></head>
+<head><title>Dispute Submitted</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
 <body>
 <div class="pg-wrap">
 <p class="msg-success">Dispute submitted for transaction #{{ transaction.id }} ({{ transaction.description }}, {{ "%.2f"|format(transaction.amount_cents / 100) }}) for {{ member.first_name }} {{ member.last_name }}.</p>

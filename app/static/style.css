@@ -1,0 +1,172 @@
+/*
+Visual styling only — no markup, class names, or DOM structure changes anywhere in
+app/templates/. The non-semantic class names, nested tables, and iframe are deliberate
+(see app/app.py's module docstring: "ugly CSS/class names, not ugly accessibility"), and
+every recorded capability's locators depend on that exact structure. This file makes the
+existing structure look like a real banking portal by styling elements and the classes
+already there — it changes nothing an accessibility tree or a locator would see.
+*/
+
+:root {
+  --navy: #1b3a5c;
+  --navy-dark: #12283f;
+  --gold-hover: #9c7209;
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --border: #d7dee5;
+  --text: #1f2933;
+  --text-muted: #5c6b7a;
+  --success-bg: #e6f4ea;
+  --success-text: #1e7e34;
+  --success-border: #b7dfc2;
+  --danger-bg: #fdecea;
+  --danger-text: #b3261e;
+  --danger-border: #f3c2be;
+  --warning-bg: #fdf3e0;
+  --warning-text: #9a6700;
+  --warning-border: #f0dba8;
+  --muted-bg: #eef0f2;
+  --radius: 6px;
+  --font-heading: Georgia, "Times New Roman", serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 40px 20px;
+  background: var(--bg);
+  font-family: var(--font-body);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.pg-wrap, .frm-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px 36px;
+  box-shadow: 0 1px 3px rgba(20, 30, 40, 0.06), 0 4px 14px rgba(20, 30, 40, 0.05);
+}
+
+h1 {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: normal;
+  color: var(--navy);
+  margin: 0 0 20px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--navy);
+}
+
+/* search.html's single-cell layout table -- neutralize it to a plain block wrapper */
+table.lyt-t1 { display: block; width: 100%; border-collapse: collapse; }
+table.lyt-t1 tr { display: block; }
+table.lyt-t1 td.lyt-c1 { display: block; padding: 0; border: none; }
+
+/* field-label / field-input tables (frm-t1, frm-t2) -> plain form rows, no grid lines */
+table.frm-t1, table.frm-t2 { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+table.frm-t1 td, table.frm-t2 td { border: none; padding: 8px 0; vertical-align: middle; }
+.fld-lbl { font-weight: 600; color: var(--text-muted); width: 200px; padding-right: 16px !important; }
+.fld-lbl label { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+
+/* real data tables (search results, member detail, transactions, confirmations) */
+table[border="1"] {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0 20px;
+}
+table[border="1"] th, table[border="1"] td {
+  border: 1px solid var(--border);
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 0.95rem;
+}
+table[border="1"] thead th {
+  background: var(--navy);
+  color: #fff;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+table[border="1"] tbody tr:nth-child(even) { background: #f7f9fb; }
+table[border="1"] tbody tr:hover { background: #eef4fa; }
+table[border="1"] th[scope="row"] {
+  background: #f4f6f8;
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 200px;
+}
+
+/* the savings balance figure gets a bit of emphasis */
+td[data-role="balance"] {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+/* form controls */
+input[type="text"], textarea, select {
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--text);
+  width: 100%;
+  max-width: 320px;
+}
+input[type="text"]:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(27, 58, 92, 0.12);
+}
+textarea { max-width: 100%; resize: vertical; }
+
+button {
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 10px 20px;
+  background: var(--navy);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+}
+button:hover { background: var(--navy-dark); }
+
+a { color: var(--navy); text-decoration: none; font-weight: 500; }
+a:hover { text-decoration: underline; color: var(--gold-hover); }
+
+/* status messages -- one class per outcome, already used consistently across templates */
+.msg-success, .msg-denied, .msg-notfound {
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  border: 1px solid;
+  font-size: 0.95rem;
+  margin: 0 0 16px;
+}
+.msg-success { background: var(--success-bg); color: var(--success-text); border-color: var(--success-border); }
+.msg-denied { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger-border); }
+.msg-notfound { background: var(--warning-bg); color: var(--warning-text); border-color: var(--warning-border); }
+.msg-empty { color: var(--text-muted); font-style: italic; text-align: center; }
+.msg-disputed {
+  display: inline-block;
+  background: var(--muted-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.frm-embed { border: 1px solid var(--border) !important; border-radius: var(--radius); }

@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
-<head><title>Sub-Account Created</title></head>
+<head><title>Sub-Account Created</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
 <body>
 <div class="pg-wrap">
 <p class="msg-success">Sub-account #{{ subaccount_id }} ({{ account_type }}) created for {{ member.first_name }} {{ member.last_name }}.</p>

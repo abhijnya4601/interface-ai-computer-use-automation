@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
-<head><title>Member Detail</title></head>
+<head><title>Member Detail</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
 <body>
 <div class="pg-wrap">
 {% if member is none %}

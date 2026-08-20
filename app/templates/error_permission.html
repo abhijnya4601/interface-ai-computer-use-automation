@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
-<head><title>Permission Denied</title></head>
+<head><title>Permission Denied</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
 <body>
 <div class="pg-wrap">
 <p class="msg-denied">Access denied. Member {{ member_id }} is restricted; this action is not permitted.</p>

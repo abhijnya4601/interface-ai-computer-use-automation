@@ -277,6 +277,11 @@ def main():
         else:
             print("run did not reach success/business_outcome; no capability compiled")
 
+        if not args.headless:
+            # headed run -- a human is presumably watching; leave the final page up for a few
+            # seconds instead of yanking the window shut the instant the run finishes.
+            print("Leaving the browser open for 5s so you can see the final state...")
+            time.sleep(5)
         context.close()
 
 
