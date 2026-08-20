@@ -26,8 +26,10 @@ interactive session where you'll operate the console yourself.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
+import secrets
 import subprocess
 import sys
 import threading
@@ -63,16 +65,24 @@ CHECKPOINTS = {
 RISK_LEVELS = {"lookup_member_balance": "safe", "open_subaccount": "risky"}
 
 
-def _auto_approve_watcher(stop_event: threading.Event):
+def _basic_auth_header(username: str, password: str) -> dict:
+    token = base64.b64encode(f"{username}:{password}".encode()).decode()
+    return {"Authorization": f"Basic {token}"}
+
+
+def _auto_approve_watcher(stop_event: threading.Event, auth_headers: dict):
     """Background thread: as soon as the lease flips to human, wait briefly (as a stand-in for
-    a human actually reading the context) then post a real HTTP Approve & Resume."""
+    a human actually reading the context) then post a real HTTP Approve & Resume, authenticated
+    the same way a real operator's browser would be (D18 — the console requires auth)."""
     while not stop_event.is_set():
         if controller.read_lease().state == "human":
             time.sleep(2)  # stand-in for a human reading the escalation context
             data = "decision=approved&summary=" + urllib.parse.quote(
                 "auto-approved by --auto-approve-escalation for an unattended recording run"
             )
-            req = urllib.request.Request(f"{OPERATOR_BASE}/resume", data=data.encode(), method="POST")
+            req = urllib.request.Request(
+                f"{OPERATOR_BASE}/resume", data=data.encode(), method="POST", headers=auth_headers
+            )
             try:
                 urllib.request.urlopen(req, timeout=5)
             except Exception as exc:
@@ -106,12 +116,20 @@ def main():
             controller.LEASE_PATH.unlink()
         if controller.RESUME_SIGNAL_PATH.exists():
             controller.RESUME_SIGNAL_PATH.unlink()
+        # Generate the operator console's credential here and pass it to the subprocess via env
+        # — this process and the watcher thread below share it directly, no parsing needed.
+        operator_env = {
+            **os.environ,
+            "OPERATOR_USERNAME": "auto-approve-bot",
+            "OPERATOR_PASSWORD": secrets.token_urlsafe(16),
+        }
         operator_proc = subprocess.Popen(
             [sys.executable, str(Path(__file__).parent.parent / "escalation" / "operator_page.py")],
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=operator_env,
         )
         time.sleep(1.5)
-        threading.Thread(target=_auto_approve_watcher, args=(stop_event,), daemon=True).start()
+        auth_headers = _basic_auth_header(operator_env["OPERATOR_USERNAME"], operator_env["OPERATOR_PASSWORD"])
+        threading.Thread(target=_auto_approve_watcher, args=(stop_event, auth_headers), daemon=True).start()
 
     with sync_playwright() as p:
         context = p.chromium.launch_persistent_context(str(USER_DATA_DIR), headless=args.headless)

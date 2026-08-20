@@ -49,8 +49,13 @@ class GuardrailViolation(Exception):
 def _load_allowlist() -> dict:
     with open(ALLOWLIST_PATH) as f:
         data = yaml.safe_load(f) or {}
+    allowed_domains = set(data.get("allowed_domains") or [])
     return {
-        "allowed_domains": set(data.get("allowed_domains") or []),
+        "allowed_domains": allowed_domains,
+        # Falls back to allowed_domains if discovery_allowed_domains isn't set, for backward
+        # compatibility with a bare allowlist.yaml — but a real deployment should always set
+        # this explicitly and narrower than allowed_domains. See module docstring / D18.
+        "discovery_allowed_domains": set(data.get("discovery_allowed_domains") or allowed_domains),
         "allowed_actions": set(data.get("allowed_actions") or []),
         "blocked_routes": list(data.get("blocked_routes") or []),
     }
@@ -65,7 +70,9 @@ def _netloc(url: str) -> str:
     return parsed.netloc or parsed.path.split("/")[0]
 
 
-def guardrail_check(action: dict, current_url: str | None = None) -> None:
+def guardrail_check(
+    action: dict, current_url: str | None = None, phase: str = "replay"
+) -> None:
     """
     Check one proposed action against the allowlist. Raises GuardrailViolation and does not
     return anything on failure — callers must let the exception propagate and halt, not catch
@@ -75,6 +82,12 @@ def guardrail_check(action: dict, current_url: str | None = None) -> None:
     navigate actions or to override current_url>}. `current_url` is the page's current URL,
     used for action types that don't carry their own target URL (click/type/extract/etc all act
     on whatever page is currently loaded).
+
+    `phase` is `"discovery"` or `"replay"` (default). Discovery is checked against the stricter
+    `discovery_allowed_domains` — every discovery turn sends observed page content to a
+    third-party LLM, so this is what technically enforces "discovery never touches a domain that
+    isn't an approved non-production target," rather than leaving that as an unenforced
+    convention. Replay never calls an LLM, so it's checked against the broader `allowed_domains`.
     """
     action_type = action.get("type")
     if action_type not in ALLOWLIST["allowed_actions"]:
@@ -83,13 +96,14 @@ def guardrail_check(action: dict, current_url: str | None = None) -> None:
             f"{sorted(ALLOWLIST['allowed_actions'])}"
         )
 
+    domain_list_name = "discovery_allowed_domains" if phase == "discovery" else "allowed_domains"
     target_url = action.get("url") or current_url
     if target_url:
         netloc = _netloc(target_url)
-        if netloc not in ALLOWLIST["allowed_domains"]:
+        if netloc not in ALLOWLIST[domain_list_name]:
             raise GuardrailViolation(
-                f"domain {netloc!r} (from url {target_url!r}) is not in allowed_domains "
-                f"{sorted(ALLOWLIST['allowed_domains'])}"
+                f"domain {netloc!r} (from url {target_url!r}) is not in {domain_list_name} "
+                f"{sorted(ALLOWLIST[domain_list_name])} (phase={phase!r})"
             )
         path = urlparse(target_url).path
         for blocked in ALLOWLIST["blocked_routes"]:

@@ -21,18 +21,16 @@ scaling infrastructure, and nothing here needs it. Six modules, each with one jo
 - **`guardrails/`** and **`escalation/`** — cross-cutting: allowlist + redaction wired into both
   discovery and replay; a file-backed lease for human handoff.
 
-**Trade-off — perception API.** The build brief specified `page.accessibility.snapshot()`. That
-API no longer exists in current Playwright (verified directly: `AttributeError: 'Page' object
-has no attribute 'accessibility'`). Rebuilt perception on `Locator.aria_snapshot()` (YAML text)
-instead, with per-frame snapshotting to cross iframe boundaries — also verified directly that a
-top-level snapshot does *not* reach iframe content by default, and that reading inside a frame
-and clicking inside a frame are two different APIs, both checked rather than assumed. Full story
-in `DECISIONS.md` D6.
+**Trade-off — perception API.** The build brief specified `page.accessibility.snapshot()`, which
+no longer exists in current Playwright (`AttributeError: 'Page' object has no attribute
+'accessibility'`, verified directly). Rebuilt on `Locator.aria_snapshot()` (YAML text) instead,
+with per-frame snapshotting to cross iframe boundaries — a top-level snapshot does *not* reach
+iframe content by default (also verified directly, not assumed). Full story in `DECISIONS.md` D6.
 
-**Trade-off — model.** `claude-sonnet-5`, not the largest available model. This is a production
-capability-discovery agent for a bank: cost and latency matter more than marginal reasoning
-quality on a task this constrained, and the model needs to reliably follow one explicit safety
-rule (escalate before irreversible actions) more than it needs frontier reasoning.
+**Trade-off — model.** `claude-sonnet-5`, not the largest available model: this is a production
+capability-discovery agent for a bank, where cost/latency and reliably following one explicit
+safety rule (escalate before irreversible actions) matter more than frontier reasoning on a task
+this constrained.
 
 ## 2. Artifact schema
 
@@ -63,11 +61,10 @@ surfaced *which step* was wrong this clearly.
 Replay resolves every `Step.target` the same way the recorder declared it: tier 1 `role_name`
 (unique role+accessible-name, backed by real semantic HTML, not CSS/IDs), tier 2 `structural`
 (declared `nth` when role+name isn't unique), tier 3 `text` (raw text-content match, logged as a
-warning). This app never needs tier 2/3 in practice (every role+name pair is unique by design),
-but both are real, exercised code paths (`tests/test_recorder.py` proves tier selection with
-fake match counts independent of whether this app ever triggers them). **The tier log doubles
-as a free drift-detection signal**: rising tier-2/3 usage across replays means the UI drifted,
-at zero extra infrastructure cost.
+warning). This app never needs tier 2/3 in practice, but both are real, exercised code paths
+(`tests/test_recorder.py` proves tier selection with fake match counts). **The tier log doubles
+as a free drift-detection signal**: rising tier-2/3 usage across replays means the UI drifted, at
+zero extra infrastructure cost.
 
 Each step's `expected_outcomes` are checked deterministically: when a declared locator can't be
 resolved (or fails to act), and after a successful action, replay checks whether any declared
@@ -83,13 +80,12 @@ success with a never-recorded `member_id`, both business outcomes, and an inject
 ## 4. Heterogeneity & multi-tenant
 
 Not built — design only, per scope. The seam that matters is already in place: perception and
-`agent/tools.py` are the only modules that know about Playwright specifically. Everything
-downstream — recorder, schema, replay engine — only ever sees `{role, name, value, children}`
-and role/name-addressed actions. A **legacy web app** with worse markup needs no changes (this
-app already is one). A **desktop app** needs a different perception adapter (OS accessibility
-APIs — Windows UIA / macOS AX, exposing the same role/name/value shape natively) and a different
-action executor, but the same `Capability` schema, the same 3-tier fallback concept, and the
-same replay contract.
+`agent/tools.py` are the only modules that know about Playwright specifically; recorder, schema,
+and replay engine only ever see `{role, name, value, children}` and role/name-addressed actions.
+A **legacy web app** with worse markup needs no changes (this app already is one). A **desktop
+app** needs a different perception adapter (OS accessibility APIs — Windows UIA / macOS AX,
+exposing the same role/name/value shape natively) and a different action executor, but the same
+`Capability` schema, 3-tier fallback concept, and replay contract.
 
 **Multi-tenant reuse**: represent a capability as a **base + per-tenant patch** instead of one
 artifact per tenant. The base is what most tenants running the same vendor product replay
@@ -146,19 +142,35 @@ Full PII detection (a name, an address) remains an explicit cut — that's a muc
 false-positive-prone NLP problem.
 
 The compliance frame that actually applies to a US bank is **GLBA** (the Safeguards Rule) plus
-general state/consumer privacy law, not HIPAA (healthcare-specific). One real gap this build is
-explicit about rather than pretending to solve: discovery transcripts necessarily capture
-whatever a real customer's real data looked like mid-reasoning (this build's evidence contains a
-seeded, synthetic member's name and balance in plaintext — safe here specifically *because* it's
-fake). In a real deployment, evidence/observability data is itself regulated data at rest and
-would need encryption, access control, and a retention window — never committed permanently to
-a public repo the way this assignment's `/evidence/` requirement does for demonstration purposes.
+general state/consumer privacy law, not HIPAA (healthcare-specific). Two follow-on gaps this
+prompted (D18) were closed with real, verified fixes rather than left as write-up caveats:
+
+- **Discovery must never touch production data** — every discovery turn sends observed page
+  content to a third-party LLM, so this is now an *enforced* control, not a convention: `guardrail_
+  check` takes `phase="discovery"|"replay"` and checks a separate, stricter `discovery_allowed_
+  domains` list. Adding a production domain to the general allowlist (for replay, which never
+  calls the LLM) does not automatically permit discovery there.
+- **The operator console had zero authentication** — the single most safety-critical gap, since
+  whoever can reach it could approve an irreversible financial action. Now requires HTTP Basic
+  Auth (fail-secure: a random credential is generated and printed if none is configured, never
+  silently open). Verified live, not just unit-tested: `scripts/smoke_test_operator_auth.py`
+  launches the real subprocess and confirms an unauthenticated `/resume` is rejected AND the
+  lease provably stays untouched afterward.
+
+**Left as a documented gap, deliberately**: encryption at rest for `/evidence/` and `capabilities/`.
+A hardcoded local key would be security theater without real key management — worse than being
+honest that this needs actual KMS infrastructure, which a take-home shouldn't build. This build's
+evidence contains a seeded, synthetic member's name and balance in plaintext — safe here
+specifically *because* it's fake; a real deployment needs that data encrypted, access-controlled,
+and retention-windowed, never committed permanently to a public repo the way this assignment's
+`/evidence/` requirement does for demonstration purposes.
 
 ## 7. Cuts
 
 - **Desktop support and real multi-tenant infrastructure**: design-only (section 4).
-- **Operator console UI is intentionally bare** — the scope note allows this; what's real is the
-  lease flip and the persistent session underneath.
+- **Operator console UI is intentionally bare** — the scope note allows this, and it's still true
+  (three plain buttons, no styling). What's no longer a cut, as of D18: *access to it* — that now
+  requires real authentication, not just a real lease mechanism underneath a bare page.
 - **Parameter detection is a fixed `member (\d+)` pattern, exact-match only** — not a general
   slot-filler. Deliberate, and it's exactly what produced a real bug (D13): an earlier
   blind-substring version misattributed a $50 deposit to `member_id` because "50" also appeared
@@ -166,10 +178,9 @@ a public repo the way this assignment's `/evidence/` requirement does for demons
 - **`redact()`'s value-shape pass covers SSN/card-number shapes only (D17)**, not full PII (a
   name, an address) — that needs NLP-grade entity detection, a much harder, false-positive-prone
   problem, deliberately out of scope.
-- **No evidence-at-rest retention policy** — this build persists full transcripts to `/evidence/`
-  indefinitely (required for the assignment's demonstration). A real deployment needs encryption,
-  access control, and a retention window on that data — a deployment/ops concern, not something
-  to build infrastructure for here.
+- **Encryption at rest** (D18) — the one compliance gap left as a genuine cut rather than faked;
+  see Safety above for why a hardcoded local key would be worse than admitting this needs real
+  key-management infrastructure.
 - **Tier-2 structural locator is simplified** ("first match in DOM order," not a richer
   relative-position description) — real but only exercised via fake match counts in
   `tests/test_recorder.py`, since this app's own role+name pairs are unique by design.
@@ -178,4 +189,5 @@ a public repo the way this assignment's `/evidence/` requirement does for demons
   live escalation demo, three real bugs found and fixed) rather than adding a new surface on top
   of a less-verified core.
 - **What I'd build next**: the base+patch tenant model made concrete against a second app
-  variant; a richer tier-2 locator description; a secondary value-scanning redaction pass.
+  variant; a richer tier-2 locator description; real encryption-at-rest with proper key
+  management for `/evidence/` and `capabilities/`.

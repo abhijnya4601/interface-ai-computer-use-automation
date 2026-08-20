@@ -611,3 +611,47 @@ indefinitely (required for the assignment's demonstration), but a real deploymen
 those treated as regulated data at rest — encryption, access control, a retention window — not
 committed permanently to a public repo. That's a deployment/ops policy, not new infrastructure to
 build here.
+
+## D18 — 2026-08-20 — Closing the two real, fixable weak links: discovery/replay domain
+separation, and operator console authentication
+
+Following up on D17's GLBA discussion, user asked to actually fix whatever was fixable rather
+than just document gaps. Went through the three named gaps and made a real call on each:
+
+1. **Encryption at rest** — left as a documented cut, deliberately. A hardcoded local key would
+   be security theater, not a real fix (no real key management, no rotation) — worse than being
+   honest that this needs actual KMS infrastructure a take-home shouldn't build.
+2. **Discovery-time data exposure to a third-party LLM** — fixed as an *enforced* control, not
+   just a stated rule. Added `discovery_allowed_domains` to `guardrails/allowlist.yaml`, separate
+   from (and here, matching) `allowed_domains`. `guardrail_check` now takes `phase="discovery"|
+   "replay"` and checks the matching list — `agent/discovery.py` passes `phase="discovery"`,
+   `replay/engine.py` passes `phase="replay"`. This means "discovery must never touch a
+   production domain" is now something the code itself would refuse, not just a convention a
+   future engineer could forget — adding a production domain to `allowed_domains` for replay
+   (which never calls the LLM) does NOT automatically permit discovery there. 4 new tests.
+3. **Operator console has zero authentication** — the one judged most safety-critical (whoever
+   can reach the page can approve an irreversible financial action) and genuinely fixable at
+   reasonable scope. Added HTTP Basic Auth to `escalation/operator_page.py` via `@app.
+   before_request`, checked with `secrets.compare_digest` (timing-safe). Fail-secure design: if
+   `OPERATOR_PASSWORD` isn't set, a random one-time credential is generated and printed to the
+   console's own terminal at startup — it never silently serves unauthenticated, but also never
+   hard-fails a fresh checkout with no setup step. `scripts/run_discovery.py`'s
+   `--auto-approve-escalation` and `scripts/demo_escalation.py` (both of which launch the
+   operator console as a subprocess and talk to it over real HTTP) now generate a credential and
+   pass it to the subprocess via `env=`, then include it as a real Basic Auth header on every
+   request — the same code path a real operator's browser would use, not a bypass.
+
+Verified with 7 offline tests (`tests/test_operator_page.py`, using Flask's test client) AND a
+live integration smoke test (`scripts/smoke_test_operator_auth.py`) that launches the real
+subprocess and drives it over real HTTP — because trusting the plumbing without running it has
+already produced real bugs twice this session (D16, and the venv/conda issue). The live test's
+first run genuinely failed: `unauthenticated GET / is rejected with 401` came back FAIL. Root
+cause, found via `lsof -i :5001`: a stale `operator_page.py` process from an earlier interactive
+demo in this same session was still bound to port 5001, running the *old* pre-auth code — the new
+subprocess couldn't bind, so every request silently hit the old unauthenticated instance instead.
+Not a bug in the new code; killed the stale process and re-ran clean. All 8 checks then passed,
+including the one that matters most: an unauthenticated `/resume` POST is rejected with 401 AND
+the lease provably stays in `state: human` afterward — it cannot be used to sneak an approval
+through.
+
+91/91 tests pass (91 = 80 + 4 domain-separation + 7 operator-auth).

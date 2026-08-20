@@ -16,6 +16,35 @@ def test_action_type_outside_allowlist_raises():
         guardrail_check({"type": "download_file"}, current_url="http://localhost:5050/search")
 
 
+# ---- discovery/replay domain separation (D18) -------------------------------------------------
+
+def test_discovery_phase_allowed_on_discovery_allowlisted_domain():
+    guardrail_check({"type": "navigate", "url": "http://localhost:5050/search"}, phase="discovery")
+
+
+def test_discovery_phase_blocked_on_a_domain_only_allowed_for_replay(monkeypatch):
+    import guardrails.policy as policy
+
+    # simulate a real deployment: a production domain allowed for replay (never touches the LLM)
+    # but NOT added to discovery_allowed_domains (must never touch the LLM with real customer data)
+    monkeypatch.setitem(policy.ALLOWLIST, "allowed_domains", {"localhost:5050", "prod.bank.example.com"})
+    with pytest.raises(GuardrailViolation, match="discovery_allowed_domains"):
+        guardrail_check({"type": "navigate", "url": "https://prod.bank.example.com/search"}, phase="discovery")
+
+
+def test_replay_phase_allowed_on_general_allowed_domains_even_if_not_discovery_allowlisted(monkeypatch):
+    import guardrails.policy as policy
+
+    monkeypatch.setitem(policy.ALLOWLIST, "allowed_domains", {"localhost:5050", "prod.bank.example.com"})
+    # replay never calls the LLM, so it's fine on a domain that discovery would be blocked from
+    guardrail_check({"type": "navigate", "url": "https://prod.bank.example.com/search"}, phase="replay")
+
+
+def test_default_phase_is_replay():
+    # callers that don't pass phase= (e.g. pre-D18 code) keep working exactly as before
+    guardrail_check({"type": "navigate", "url": "http://localhost:5050/search"})
+
+
 def test_navigate_to_disallowed_domain_raises():
     with pytest.raises(GuardrailViolation, match="domain"):
         guardrail_check({"type": "navigate", "url": "https://evil.example.com/steal"})

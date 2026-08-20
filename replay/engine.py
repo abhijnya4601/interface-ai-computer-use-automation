@@ -307,7 +307,8 @@ def replay(
             for step in capability.steps:
                 action_url = _resolve_value(step.value, params) if step.action_type == "navigate" else None
                 try:
-                    guardrail_check({"type": step.action_type, "url": action_url}, current_url=page.url)
+                    guardrail_check({"type": step.action_type, "url": action_url},
+                                     current_url=page.url, phase="replay")
                 except GuardrailViolation as exc:
                     return _hard_failure(page, run_id, step.step_id, "action within allowlist", str(exc))
                 except KeyError as exc:

@@ -204,7 +204,7 @@ def run_discovery(
         if name not in ("finish", "escalate"):
             action_url = tool_input.get("url") if name == "navigate" else None
             try:
-                guardrail_check({"type": name, "url": action_url}, current_url=page.url)
+                guardrail_check({"type": name, "url": action_url}, current_url=page.url, phase="discovery")
             except GuardrailViolation as exc:
                 _log({"type": "guardrail_violation", "detail": str(exc)})
                 return DiscoveryResult(status="guardrail_violation", run_id=run_id, recorder=recorder,

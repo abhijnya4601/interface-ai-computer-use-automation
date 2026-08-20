@@ -15,7 +15,10 @@ valid path), and letting the model choose is more honest than scripting which on
 
 Run: python scripts/demo_escalation.py   (needs the Flask app running on 5050, ANTHROPIC_API_KEY set)
 """
+import base64
 import json
+import os
+import secrets
 import subprocess
 import sys
 import threading
@@ -32,6 +35,11 @@ from escalation import controller
 EVIDENCE_DIR = Path(__file__).parent.parent / "evidence"
 OPERATOR_BASE = "http://localhost:5001"
 BANK_BASE = "http://localhost:5050"
+
+
+def _basic_auth_header(username: str, password: str) -> dict:
+    token = base64.b64encode(f"{username}:{password}".encode()).decode()
+    return {"Authorization": f"Basic {token}"}
 
 
 def main():
@@ -51,9 +59,15 @@ def main():
     if controller.RESUME_SIGNAL_PATH.exists():
         controller.RESUME_SIGNAL_PATH.unlink()
 
+    operator_env = {
+        **os.environ,
+        "OPERATOR_USERNAME": "demo-script",
+        "OPERATOR_PASSWORD": secrets.token_urlsafe(16),
+    }
+    auth_headers = _basic_auth_header(operator_env["OPERATOR_USERNAME"], operator_env["OPERATOR_PASSWORD"])
     operator_proc = subprocess.Popen(
         [sys.executable, str(Path(__file__).parent.parent / "escalation" / "operator_page.py")],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=operator_env,
     )
     time.sleep(1.5)
     log("operator_console_started", pid=operator_proc.pid, url=OPERATOR_BASE)
@@ -99,7 +113,8 @@ def main():
 
     import urllib.parse
     import urllib.request
-    with urllib.request.urlopen(f"{OPERATOR_BASE}/") as resp:
+    get_req = urllib.request.Request(f"{OPERATOR_BASE}/", headers=auth_headers)
+    with urllib.request.urlopen(get_req) as resp:
         operator_page_html = resp.read().decode()
     checks = {
         "shows_reason": lease.context.get("reason", "")[:30] in operator_page_html,
@@ -117,7 +132,9 @@ def main():
         "reviewed the request: no wire-transfer feature exists in this app; declined the "
         "transfer and resumed automation to let it report this cleanly"
     )
-    req = urllib.request.Request(f"{OPERATOR_BASE}/resume", data=resume_data.encode(), method="POST")
+    req = urllib.request.Request(
+        f"{OPERATOR_BASE}/resume", data=resume_data.encode(), method="POST", headers=auth_headers
+    )
     urllib.request.urlopen(req)
     log("resume_posted_via_real_http", endpoint=f"{OPERATOR_BASE}/resume")
 

@@ -26,6 +26,18 @@ playwright install chromium      # downloads a real Chromium binary, no root nee
 echo "ANTHROPIC_API_KEY=sk-ant-..." > .env   # gitignored, never committed
 ```
 
+**Operator console credentials (D18):** `escalation/operator_page.py` requires HTTP Basic Auth —
+whoever can reach it can approve an irreversible financial action, so it never serves
+unauthenticated. Set a stable credential in `.env`:
+
+```bash
+echo "OPERATOR_USERNAME=banker" >> .env
+echo "OPERATOR_PASSWORD=$(python3 -c 'import secrets; print(secrets.token_urlsafe(16))')" >> .env
+```
+
+If you skip this, the console generates and prints a one-time random password to its own
+terminal at startup instead of ever running open — it never silently serves without auth.
+
 **A note on port 5000:** the mock app runs on **5050**, not 5000. macOS's built-in AirPlay
 Receiver squats on port 5000 and answers HTTP requests before Flask ever sees them — every
 `localhost:5000` reference you might expect from a typical Flask tutorial is `localhost:5050`
@@ -43,15 +55,16 @@ again.
 
 The parts that need a real browser and/or a real LLM:
 
-- **Offline (no browser, no API key):** `pytest tests/` — 75 unit tests covering the schema,
+- **Offline (no browser, no API key):** `pytest tests/` — 91 unit tests covering the schema,
   guardrails, perception parsing, the recorder's 3-tier locator logic, the compiler, the replay
   engine's pure helpers, and the escalation lease mechanism, all against fixtures or fake
   Playwright-shaped stand-ins. Runs in under 2 seconds, no network.
 - **Needs a real browser, no API key:** `scripts/verify_perception_live.py`,
   `scripts/smoke_test_discovery.py` (scripted fake LLM), `scripts/smoke_test_replay.py`,
   `scripts/smoke_test_escalation_timeout.py` (regression test for a real timing bug — see
-  `DECISIONS.md` D16). These exist specifically to validate mechanics without spending API
-  credits — see `DECISIONS.md` D8.
+  `DECISIONS.md` D16), `scripts/smoke_test_operator_auth.py` (live integration test for the
+  operator console's authentication — see `DECISIONS.md` D18). These exist specifically to
+  validate mechanics without spending API credits — see `DECISIONS.md` D8.
 - **Needs a real browser AND a real API key:** `scripts/run_discovery.py` and anything under
   "demo path" below. This is the one part of the system that has to be real — see `REPORT.md`.
 
@@ -137,14 +150,19 @@ python3 scripts/run_replay.py \
 
 ```bash
 # Terminal A: the operator console
+source .venv/bin/activate
+set -a; source .env; set +a   # loads OPERATOR_USERNAME/OPERATOR_PASSWORD if you set them
 python3 escalation/operator_page.py    # http://localhost:5001
 
 # Terminal B: a goal likely to hit the dead-end detector or need risky-action confirmation
 python3 scripts/run_discovery.py --goal "..." --target "http://localhost:5050/search"
 ```
 
-When the run escalates, open `http://localhost:5001` — it shows the reason, the current URL, and
-a screenshot of the live session, with Approve / Decline / plain-Resume buttons. See
+When the run escalates, open `http://localhost:5001` — your browser will prompt for a
+username/password (HTTP Basic Auth, per D18); use whatever `OPERATOR_USERNAME`/`OPERATOR_PASSWORD`
+you set, or the one-time credential Terminal A printed at startup if you didn't set one. Then
+you'll see the reason, the current URL, and a screenshot of the live session, with Approve /
+Decline / plain-Resume buttons. See
 `scripts/demo_escalation.py` for a fully automated version of this same sequence (real browser,
 real separate operator process, real HTTP calls) used to produce
 `evidence/escalation_demo_sequence.json`.
@@ -168,6 +186,6 @@ guardrails/     allowlist enforcement + redaction (Phase 6)
 escalation/     lease-based human handoff + operator console (Phase 7)
 capabilities/   compiled capability artifacts (the deliverable output)
 scripts/        CLI entrypoints + smoke tests
-tests/          75 offline unit tests
+tests/          91 offline unit tests
 evidence/       real run output (see above)
 ```
