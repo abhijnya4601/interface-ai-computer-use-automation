@@ -106,18 +106,21 @@ two the assignment requires.
 discovery at two real app features with zero prior capability — `dispute_transaction`,
 `update_member_address` — with fresh goal wording each time. Both succeeded, and both escalated on
 the model's own judgment (submitting either form is state-changing, per its own system prompt)
-with no scripting involved. That run also caught a real bug: any capability outside a hardcoded
-two-entry table defaulted `risk_level` to `safe` even after needing a human's sign-off — fixed by
-inferring `risky` from the run's own transcript instead of a list someone has to remember to
-update. Separately verified: fresh discovery starting *directly* on a locked member reasons its
-way to `business_outcome`/`PERMISSION_DENIED` cold, no prior capability to guide it. Reviewer
-commands: `README.md`, "Teach it something it's never seen."
+with no scripting involved. Also caught: any capability outside a hardcoded two-entry table
+defaulted `risk_level` to `safe` even after needing a human's sign-off — fixed by inferring
+`risky` from the run's own transcript. Separately verified: fresh discovery starting *directly* on
+a locked member reasons its way to `business_outcome`/`PERMISSION_DENIED` cold, no prior
+capability to guide it. Reviewer commands: `README.md`, "Teach it something it's never seen."
 
-**A full-codebase review (D29) found this section's own named failure mode, inverted**: both new
-capabilities were missing the `expected_outcomes` D14 already established for the other three, so
-replaying either against a locked member reported `hard_failure` for a real, expected
-`PERMISSION_DENIED` — a business outcome misreported as a break, not the usual direction (a
-failure silently reported as success). Same D14 fix, just extended; re-verified live.
+**Two full outcome-matrix sweeps (D29, D32), re-verified live rather than trusted from earlier**:
+both found this section's own named failure mode, inverted — a business outcome misreported as a
+break, not the usual direction. D29: the two new capabilities above were simply missing the
+`expected_outcomes` D14 already established for the other three. D32, re-sweeping all 5
+capabilities after 31 rounds of changes rather than assuming prior verification still held: found
+the *same* gap on `lookup_latest_transaction`'s own artifact (compiler rules correct, compiled
+file stale), and while repairing it the established way (re-run the rule-attacher, re-save), found
+that function wasn't idempotent — it silently duplicated an outcome the artifact already had
+correctly. Both fixed; re-swept all 5 capabilities clean afterward.
 
 ## 4. Heterogeneity & multi-tenant
 
@@ -151,16 +154,14 @@ tested live and offline), a `risk_level: risky` step needing confirmation, or th
 voluntarily calling `escalate` (observed live: given a goal requiring an irreversible submit,
 the model escalated on its own, citing the exact policy rule from its system prompt).
 
-**A real gap found by running this live, and closed** (D11→D12): the resume signal originally
-carried only a free-text note, so a resumed agent couldn't distinguish "approved" from
-"declined." Fixed: `signal_resume` now carries a structured `decision`, threaded back through the
-lease's context — what let the risky `open_subaccount` capability get recorded to completion by
-one real, unattended run instead of a human sitting and clicking through it live.
-
-**A second, related gap (D30), found the same way — a user actually operating the escalation UI**:
-the dead-end path threaded `trigger_escalation`'s return value nowhere, so a human's own note on
-resume never reached the model, unlike the `escalate()` path D12 already fixed. Same fix, same
-pattern, applied to the branch it had been missed on.
+**Two gaps in what actually reaches the model on resume, both found by running this live** (D12,
+then D30 the same way — a user actually operating the escalation UI): the resume signal originally
+carried only a free-text note, so a resumed agent couldn't distinguish "approved" from "declined"
+— fixed with a structured `decision` threaded back through the lease's context, what let
+`open_subaccount` get recorded to completion by one real, unattended run instead of a human
+sitting and clicking through it live. The dead-end path shared the same shape of bug: it threaded
+`trigger_escalation`'s return value nowhere at all, so a human's own note on resume silently went
+nowhere — same fix, applied to the branch it had been missed on.
 
 **A UX gap in the handoff itself (D31)**, also a user's own observation: the operator console
 makes escalation obvious to whoever's looking *there*, but the automation's own browser window —

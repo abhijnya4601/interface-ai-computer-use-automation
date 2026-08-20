@@ -125,7 +125,14 @@
           "transient_load"
         ]
       },
-      "expected_outcomes": []
+      "expected_outcomes": [
+        {
+          "condition": "page contains 'No results.'",
+          "classification": "business_outcome",
+          "code": "MEMBER_NOT_FOUND",
+          "handling": "search returned no matching row for this member_id"
+        }
+      ]
     },
     {
       "step_id": "s5",
@@ -153,7 +160,14 @@
           "transient_load"
         ]
       },
-      "expected_outcomes": []
+      "expected_outcomes": [
+        {
+          "condition": "page contains 'Access denied. This account is restricted'",
+          "classification": "business_outcome",
+          "code": "PERMISSION_DENIED",
+          "handling": "member account is locked; transaction history is not shown"
+        }
+      ]
     },
     {
       "step_id": "s6",

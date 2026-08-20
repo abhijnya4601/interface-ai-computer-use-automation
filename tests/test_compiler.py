@@ -1,4 +1,10 @@
-from agent.compiler import compile_capability, infer_input_schema, infer_output_schema, save_capability
+from agent.compiler import (
+    _attach_expected_outcomes,
+    compile_capability,
+    infer_input_schema,
+    infer_output_schema,
+    save_capability,
+)
 from artifact.schema import Capability, Checkpoint, LocatorTarget, Step
 
 
@@ -231,3 +237,26 @@ def test_update_member_address_declares_permission_denied_on_its_own_link():
     )
     update_link_step = next(s for s in cap.steps if s.step_id == "s5")
     assert {o.code for o in update_link_step.expected_outcomes} == {"PERMISSION_DENIED"}
+
+
+def test_attach_expected_outcomes_is_idempotent():
+    """D32: found live -- a full outcome-matrix sweep across all 5 real capabilities caught
+    lookup_latest_transaction silently missing MEMBER_NOT_FOUND/PERMISSION_DENIED on its
+    compiled artifact, even though agent/compiler.py's _KNOWN_OUTCOMES has always declared them
+    -- stale-artifact drift, the same class of gap as D29. Patching it the established way (D22/
+    D29: re-run _attach_expected_outcomes against the loaded artifact's steps, re-save) doubled
+    the NO_TRANSACTIONS outcome already correctly present on the extract step, because
+    `outcomes = list(step.expected_outcomes)` started from what was already there and every
+    matching rule got appended unconditionally, with no check for "is this exact rule already
+    present." Running this compile-time function against an already-compiled artifact is exactly
+    the established repair pattern for this whole build -- it has to be safe to run twice."""
+    steps = [
+        Step(step_id="s6", action_type="extract",
+             target=_lt("cell", "2026-08-15", strategy="table_position"),
+             extract_as="most_recent_date"),
+    ]
+    once = _attach_expected_outcomes("lookup_latest_transaction", steps)
+    twice = _attach_expected_outcomes("lookup_latest_transaction", once)
+
+    assert len(once[0].expected_outcomes) == 1
+    assert twice[0].expected_outcomes == once[0].expected_outcomes

@@ -55,7 +55,7 @@ again.
 
 The parts that need a real browser and/or a real LLM:
 
-- **Offline (no browser, no API key):** `pytest tests/` — 134 unit tests covering the schema,
+- **Offline (no browser, no API key):** `pytest tests/` — 135 unit tests covering the schema,
   guardrails, perception parsing, the recorder's 3-/4-tier locator logic, the compiler, the replay
   engine's pure helpers, the escalation lease mechanism, the CLI's pure helper logic (default
   checkpoint, risk-level inference, the auto-open-console watcher), and the agent-facing
@@ -265,14 +265,14 @@ these cover genuinely different things to watch for, each verified live at least
 ## 4. Evidence
 
 `/evidence/` holds the real artifacts from every run described in `DECISIONS.md` — 17 discovery
-transcripts, 22 replay results (success / business outcomes / an injected hard failure, across
+transcripts, 27 replay results (success / business outcomes / an injected hard failure, across
 all 5 capabilities), 13 real escalations with screenshots, the fully-automated escalation demo
 sequence, a captured guardrail-violation transcript, and two real Claude tool-use transcripts from
 the agent-facing capability interface (§6). Nothing in it is synthesized after the fact; every
 file is what the corresponding script actually wrote when it ran.
 **`evidence/README.md`** is a short curated index — start there rather than the raw file list if
 you want one traceable discovery → artifact → replay example plus one of each exceptional-state
-replay, without reading all 80 files.
+replay, without reading all 87 files.
 
 ## 5. Project layout
 
@@ -286,7 +286,7 @@ escalation/       lease-based human handoff + operator console (Phase 7)
 agent_interface/  capabilities exposed as an agent-callable tool catalog (stretch goal, §6)
 capabilities/     compiled capability artifacts (the deliverable output)
 scripts/          CLI entrypoints + smoke tests
-tests/            134 offline unit tests
+tests/            135 offline unit tests
 evidence/         real run output (see above)
 ```
 

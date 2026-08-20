@@ -1156,3 +1156,40 @@ tree, present in a real screenshot, gone after removal) before writing any tests
 `tests/test_escalation.py`, including one that a page unevaluable mid-navigation never breaks the
 real escalation over a cosmetic banner (best-effort, wrapped in `except Exception: pass`, same
 posture as the existing screenshot capture). Full suite: 134/134 (up from 131).
+
+## D32 — 2026-08-20 — A full outcome-matrix re-sweep (prompted by "be ready to defend every
+decision") found stale-artifact drift, and a real bug in the patch mechanism itself
+
+Re-reading the assignment's evaluation stance — "be ready to defend every decision," the artifact
+schema and deterministic replay are named load-bearing — the honest response wasn't to assume
+everything already verified still holds after 31 rounds of changes stacked on top of each other.
+Re-ran the full success/`MEMBER_NOT_FOUND`/`PERMISSION_DENIED` (+`NO_TRANSACTIONS` where it
+applies) matrix live against all 5 real capabilities, fresh, right now.
+
+Found: `lookup_latest_transaction` replayed against a locked member (`99999`) returned
+`hard_failure`, not the expected `PERMISSION_DENIED` — even though `agent/compiler.py`'s
+`_KNOWN_OUTCOMES` has declared `MEMBER_NOT_FOUND`/`PERMISSION_DENIED` for this exact capability
+since before this session started. The *compiler* was correct; the *already-compiled artifact*
+wasn't — checked directly, `capabilities/lookup_latest_transaction.v1.json`'s steps s4/s5 had
+empty `expected_outcomes`, meaning some earlier manual patch (D22's, most likely, which predates
+these two rules being added) never got re-applied after the rules changed. Same class of gap as
+D29, just on the one capability D29's sweep didn't happen to touch.
+
+Fixing it the established way — reload the artifact, call `_attach_expected_outcomes` again,
+re-save — surfaced a second, real bug: the function isn't idempotent. `outcomes = list(
+step.expected_outcomes)` starts from whatever the step already has, and every matching rule gets
+appended unconditionally with no check for "is this exact rule already here" — so re-running it
+against `lookup_latest_transaction` duplicated the `NO_TRANSACTIONS` outcome already correctly
+present on the extract step (from the original, correct compile). Re-running a compile-time
+function against an already-compiled artifact is the *exact, established* pattern this whole
+build uses to patch artifacts after a rule changes (D13/D14/D22/D23/D29) — it has to be safe to
+call twice, and it wasn't.
+
+Fixed `_attach_expected_outcomes` to track `(condition, code)` pairs already present per step and
+skip appending a duplicate — confirmed live that running it twice against the same steps now
+produces an identical result. Rebuilt `capabilities/lookup_latest_transaction.v1.json` from the
+last clean committed version (not the already-duplicated one) using the fixed function, round-trip
+validated, then re-verified live: the locked-member replay now correctly returns
+`business_outcome`/`PERMISSION_DENIED`. Re-swept all 5 capabilities' full outcome matrices after
+the fix — every one now correct. 1 new regression test (`tests/test_compiler.py`, asserts running
+the function twice yields the same result). Full suite: 135/135 (up from 134).

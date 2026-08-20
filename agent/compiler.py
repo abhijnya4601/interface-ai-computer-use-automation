@@ -187,13 +187,26 @@ def _step_matches(step: Step, match: dict) -> bool:
 
 
 def _attach_expected_outcomes(capability_id: str, steps: list[Step]) -> list[Step]:
+    """
+    D32: found live — re-running this against an already-compiled artifact (the exact,
+    established pattern for patching an artifact after a _KNOWN_OUTCOMES rule changes, D22/D29)
+    used to duplicate any outcome the step already carried, since `outcomes` started from
+    `step.expected_outcomes` (whatever was already there) and every matching rule was appended
+    unconditionally, with no check for "is this exact rule already present." Idempotent now: a
+    rule is only appended if no existing outcome already has the same (condition, code) —
+    running this twice against the same steps produces the same result as running it once.
+    """
     rules = _KNOWN_OUTCOMES.get(capability_id, [])
     enriched = []
     for step in steps:
         outcomes = list(step.expected_outcomes)
+        existing = {(o.condition, o.code) for o in outcomes}
         for rule in rules:
             if _step_matches(step, rule["match"]):
-                outcomes.append(rule["outcome"])
+                key = (rule["outcome"].condition, rule["outcome"].code)
+                if key not in existing:
+                    outcomes.append(rule["outcome"])
+                    existing.add(key)
         enriched.append(step.model_copy(update={"expected_outcomes": outcomes}))
     return enriched
 

@@ -1,6 +1,6 @@
 # /evidence/ — what's here and where to start
 
-This directory has grown to 80 files across many discovery/replay/escalation runs made while
+This directory has grown to 87 files across many discovery/replay/escalation runs made while
 building and hardening this system (`../DECISIONS.md` has the full story behind each one). If
 you're reviewing rather than exploring everything, start with the four files below — a real,
 end-to-end, traceable example: one discovery run, the artifact it compiled, a clean replay, and a
@@ -53,7 +53,7 @@ Per the "ideally include one" ask, there are several, each a different kind:
 
 - **`discovery_run_*.jsonl`** (17 total) — every real discovery run made during this build,
   across all 5 capabilities in `../capabilities/` plus throwaway/edge-case probes.
-- **`replay_*.json`** (22) — every real replay result, across success/business-outcome/
+- **`replay_*.json`** (27) — every real replay result, across success/business-outcome/
   hard-failure for every capability and several member IDs each.
 - **`escalation_run_*.png` / `*_context.json`** — a real screenshot + structured context
   (reason, URL, run ID) captured at the exact moment each real escalation paused for a human,
