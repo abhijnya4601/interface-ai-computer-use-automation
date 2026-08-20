@@ -1,0 +1,11 @@
+{
+  "status": "hard_failure",
+  "outputs": {},
+  "business_outcome_code": null,
+  "failure_detail": {
+    "step_id": null,
+    "expected": "confirm=True for a risky capability",
+    "observed": "capability is risk_level=risky and requires explicit confirm=True to execute past its confirmation step"
+  },
+  "evidence_ref": null
+}

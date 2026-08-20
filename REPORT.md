@@ -8,7 +8,13 @@ scaling infrastructure, and nothing here needs it. Six modules, each with one jo
 - **`app/`** — the target: a mock legacy core-banking Flask/SQLite app with hostile markup
   (nested tables, non-semantic classes, zero test IDs) but real semantic HTML underneath
   (`<button>`, `<label for>`, `<th scope=row>`), plus a real `<iframe>` boundary for the
-  sub-account confirmation step — the stress case for "no clean DOM."
+  sub-account confirmation step — the stress case for "no clean DOM." Chosen over a desktop app
+  (the assignment's other suggested hostile-surface option): a desktop surface would mean
+  building or wiring up OS-level accessibility automation as a second perception/action backend
+  on top of everything else, without adding a genuinely different *kind* of robustness question
+  — the load-bearing pieces (schema, replay determinism, escalation) are surface-agnostic by
+  design either way (section 4), so a web target let the effort go into those instead of into a
+  second integration surface.
 - **`agent/perception.py`** — turns whatever Playwright can see into a small
   `{role, name, value, children}` tree, merging content from inside iframes so the LLM never has
   to reason about frame boundaries.
@@ -191,9 +197,9 @@ fixes rather than left as write-up caveats:
   relative-position description) — real but only exercised via fake match counts in
   `tests/test_recorder.py`, since this app's own role+name pairs are unique by design.
 - **MCP capability-server stretch goal**: not attempted — time went instead into verifying every
-  core requirement's full outcome matrix live (both capabilities × all 4 replay scenarios, a live
-  escalation demo, several real bugs found and fixed — see `DECISIONS.md`) rather than adding a
-  new surface on top of a less-verified core.
+  core requirement's full outcome matrix live (the two required capabilities × all 4 replay
+  scenarios each, a live escalation demo, several real bugs found and fixed — see
+  `DECISIONS.md`) rather than adding a new surface on top of a less-verified core.
 - **What I'd build next**: the base+patch tenant model made concrete against a second app
   variant; a real KMS (rotation, envelope encryption, audit-logged key access) in place of
   `EVIDENCE_ENCRYPTION_KEY`'s single static key.
