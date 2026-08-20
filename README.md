@@ -31,6 +31,14 @@ Receiver squats on port 5000 and answers HTTP requests before Flask ever sees th
 `localhost:5000` reference you might expect from a typical Flask tutorial is `localhost:5050`
 throughout this repo instead. See `DECISIONS.md` D2.
 
+**A note on conda:** if you have conda/Anaconda installed and your shell auto-activates a `(base)`
+environment, `source .venv/bin/activate` can silently fail to actually put this project's `.venv`
+first on `PATH`, and `python3 scripts/...` will run against `(base)`'s Python instead — which
+doesn't have Playwright installed, so you'll hit `ModuleNotFoundError: No module named
+'playwright'`. Check `which python3` after activating; it should print a path ending in
+`.venv/bin/python3`. If it doesn't, run `conda deactivate` first, then `source .venv/bin/activate`
+again.
+
 ## 2. Running without live services
 
 The parts that need a real browser and/or a real LLM:
@@ -40,8 +48,10 @@ The parts that need a real browser and/or a real LLM:
   engine's pure helpers, and the escalation lease mechanism, all against fixtures or fake
   Playwright-shaped stand-ins. Runs in under 2 seconds, no network.
 - **Needs a real browser, no API key:** `scripts/verify_perception_live.py`,
-  `scripts/smoke_test_discovery.py` (scripted fake LLM), `scripts/smoke_test_replay.py`. These
-  exist specifically to validate mechanics without spending API credits — see `DECISIONS.md` D8.
+  `scripts/smoke_test_discovery.py` (scripted fake LLM), `scripts/smoke_test_replay.py`,
+  `scripts/smoke_test_escalation_timeout.py` (regression test for a real timing bug — see
+  `DECISIONS.md` D16). These exist specifically to validate mechanics without spending API
+  credits — see `DECISIONS.md` D8.
 - **Needs a real browser AND a real API key:** `scripts/run_discovery.py` and anything under
   "demo path" below. This is the one part of the system that has to be real — see `REPORT.md`.
 
