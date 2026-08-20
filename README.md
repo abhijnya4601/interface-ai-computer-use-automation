@@ -112,8 +112,7 @@ set -a; source .env; set +a   # loads ANTHROPIC_API_KEY
 python3 scripts/run_discovery.py \
   --goal "Look up member 12345 and read their current savings balance." \
   --target "http://localhost:5050/search" \
-  --capability-id lookup_member_balance \
-  --headless
+  --capability-id lookup_member_balance
 ```
 
 This launches a real (persistent) Chromium context, runs the real observe→decide→act loop
