@@ -1,0 +1,12 @@
+{
+  "status": "hard_failure",
+  "outputs": {},
+  "business_outcome_code": null,
+  "failure_detail": {
+    "step_id": "s6",
+    "expected": "element for {'role': 'cell', 'name': '2026-08-15'}",
+    "observed": "no element resolved on the live page",
+    "screenshot_ref": "/Users/abhijnyamenakur/Desktop/Interface_Bank_AI/evidence/replay_replay_1787208576142_failure_s6.png"
+  },
+  "evidence_ref": "/Users/abhijnyamenakur/Desktop/Interface_Bank_AI/evidence/replay_replay_1787208576142_failure_s6.png"
+}

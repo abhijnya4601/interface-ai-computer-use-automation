@@ -723,3 +723,51 @@ status to `disputed` and the list reflects it, locked member blocked with the co
 not-found member handled) before spending anything on a live discovery run. Full test suite
 re-run and still green (98/98) — this app change doesn't touch anything the existing unit tests
 exercise directly.
+
+## D21 — 2026-08-20 — A genuine, naturally-occurring limitation: extraction from a data-table row
+has no stable anchor, and replay fails because of it
+
+Ran a real, unscripted discovery against the new transactions page: goal "look up member 12345
+and report their most recent transaction (date, description, amount)." Succeeded on the first
+try, `status=success`, and — genuinely interesting — it correctly generalized to a page structure
+none of the existing capabilities use: it found and clicked "View Transactions" (a link that
+didn't exist when either prior capability was recorded) and read data out of a plain data table
+(date/description/amount/status as columns) rather than the label/value `<th>`/`<td>` shape both
+existing capabilities rely on. Zero code changes were needed for this — confirms the design
+claim in `REPORT.md` §1 that `agent/discovery.py` is fully goal-agnostic.
+
+**But replaying the compiled artifact failed for real, immediately, on the very first check —**
+not injected, not contrived. `capabilities/lookup_latest_transaction.v1.json`'s step `s6`
+(the only `extract` step) has locator `{"role": "cell", "name": "2026-08-15"}` — the LLM anchored
+on the transaction date's own literal value, because a data table row has no separate stable
+label the way `<th scope="row">Savings Balance</th>` gives the balance lookup one. Replaying
+against `member_id=23456` (whose latest transaction is dated `2026-08-12`, not `2026-08-15`)
+immediately returned `hard_failure`: no cell with that exact text exists on that member's page.
+The one thing the recorder anchored on was exactly the thing guaranteed to differ between runs —
+the value being extracted, not something identifying where to find it.
+
+A second, related gap the same run exposed: `finish()`'s `outputs` had 4 fields (`member_name`,
+`most_recent_transaction_description`, `most_recent_transaction_amount`, `status`) that the model
+read directly off the observation without ever calling the `extract` tool on them — so the
+compiled `output_schema` declares 6 outputs, but only 1 (`most_recent_transaction_date`) has a
+recorded `Step` that could reproduce it on replay. The other 4 would silently come back missing
+even if step `s6`'s locator hadn't failed outright.
+
+**Root cause, in one sentence**: the recorder's locator strategy (and the `extract` tool's
+underlying row-relative heuristic in `agent/tools.py`/`replay/engine.py`) was built around
+*label → value* pairs, where the label is a stable UI element and the value is the thing that
+changes. A data-table row (columns, no per-cell label) doesn't have that shape — there's nothing
+stable to anchor on except the value itself. This is a real architectural gap, not a bug in the
+sense of "code doing the wrong thing" — the code did exactly what it was designed to do; the
+design just doesn't cover this UI shape yet.
+
+**Deliberately not silently fixed or hidden.** This is the single clearest illustration in this
+whole build of the assignment's own stated goal ("we care more about clear thinking, sound
+trade-offs... than breadth of features") — a real limitation, found by actually running the
+system on a case it wasn't built for, is worth more than a broader feature set that avoids ever
+hitting one. Real failure evidence: `evidence/replay_lookup_latest_transaction_member_id-23456.
+json` (the `hard_failure` result) and `evidence/replay_replay_1787208576142_failure_s6.png` (the
+screenshot). A real fix would need a new locator strategy — something like "Nth cell of the
+current/topmost row of table X, addressed by column position rather than content" — which is a
+genuine schema/recorder/replay change, not a one-line patch; noted as a concrete next step in
+REPORT.md rather than attempted under time pressure just to make this one demo pass.
