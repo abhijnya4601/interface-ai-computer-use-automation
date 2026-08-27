@@ -101,3 +101,34 @@ def test_prune_handles_explicit_empty_children_list_without_crashing():
     pruned = prune_accessibility_tree({"role": "generic", "children": []})
     # a childless, nameless, valueless generic node is decorative -> falls back to bare root
     assert pruned == {"role": "generic"}
+
+
+# ---- _cap_long_child_lists (token-budget cap on big tables / long <select>s) ----------------
+
+from agent.perception import _cap_long_child_lists  # noqa: E402
+
+
+def test_cap_truncates_a_long_data_table_and_leaves_a_marker():
+    tree = {"role": "rowgroup", "children": [
+        {"role": "row", "name": f"r{i}"} for i in range(25)
+    ]}
+    _cap_long_child_lists(tree)
+    rows = [c for c in tree["children"] if c["role"] == "row"]
+    notes = [c for c in tree["children"] if c["role"] == "note"]
+    assert len(rows) == 8
+    assert len(notes) == 1 and "17 more" in notes[0]["name"]
+
+
+def test_cap_keeps_many_more_options_than_rows():
+    tree = {"role": "combobox", "children": [
+        {"role": "option", "name": f"o{i}"} for i in range(30)
+    ]}
+    _cap_long_child_lists(tree)
+    opts = [c for c in tree["children"] if c["role"] == "option"]
+    assert len(opts) == 30  # under the 40 option cap -> untouched
+
+
+def test_cap_is_a_noop_for_a_short_list():
+    tree = {"role": "table", "children": [{"role": "row", "name": "only"}]}
+    _cap_long_child_lists(tree)
+    assert len(tree["children"]) == 1

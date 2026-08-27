@@ -1,0 +1,280 @@
+{
+  "capability_id": "meridian_funds_transfer",
+  "version": "1.0.0",
+  "created_from_run_id": "scripted_recorder",
+  "description": "Transfer funds from one of a member's shares to another and post the transfer.",
+  "target": {
+    "app_name": "meridian-core",
+    "entry_point": "https://web-sample.interface-hiring.com/members/{member_id}/transfer",
+    "surface_type": "legacy_web"
+  },
+  "risk_level": "risky",
+  "input_schema": {
+    "member_id": {
+      "type": "string",
+      "description": "member number whose shares to move funds between"
+    },
+    "from_share": {
+      "type": "string",
+      "description": "source share id, e.g. 100234-MMKT-13 (must be OPEN, not HOLD)"
+    },
+    "to_share": {
+      "type": "string",
+      "description": "destination share id"
+    },
+    "amount": {
+      "type": "string",
+      "description": "amount to transfer, e.g. 1.00"
+    },
+    "memo": {
+      "type": "string",
+      "description": "free-text memo for the transfer"
+    }
+  },
+  "output_schema": {
+    "confirmation": {
+      "type": "string"
+    }
+  },
+  "checkpoint": {
+    "type": "text_match",
+    "locator": null,
+    "expected": "TRANSFER POSTED"
+  },
+  "steps": [
+    {
+      "step_id": "s1",
+      "action_type": "navigate",
+      "target": null,
+      "value": "https://web-sample.interface-hiring.com/members/{member_id}/transfer",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s2",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "From Share",
+          "control_role": "combobox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "from"
+          },
+          {
+            "strategy": "text",
+            "text": "From Share"
+          }
+        ],
+        "reasoning": "role='combobox' name='From Share' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'From Share' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'from' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "from_share"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s3",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "To Share",
+          "control_role": "combobox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "to"
+          },
+          {
+            "strategy": "text",
+            "text": "To Share"
+          }
+        ],
+        "reasoning": "role='combobox' name='To Share' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'To Share' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'to' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "to_share"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s4",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Amount",
+          "control_role": "textbox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "amount"
+          },
+          {
+            "strategy": "text",
+            "text": "Amount"
+          }
+        ],
+        "reasoning": "role='textbox' name='Amount' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Amount' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'amount' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "amount"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s5",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Memo",
+          "control_role": "textbox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "memo"
+          },
+          {
+            "strategy": "text",
+            "text": "Memo"
+          }
+        ],
+        "reasoning": "role='textbox' name='Memo' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Memo' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'memo' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "memo"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s6",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "button",
+          "name": "Continue"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Continue"
+          }
+        ],
+        "reasoning": "role='button' name='Continue' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s7",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "button",
+          "name": "Post Transfer"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Post Transfer"
+          }
+        ],
+        "reasoning": "role='button' name='Post Transfer' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s8",
+      "action_type": "extract",
+      "target": {
+        "strategy": "labeled_value",
+        "primary": {
+          "label": "Confirmation"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Confirmation:"
+          }
+        ],
+        "reasoning": "read-only value in a <td class='lbl'>Confirmation:</td><td>\u2026</td> row. Anchored on the label text, which is stable, rather than the value, which is exactly what differs on every run."
+      },
+      "value": null,
+      "extract_as": "confirmation",
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    }
+  ]
+}

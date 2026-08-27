@@ -11,6 +11,7 @@ from agent.legacy_locate import (
     _xpath_label_predicate,
     locate_field_name,
     locate_labeled_field,
+    locate_labeled_value,
     normalize_label,
 )
 from agent.perception import _collect_nameless_control_nodes, _enrich_unnamed_controls
@@ -129,6 +130,25 @@ def test_locate_field_name_hits_on_name_attribute_selector():
 def test_locate_field_name_none_for_missing_or_empty():
     assert locate_field_name(FakeCtx({}), "amount") is None
     assert locate_field_name(FakeCtx({'[name="x"]': FakeLocator(1)}), None) is None
+
+
+# ---- locate_labeled_value -------------------------------------------------------------------
+
+def test_locate_labeled_value_returns_sibling_cell_of_a_lbl_label():
+    ctx = FakeCtx({"following-sibling::*[self::td or self::th][1]": FakeLocator(1)})
+    assert locate_labeled_value(ctx, "Confirmation:") is not None
+
+
+def test_locate_labeled_value_skips_ambiguous_and_tries_next():
+    ctx = FakeCtx({
+        "following-sibling::*[self::td or self::th][1]": FakeLocator(2),
+        "/*[self::td or self::th][last()]": FakeLocator(1),
+    })
+    assert locate_labeled_value(ctx, "Amount") is not None
+
+
+def test_locate_labeled_value_none_on_empty_label():
+    assert locate_labeled_value(FakeCtx({"x": FakeLocator(1)}), "  :  ") is None
 
 
 # ---- perception enrichment -------------------------------------------------------------------

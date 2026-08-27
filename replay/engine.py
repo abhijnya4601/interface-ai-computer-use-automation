@@ -40,7 +40,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from agent.legacy_locate import locate_field_name, locate_labeled_field
+from agent.legacy_locate import locate_field_name, locate_labeled_field, locate_labeled_value
 from artifact.schema import Capability, ExpectedOutcome, Result, Step
 from guardrails.policy import GuardrailViolation, check_risk_confirmation, guardrail_check, redact
 
@@ -54,6 +54,14 @@ def _resolve_value(value, params: dict):
         if param_name not in params:
             raise KeyError(f"missing required param {param_name!r}")
         return params[param_name]
+    # A navigate step whose value is a template string ("…/members/{member_id}/transfer") is
+    # filled from params — lets one recorded capability's entry point parameterise the member
+    # without baking a concrete id into the URL.
+    if isinstance(value, str) and "{" in value and "}" in value:
+        try:
+            return value.format(**params)
+        except (KeyError, IndexError) as exc:
+            raise KeyError(f"missing param for URL template {value!r}: {exc}")
     return value
 
 
@@ -142,6 +150,12 @@ def _locate(page, target):
             loc = locate_field_name(ctx, target.primary.get("name"))
             if loc is not None:
                 return loc, "field_name"
+
+    if target.strategy == "labeled_value":
+        for ctx in _contexts(page):
+            loc = locate_labeled_value(ctx, target.primary.get("label"))
+            if loc is not None:
+                return loc, "labeled_value"
 
     role = target.primary.get("role")
     name = target.primary.get("name")
@@ -326,7 +340,7 @@ def _extract_value(locator, strategy: str | None = None) -> str:
     - role_name / structural / text: the recorder anchored on a label (a `<th scope="row">`),
       so the value is in a sibling `<td>` in the same row.
     """
-    if strategy in ("table_position", "labeled_field", "field_name"):
+    if strategy in ("table_position", "labeled_field", "field_name", "labeled_value"):
         try:
             value = locator.input_value(timeout=1000)
             if value:

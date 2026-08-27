@@ -104,12 +104,48 @@ def _parse_aria_snapshot(snapshot_text: str) -> dict:
     return tree or {"role": "document"}
 
 
+# A member record's SHARES/BALANCES table can be ~30 rows and a transfer form's from/to
+# <select> ~30 <option>s — repeated in every turn's observation, they dominate token cost while
+# adding nothing past the first few (the agent acts on row 0 / picks one option). Cap long
+# homogeneous child lists and leave a marker so the agent knows more exist.
+# Data-table rows past the first few add tokens without information (the agent acts on row 0).
+# <option>s are different: the agent may need to pick one deep in the list by its label, so keep
+# many more of those.
+_MAX_ROWS = 8
+_MAX_OPTIONS = 40
+_TRUNCATABLE_CONTAINER_ROLES = ("rowgroup", "table", "list", "listbox", "combobox", "menu")
+_TRUNCATABLE_ITEM_ROLES = ("row", "option", "listitem", "menuitem")
+
+
+def _cap_long_child_lists(node: dict) -> None:
+    children = node.get("children")
+    if not children:
+        return
+    if node.get("role") in _TRUNCATABLE_CONTAINER_ROLES:
+        items = [c for c in children if c.get("role") in _TRUNCATABLE_ITEM_ROLES]
+        limit = _MAX_OPTIONS if (items and items[0].get("role") == "option") else _MAX_ROWS
+        if len(items) > limit:
+            keep_ids = {id(c) for c in items[:limit]}
+            dropped = len(items) - limit
+            node["children"] = [
+                c for c in children
+                if c.get("role") not in _TRUNCATABLE_ITEM_ROLES or id(c) in keep_ids
+            ]
+            node["children"].append(
+                {"role": "note", "name": f"... {dropped} more {items[0]['role']}s not shown "
+                                         "(same shape; act on the ones above by position)"}
+            )
+    for child in node.get("children") or []:
+        _cap_long_child_lists(child)
+
+
 def prune_accessibility_tree(raw_tree: dict, max_depth: int = 15) -> dict:
     """
-    Pure function. Keeps only role/name/value/children, truncates depth, and drops
+    Pure function. Keeps only role/name/value/children, truncates depth, drops
     empty/decorative nodes (no name, no value, no children, and a role that carries no
-    information on its own — generic wrapper divs the layout is full of). Never raises on
-    missing/empty `children`.
+    information on its own — generic wrapper divs the layout is full of), and caps long
+    homogeneous child lists (big data tables, long <select>s). Never raises on missing/empty
+    `children`.
     """
 
     def _prune(node: dict, depth: int) -> dict | None:
@@ -138,7 +174,9 @@ def prune_accessibility_tree(raw_tree: dict, max_depth: int = 15) -> dict:
             out["children"] = pruned_children
         return out
 
-    return _prune(raw_tree, depth=0) or {"role": raw_tree.get("role", "generic")}
+    pruned = _prune(raw_tree, depth=0) or {"role": raw_tree.get("role", "generic")}
+    _cap_long_child_lists(pruned)
+    return pruned
 
 
 def build_observation(page, last_action_result: str = "") -> dict:

@@ -31,7 +31,8 @@ class TargetSpec(BaseModel):
 
 class LocatorTarget(BaseModel):
     strategy: Literal[
-        "role_name", "structural", "text", "table_position", "labeled_field", "field_name"
+        "role_name", "structural", "text", "table_position",
+        "labeled_field", "field_name", "labeled_value",
     ]
     primary: dict = Field(
         ...,

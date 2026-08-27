@@ -46,7 +46,12 @@ from __future__ import annotations
 
 import re
 
-from agent.legacy_locate import locate_field_name, locate_labeled_field
+from agent.legacy_locate import (
+    locate_field_name,
+    locate_labeled_field,
+    locate_labeled_value,
+    normalize_label,
+)
 from artifact.schema import LocatorTarget, Step
 
 _PARAM_NAME = "member_id"  # see module docstring — the only varying input across both capabilities
@@ -272,6 +277,58 @@ class Recorder:
                 continue
         return None
 
+    # ---- labeled_value locator (read-only <td class="lbl">Label:</td><td>Value</td>) --------
+
+    def _try_labeled_value_locator(self, role: str, name: str, page, step_id: str = "?") -> LocatorTarget | None:
+        """
+        MERIDIAN CORE shows read-only values as ``<td class="lbl">Confirmation:</td><td>
+        CN480423</td>`` (member contact fields, transfer/hold confirmations, review screens).
+        The stable anchor is the label, never the value. `name` may already be the label
+        (the agent extracted by "Confirmation:") or the value itself — try it as a label first,
+        then find the label of the row the value sits in. Returns None if the shape doesn't fit.
+        """
+        if role.lower() not in ("cell", "gridcell", "rowheader"):
+            return None
+        contexts = [page] + [f for f in page.frames if f != page.main_frame]
+        for ctx in contexts:
+            label = None
+            # (a) name is the label
+            try:
+                if locate_labeled_value(ctx, name) is not None:
+                    label = normalize_label(name)
+            except Exception:
+                pass
+            # (b) name is the value — find its row's label cell
+            if label is None:
+                nlit = name.replace('"', "").strip()
+                try:
+                    lbl_cell = ctx.locator(
+                        f'xpath=.//td[not(.//td) and normalize-space(.)="{nlit}"]'
+                        f'/parent::tr/*[(self::td or self::th) and '
+                        f'contains(concat(" ", normalize-space(@class), " "), " lbl ")][1]'
+                    )
+                    if lbl_cell.count() == 1:
+                        cand_label = normalize_label(lbl_cell.first.text_content() or "")
+                        if cand_label and locate_labeled_value(ctx, cand_label) is not None:
+                            label = cand_label
+                except Exception:
+                    pass
+            if label:
+                self.tier_log.append(
+                    {"step_id": step_id, "role": role, "name": name, "tier": "labeled_value"}
+                )
+                return LocatorTarget(
+                    strategy="labeled_value",
+                    primary={"label": label},
+                    fallbacks=[{"strategy": "text", "text": name}],
+                    reasoning=(
+                        f"read-only value in a <td class='lbl'>{label}:</td><td>…</td> row. "
+                        "Anchored on the label text, which is stable, rather than the value, "
+                        "which is exactly what differs on every run."
+                    ),
+                )
+        return None
+
     # ---- parameter detection ---------------------------------------------------------------
 
     def _maybe_param_ref(self, value: str) -> dict | str:
@@ -305,9 +362,12 @@ class Recorder:
     def record_extract(self, role: str, name: str, as_var: str, page) -> Step:
         step_id = self._next_step_id()
         table_target = self._try_table_position_locator(role, name, page)
+        labeled_value_target = None if table_target is not None else self._try_labeled_value_locator(role, name, page, step_id)
         if table_target is not None:
             target = table_target
             self.tier_log.append({"step_id": step_id, "role": role, "name": name, "tier": "table_position"})
+        elif labeled_value_target is not None:
+            target = labeled_value_target
         else:
             target = self.build_locator(role, name, page, step_id)
         step = Step(step_id=step_id, action_type="extract", target=target, extract_as=as_var)

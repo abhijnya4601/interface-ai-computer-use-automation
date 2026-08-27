@@ -180,3 +180,37 @@ def locate_field_name(ctx, name_attr: str | None):
     if count >= 1:
         return loc.first
     return None
+
+
+def locate_labeled_value(ctx, label: str):
+    """
+    Read-only sibling of ``locate_labeled_field``: resolve the VALUE cell next to a label cell,
+    for the ``<td class="lbl">Confirmation:</td><td>CN480423</td>`` shape MERIDIAN CORE uses
+    everywhere (member contact fields, transfer/hold confirmations, review screens). Anchors on
+    the label text, so it survives the value changing on every run — which is the whole point.
+    Returns a single-element Locator (the value cell) or None.
+    """
+    norm = normalize_label(label)
+    if not norm:
+        return None
+    pred = _xpath_label_predicate(norm)
+    candidates = [
+        # label cell -> the next sibling cell in the same row
+        f"xpath=.//*[(self::td or self::th) and contains(concat(' ', normalize-space(@class), ' '), ' lbl ')]"
+        f"[{pred}]/following-sibling::*[self::td or self::th][1]",
+        # any label cell in the row -> the last cell of that row
+        f"xpath=.//tr[*[(self::td or self::th)[{pred}]]]/*[self::td or self::th][last()]",
+        # a <label> element -> the next value-ish element after it
+        f"xpath=.//label[{pred}]/following::*[self::td or self::span or self::div][1]",
+    ]
+    for selector in candidates:
+        try:
+            loc = ctx.locator(selector)
+            count = loc.count()
+        except Exception:
+            continue
+        if count == 1:
+            return loc
+        if count > 1:
+            continue
+    return None
