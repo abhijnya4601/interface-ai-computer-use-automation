@@ -43,6 +43,7 @@ from playwright.sync_api import sync_playwright
 from agent.legacy_locate import locate_field_name, locate_labeled_field, locate_labeled_value
 from artifact.schema import Capability, ExpectedOutcome, Result, Step
 from guardrails.policy import GuardrailViolation, check_risk_confirmation, guardrail_check, redact
+from surface.outcomes import classify as classify_outcome, profile_for
 
 EVIDENCE_DIR = Path(__file__).parent.parent / "evidence"
 _QUOTED_RE = re.compile(r"'([^']*)'")
@@ -207,11 +208,14 @@ def _extract_quoted_substring(condition: str) -> str | None:
     return match.group(1) if match else None
 
 
-def _check_expected_outcomes(step: Step, page) -> ExpectedOutcome | None:
+def _check_expected_outcomes(step: Step, page, run_ctx: dict | None = None) -> ExpectedOutcome | None:
     """
-    Deterministically evaluate each declared condition against the live page's HTML. Every
-    condition string this build's compiler emits is of the form "page contains '<substring>'";
-    replay checks the literal substring — it never interprets natural language or guesses.
+    Deterministically decide whether the live page represents a declared/known outcome, in this
+    order:
+      1. the step's own `expected_outcomes` — literal "page contains '<substring>'" checks;
+      2. the target's runtime taxonomy (surface/outcomes.py) — the main-frame document HTTP
+         status (deterministic, copy-independent), then target-wide body-text conditions.
+    Never interprets natural language, never calls an LLM.
     """
     try:
         content = page.content()
@@ -221,6 +225,8 @@ def _check_expected_outcomes(step: Step, page) -> ExpectedOutcome | None:
         marker = _extract_quoted_substring(outcome.condition)
         if marker and marker in content:
             return outcome
+    if run_ctx is not None:
+        return classify_outcome(run_ctx.get("profile"), run_ctx.get("http_status"), content)
     return None
 
 
@@ -262,28 +268,36 @@ def _apply_wait_policy(page, step: Step):
             continue
 
 
-def _execute_step(step: Step, page, params: dict, tier_log: list, outputs: dict, run_id: str) -> Result | None:
+def _execute_step(step: Step, page, params: dict, tier_log: list, outputs: dict, run_id: str,
+                  run_ctx: dict) -> Result | None:
     """Returns a Result to short-circuit the run (business outcome / recoverable / hard
     failure), or None to continue to the next step."""
 
     if step.action_type == "navigate":
         url = _resolve_value(step.value, params)
+        run_ctx["http_status"] = None
         try:
-            page.goto(url, timeout=step.wait_policy.timeout_ms)
+            resp = page.goto(url, timeout=step.wait_policy.timeout_ms)
+            run_ctx["http_status"] = resp.status if resp is not None else None
         except Exception as exc:
-            outcome = _check_expected_outcomes(step, page)
+            outcome = _check_expected_outcomes(step, page, run_ctx)
             if outcome:
                 return _outcome_to_result(outcome, outputs)
             return _hard_failure(page, run_id, step.step_id, f"navigate to {url}", str(exc))
         _apply_wait_policy(page, step)
+        outcome = _check_expected_outcomes(step, page, run_ctx)
+        if outcome:
+            return _outcome_to_result(outcome, outputs)
         return None
 
     if step.action_type in ("click", "type", "select", "extract"):
+        # a click can trigger navigation — reset so the response listener's value is this step's
+        run_ctx["http_status"] = None
         locator, tier = _locate(page, step.target)
         tier_log.append({"step_id": step.step_id, "tier": tier or "unresolved"})
 
         if locator is None:
-            outcome = _check_expected_outcomes(step, page)
+            outcome = _check_expected_outcomes(step, page, run_ctx)
             if outcome:
                 return _outcome_to_result(outcome, outputs)
             return _hard_failure(
@@ -304,18 +318,26 @@ def _execute_step(step: Step, page, params: dict, tier_log: list, outputs: dict,
                 value = _extract_value(locator, step.target.strategy if step.target else None)
                 outputs[step.extract_as] = value
         except Exception as exc:
-            outcome = _check_expected_outcomes(step, page)
+            outcome = _check_expected_outcomes(step, page, run_ctx)
             if outcome:
                 return _outcome_to_result(outcome, outputs)
             return _hard_failure(page, run_id, step.step_id, "action to succeed", str(exc))
 
+        if step.action_type == "click":
+            # a server-rendered form submit navigates — let it settle so the HTTP status and
+            # page content the outcome check reads are the post-navigation ones
+            try:
+                page.wait_for_load_state("load", timeout=step.wait_policy.timeout_ms)
+            except Exception:
+                pass
         _apply_wait_policy(page, step)
 
-        # Even a successful action can land on a page matching a declared business/recoverable
-        # condition (e.g. a locked-member page renders successfully, it just shows msg-denied
-        # instead of the balance) — always check after acting, not only on failure.
-        outcome = _check_expected_outcomes(step, page)
-        if outcome and outcome.classification != "hard_failure":
+        # Even a successful action can land on a known outcome page — a validation-error render
+        # after a Continue click (HTTP 400), a "Source share is HOLD" body, a 500. Check after
+        # acting, not only on failure, and short-circuit on any classification including
+        # hard_failure (a 500 after a technically-successful navigation is still a hard failure).
+        outcome = _check_expected_outcomes(step, page, run_ctx)
+        if outcome:
             return _outcome_to_result(outcome, outputs)
         return None
 
@@ -406,26 +428,46 @@ def _walk_capability(capability: Capability, params: dict, page, run_id: str,
     """Walk the capability's Steps against a live `page` and verify the checkpoint. No browser
     lifecycle here — the caller owns the page (see `replay`, and `agent/session.py` which runs a
     signon capability then a target capability on one shared authenticated context)."""
-    for step in capability.steps:
-        action_url = _resolve_value(step.value, params) if step.action_type == "navigate" else None
+    run_ctx = {"profile": profile_for(capability.target), "http_status": None}
+    # capture the main-frame document HTTP status of click-triggered navigations (page.goto's
+    # status is read directly in _execute_step)
+    def _on_response(resp):
         try:
-            guardrail_check({"type": step.action_type, "url": action_url},
-                             current_url=page.url, phase="replay")
-        except GuardrailViolation as exc:
-            return _hard_failure(page, run_id, step.step_id, "action within allowlist", str(exc))
-        except KeyError as exc:
-            return _hard_failure(page, run_id, step.step_id, "all required params provided", str(exc))
+            if resp.request.is_navigation_request() and resp.frame is page.main_frame:
+                run_ctx["http_status"] = resp.status
+        except Exception:
+            pass
+    try:
+        page.on("response", _on_response)
+    except Exception:
+        pass
 
-        result = _execute_step(step, page, params, tier_log, outputs, run_id)
-        if result is not None:
-            return result
+    try:
+        for step in capability.steps:
+            action_url = _resolve_value(step.value, params) if step.action_type == "navigate" else None
+            try:
+                guardrail_check({"type": step.action_type, "url": action_url},
+                                 current_url=page.url, phase="replay")
+            except GuardrailViolation as exc:
+                return _hard_failure(page, run_id, step.step_id, "action within allowlist", str(exc))
+            except KeyError as exc:
+                return _hard_failure(page, run_id, step.step_id, "all required params provided", str(exc))
 
-    if not _verify_checkpoint(capability, page):
-        return _hard_failure(
-            page, run_id, "checkpoint", capability.checkpoint.expected,
-            f"checkpoint not satisfied at final url {page.url}",
-        )
-    return Result(status="success", outputs=redact(outputs))
+            result = _execute_step(step, page, params, tier_log, outputs, run_id, run_ctx)
+            if result is not None:
+                return result
+
+        if not _verify_checkpoint(capability, page):
+            return _hard_failure(
+                page, run_id, "checkpoint", capability.checkpoint.expected,
+                f"checkpoint not satisfied at final url {page.url}",
+            )
+        return Result(status="success", outputs=redact(outputs))
+    finally:
+        try:
+            page.remove_listener("response", _on_response)
+        except Exception:
+            pass
 
 
 def replay(

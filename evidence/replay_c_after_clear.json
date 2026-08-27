@@ -1,0 +1,11 @@
+{
+  "status": "hard_failure",
+  "outputs": {},
+  "business_outcome_code": null,
+  "failure_detail": {
+    "step_id": "signon",
+    "expected": "operator signed on and reached the main menu",
+    "observed": "sign-on replay returned recoverable_handled: None"
+  },
+  "evidence_ref": null
+}

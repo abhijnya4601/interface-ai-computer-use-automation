@@ -36,10 +36,24 @@ def main() -> int:
     parser.add_argument("--confirm", action="store_true")
     parser.add_argument("--headed", action="store_true")
     parser.add_argument("--label", default=None, help="tag for the saved evidence filename")
+    parser.add_argument("--inject", default=None,
+                        choices=["validation", "notfound", "permission", "timeout",
+                                 "maintenance", "server"],
+                        help="append ?inject=<kind> to the capability's entry navigation at "
+                             "replay time (MERIDIAN CORE per-request fault injection, brief "
+                             "§2.2) — a replay-time override; the saved capability is unchanged")
     args = parser.parse_args()
 
     capability = Capability.model_validate_json(Path(args.capability).read_text())
     params = json.loads(args.params)
+
+    if args.inject:
+        for step in capability.steps:
+            if step.action_type == "navigate" and isinstance(step.value, str):
+                sep = "&" if "?" in step.value else "?"
+                step.value = f"{step.value}{sep}inject={args.inject}"
+                print(f"[inject] entry navigation -> {step.value}")
+                break
 
     result = run_with_session(
         capability, params, role=args.role, confirm=args.confirm, headless=not args.headed

@@ -1,0 +1,71 @@
+# Runtime / exceptional-state taxonomy for MERIDIAN CORE.
+#
+# replay/engine.py applies this to EVERY step of EVERY capability whose target is this app, in
+# addition to any step's own declared expected_outcomes. This is what replaces the take-home's
+# per-capability-id `_KNOWN_OUTCOMES` dict with something that generalises: a new MERIDIAN
+# capability gets the full error taxonomy for free, no hand-authored entries.
+#
+# See the brief §2.2 (inject kinds + natural errors) and ADAPTATION_PLAN.md §2.5.
+# Precedence in replay: a step's own declared outcomes, then http_status (main-frame document
+# response), then body_conditions.
+
+# HTTP status of the main-frame document response -> how replay must treat it. Deterministic and
+# copy-independent — this holds even if MERIDIAN rewords its error pages.
+http_status:
+  400:
+    classification: business_outcome
+    code: VALIDATION_REJECTED
+    detail: "the app rejected the submitted values (field or transaction validation)"
+  403:
+    classification: business_outcome
+    code: PERMISSION_DENIED
+    detail: "operator profile is not authorized for this action; a supervisor override may be required"
+  404:
+    classification: business_outcome
+    code: RECORD_NOT_FOUND
+    detail: "no such member / record at this route"
+  440:
+    classification: recoverable
+    code: SESSION_EXPIRED
+    detail: "operator session expired mid-flow; a fresh sign-on is required before the run can be retried"
+  503:
+    classification: recoverable
+    code: MAINTENANCE
+    detail: "unexpected maintenance interstitial; the whole run is safe to retry later"
+  500:
+    classification: hard_failure
+    code: SERVER_ERROR
+    detail: "unhandled application error — stop and surface for investigation"
+
+# Body-text conditions, checked when the status is 2xx / unknown. Substring match against the
+# rendered page (same mechanism as a declared condition). These are the *natural* (non-injected)
+# business outcomes the brief calls out.
+body_conditions:
+  - contains: "Source share is HOLD and cannot be debited"
+    classification: business_outcome
+    code: SOURCE_SHARE_ON_HOLD
+    detail: "the chosen From Share is on HOLD; pick an OPEN share"
+  - contains: "Insufficient available balance"
+    classification: business_outcome
+    code: INSUFFICIENT_FUNDS
+    detail: "the source share does not have enough available balance for this transfer"
+  - contains: "SUPERVISOR OVERRIDE REQUIRED"
+    classification: business_outcome
+    code: SUPERVISOR_OVERRIDE_REQUIRED
+    detail: "this function requires a supervisor operator; re-run with role=supervisor"
+  - contains: "No member records matched your search"
+    classification: business_outcome
+    code: MEMBER_NOT_FOUND
+    detail: "the member search returned no rows"
+  - contains: "Record Not Found"
+    classification: business_outcome
+    code: RECORD_NOT_FOUND
+    detail: "no such member / record"
+  - contains: "not a valid e-mail"
+    classification: business_outcome
+    code: INVALID_CONTACT
+    detail: "the submitted email/phone failed validation"
+  - contains: "not a valid phone"
+    classification: business_outcome
+    code: INVALID_CONTACT
+    detail: "the submitted email/phone failed validation"
