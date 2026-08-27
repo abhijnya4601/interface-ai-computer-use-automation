@@ -212,7 +212,7 @@ routed to the operator console."). One model call per turn, tools only.
 - E4 `member_inquiry` by last name (the "or by last name" branch).
 - E5 `signon` as a standalone catalog entry.
 
-**Phase F — demo hardening**
+**Phase F — demo hardening — ✅ DONE (D43)**
 - F1 reset-safe demo script (exact commands, seed member IDs, which inject to fire).
 - F2 screen recording of every path (happy, each error, escalation) — network backup.
 - F3 `ADAPTATION.md` (5 sections) + `DECISIONS.md` D36–Dxx.
