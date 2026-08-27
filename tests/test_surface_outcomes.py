@@ -1,7 +1,7 @@
 """
 Offline unit tests for surface/outcomes.py — the per-target runtime/exceptional-state taxonomy
-that replaces the take-home's per-capability-id _KNOWN_OUTCOMES dict. Live verification of the
-full inject matrix is in DECISIONS.md D40 / the evidence/ replay_*inj* files.
+that replaces the take-home's per-capability-id _KNOWN_OUTCOMES dict. The full inject matrix is
+verified against the live target; see the evidence/ replay_*inj* files.
 """
 from artifact.schema import TargetSpec
 from surface.outcomes import classify, profile_for

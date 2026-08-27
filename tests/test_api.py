@@ -1,8 +1,8 @@
 """
 Offline tests for the run registry (agent_interface/runs.py) and the capability API
 (api/app.py) via Flask's test client, with the invoke path monkeypatched so no browser or
-network is touched. The live end-to-end (real MERIDIAN invoke, real escalation approve/decline)
-is in DECISIONS.md D41 / evidence/runs.jsonl.
+network is touched. The real MERIDIAN invoke + escalation approve/decline are exercised
+against the live target; see evidence/runs.jsonl.
 """
 import json
 

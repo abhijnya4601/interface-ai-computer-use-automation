@@ -59,7 +59,7 @@ def _require_auth():
 
 @app.after_request
 def _no_cache(response):
-    # This page shows live escalation state (D23-adjacent finding: a browser back-button or
+    # This page shows live escalation state (a browser back-button or
     # reload can redisplay an already-resolved "escalated" view from cache, making a resolved
     # request look like it's still pending -- confusing for an operator deciding whether to act).
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"

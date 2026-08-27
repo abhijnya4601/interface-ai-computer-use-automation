@@ -1,5 +1,5 @@
 """
-Live integration smoke test for D18's operator console authentication — launches the real
+Live integration smoke test for the operator console authentication — launches the real
 escalation/operator_page.py as a real subprocess (exactly like run_discovery.py's
 --auto-approve-escalation does) and drives it over real HTTP, proving:
   1. an unauthenticated request is rejected (401), including /resume specifically

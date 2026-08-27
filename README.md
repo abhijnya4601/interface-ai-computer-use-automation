@@ -694,8 +694,9 @@ the full transcript to `evidence/agent_capability_interface_demo_*.json`.
 The adaptation project points this core at the hosted legacy target
 **`web-sample.interface-hiring.com`** (a period-accurate credit-union servicing console — no
 `<label for>`, no test IDs, table layout, a per-transaction hidden token, operator sessions) and
-wraps it as an API a chatbot drives and a dashboard shows. Full write-up: [`ADAPTATION.md`](ADAPTATION.md).
-Decisions: `DECISIONS.md` D36–D42.
+wraps it as an API a chatbot drives and a dashboard shows. Design write-up:
+[`ADAPTATION.md`](ADAPTATION.md). Full setup + step-by-step demo (with Windows PowerShell
+commands): [`DEMO.md`](DEMO.md).
 
 ### Setup (in addition to §1)
 

@@ -54,7 +54,7 @@ def _load_allowlist() -> dict:
         "allowed_domains": allowed_domains,
         # Falls back to allowed_domains if discovery_allowed_domains isn't set, for backward
         # compatibility with a bare allowlist.yaml — but a real deployment should always set
-        # this explicitly and narrower than allowed_domains. See module docstring / D18.
+        # this explicitly and narrower than allowed_domains. See the module docstring.
         "discovery_allowed_domains": set(data.get("discovery_allowed_domains") or allowed_domains),
         "allowed_actions": set(data.get("allowed_actions") or []),
         "blocked_routes": list(data.get("blocked_routes") or []),

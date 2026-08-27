@@ -1,0 +1,7 @@
+{
+  "reason": "dead-end: 3 consecutive turns produced no observable state change",
+  "current_url": "https://web-sample.interface-hiring.com/members",
+  "screenshot_path": "evidence/escalation_run_44dc8fddff.png",
+  "run_id": "run_44dc8fddff",
+  "triggered_at": 1787838473.7959208
+}

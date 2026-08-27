@@ -1,6 +1,6 @@
 """
 Record the remaining fixed-form MERIDIAN CORE §2.1 capabilities with a scripted recorder, the
-same deliberate call as meridian_signon / meridian_funds_transfer (D37/D39): each is a
+same deliberate call as meridian_signon / meridian_funds_transfer: each is a
 non-branching form -> [review ->] post, the discovery loop is already demonstrated by
 meridian_check_member_balance (a real LLM run), and driving an irreversible POST with the LLM
 just to record it is a poor trade. The browser actions are real; only *which* actions is

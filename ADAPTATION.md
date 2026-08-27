@@ -2,8 +2,8 @@
 
 The take-home core (discover → typed capability artifact → deterministic replay, with guardrails,
 evidence, escalation) pointed at the hosted legacy target `web-sample.interface-hiring.com`, its
-full §2.1 surface covered, and wrapped as **API → chatbot → dashboard**. Every decision and the
-bugs found along the way are in `DECISIONS.md` (D36–D45); this is the summary.
+full §2.1 surface covered, and wrapped as **API → chatbot → dashboard**. This summarises the
+adaptation, the trade-offs, and the bugs found along the way.
 
 ## 1. What adapting took, and what changed in the core
 
@@ -40,7 +40,7 @@ authenticated page (`replay()` gained an optional `page=`). Credentials come fro
 only. Baking login into every capability (credentials in every artifact, re-auth per call) and a
 shared long-lived session (idle-timeout breaks unrelated invokes) were both rejected.
 
-**Other core changes**, all small and defended in `DECISIONS.md`: `execute_extract` /
+**Other core changes**, all small: `execute_extract` /
 `_extract_value` return a data-table cell's own text (the take-home's row-relative heuristic is
 right only for a `<th scope=row>` label); perception collapses a `<select>`'s option list to a hint string and surfaces every control's
 current value, and a successful `extract`/`type` no longer trips the dead-end detector — without

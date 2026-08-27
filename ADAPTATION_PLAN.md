@@ -5,8 +5,8 @@ point the existing take-home core at the hosted legacy target `web-sample.interf
 cover its full §2.1 function surface, and wrap it as **API → chatbot → dashboard** — a clean,
 correct, demoable whole. Not breadth for its own sake; every piece thin-but-real.
 
-Decision log continues in `DECISIONS.md` at **D36+**. The graded write-up is `ADAPTATION.md`
-(≈1–2 pages, 5 sections) — this file is the internal build plan.
+The graded write-up is `ADAPTATION.md` (≈1–2 pages, 5 sections); the runbook is `DEMO.md`.
+This file is the internal build plan.
 
 ---
 
@@ -166,7 +166,7 @@ routed to the operator console."). One model call per turn, tools only.
 
 ## 4. Sequenced delivery
 
-**Phase A — prove the surface — ✅ DONE (D37), verified live**
+**Phase A — prove the surface — ✅ DONE, verified live**
 - A1 ✅ config: `web-sample.interface-hiring.com` in both allowlists; `/settings` blocked both phases.
 - A2 ✅ `agent/legacy_locate.py` (`labeled_field` + `field_name`); `perception.py` enriches
   unnamed controls; `recorder.py` / `replay/engine.py` / `tools.py` wired; schema strategies
@@ -177,7 +177,7 @@ routed to the operator console."). One model call per turn, tools only.
   one session (3/3). +6 tests.
 - **Gate MET:** `run_with_session` logs in and reaches a member record, by real run.
 
-**Phase B — the two mandated capabilities — ✅ DONE (D39), verified live**
+**Phase B — the two mandated capabilities — ✅ DONE, verified live**
 - B1 ✅ `meridian_check_member_balance` — real LLM discovery run (`discovery_run_f9e05c9d33`).
   Replays `success` for member 100987 (its own data) via `table_position`. Forced out 3
   robustness fixes (cell extraction, dead-end-on-reads, `<td>` table headers) + a checkpoint fix.
@@ -188,7 +188,7 @@ routed to the operator console."). One model call per turn, tools only.
 - New: `labeled_value` locator strategy; `_resolve_value` URL templating; perception token cap;
   `scripts/run_meridian.py` session-aware replay CLI.
 
-**Phase C — error taxonomy — ✅ DONE (D40), full matrix verified live**
+**Phase C — error taxonomy — ✅ DONE, full matrix verified live**
 - C1 ✅ `surface/outcomes.py` + `surface/meridian_outcomes.yaml` — per-TARGET profile (replaces
   the per-capability-id `_KNOWN_OUTCOMES` dict). HTTP-status map + body-text conditions,
   body-first precedence. `replay/engine.py` captures main-frame HTTP status.
@@ -197,14 +197,14 @@ routed to the operator console."). One model call per turn, tools only.
   natural cases. Evidence: `evidence/replay_c_inj_*`, `replay_t_*`. `scripts/run_meridian.py
   --inject`, `scripts/meridian_inject.py`.
 
-**Phase D — wrappers — ✅ DONE (D41), verified live end to end**
+**Phase D — wrappers — ✅ DONE, verified live end to end**
 - D1 ✅ `api/app.py` Flask API + `agent_interface/runs.py` (`evidence/runs.jsonl`).
 - D2 ✅ `replay(risky_mode="escalate")` → operator console approve→post (`CN480430`) / decline→`escalated`.
 - D3 ✅ `chatbot/cli.py` — Claude tool-use over the API.
 - D4 ✅ server-rendered dashboard (`/`, `/runs/<id>`), meta-refresh, evidence inline.
 - New: `Capability.requires_role` (additive).
 
-**Phase E — remaining §2.1 surface — ✅ DONE (D42), verified live**
+**Phase E — remaining §2.1 surface — ✅ DONE, verified live**
 - E1 `open_new_share` (risky, review→post).
 - E2 `update_member_info` (email/phone/address; natural `INVALID_CONTACT`).
 - E3 `place_account_hold` — recorded under `super1`; `requires_role: supervisor`; teller path →
@@ -212,10 +212,10 @@ routed to the operator console."). One model call per turn, tools only.
 - E4 `member_inquiry` by last name (the "or by last name" branch).
 - E5 `signon` as a standalone catalog entry.
 
-**Phase F — demo hardening — ✅ DONE (D43)**
+**Phase F — demo hardening — ✅ DONE**
 - F1 reset-safe demo script (exact commands, seed member IDs, which inject to fire).
 - F2 screen recording of every path (happy, each error, escalation) — network backup.
-- F3 `ADAPTATION.md` (5 sections) + `DECISIONS.md` D36–Dxx.
+- F3 `ADAPTATION.md` (5 sections) + `DEMO.md` runbook.
 - F4 fresh-clone check: install, env, `playwright install`, run API + dashboard + chatbot, one
   happy + one error + one escalation.
 
