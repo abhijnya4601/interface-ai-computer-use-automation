@@ -15,6 +15,8 @@ Needs MERIDIAN_OPERATOR / MERIDIAN_PASSWORD (+ MERIDIAN_SUPERVISOR_* for the hol
 """
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import re
 import sys
@@ -70,7 +72,8 @@ def main() -> int:
     with sync_playwright() as p:
         b = p.chromium.launch(headless=True)
         pg = b.new_page()
-        replay(load_signon_capability(), params=creds, page=pg, run_id="scout")
+        with contextlib.redirect_stdout(io.StringIO()):  # hush replay()'s tier-log print
+            replay(load_signon_capability(), params=creds, page=pg, run_id="scout")
         results = [scout(pg, m) for m in members]
         b.close()
 

@@ -35,9 +35,10 @@ RUNS: dict[str, tuple] = {
     "signon": (
         f"{BASE}/signon",
         ["--no-session", "--max-steps", "8"],
-        "Sign on to MERIDIAN CORE. Type operator ID 'teller1' into the Operator ID field, type "
-        "'password' into the Password field, set the Branch field to 'MAIN-001 - Main Office', "
-        "and click Sign On. Finish once the main menu is shown.",
+        "Sign on to MERIDIAN CORE. Use the type tool: type 'teller1' into the Operator ID field, "
+        "type 'password' into the Password field, and type 'MAIN-001' into the Branch dropdown "
+        "(it is a combobox — use the type tool, do not click an option). Then click Sign On. "
+        "Finish once the main menu is shown.",
     ),
     "check_member_balance": (
         f"{BASE}/members",
@@ -69,8 +70,9 @@ RUNS: dict[str, tuple] = {
         "On the Funds Transfer form set From Share to the option starting '100234-MMKT-10', To "
         "Share to the option starting '100234-S0001-11', Amount to 1.00, Memo to 'recorded "
         "transfer', and click Continue to reach the confirmation screen. Posting is irreversible, "
-        "so call escalate for human approval first; after approval click 'Post Transfer' and "
-        "finish.",
+        "so call escalate for human approval first; after approval click 'Post Transfer', then use "
+        "the extract tool to read the Confirmation number as 'confirmation', then finish with "
+        "it in outputs.",
     ),
     "open_share": (
         f"{BASE}/members/100234/open-share",
@@ -82,10 +84,11 @@ RUNS: dict[str, tuple] = {
     "place_hold": (
         f"{BASE}/members/100234/hold",
         ["--max-steps", "14", "--auto-approve-escalation", "--session-role", "supervisor"],
-        "On the Place Account Hold form set Share to the option starting '100234-MMKT-13', Reason "
-        "Code to FRAUD, Notes to 'recorded demo hold', and click Continue. Placing a hold is "
-        "irreversible, so call escalate for human approval first; after approval click 'Apply "
-        "Hold' and finish.",
+        "On the Place Account Hold form use the type tool for each dropdown/field: type "
+        "'100234-MMKT-13' into the Share combobox, 'FRAUD' into the Reason Code combobox, and "
+        "'recorded demo hold' into Notes. Then click Continue. Placing a hold is irreversible, "
+        "so call escalate for human approval first; after approval click 'Apply Hold', then "
+        "use the extract tool to read the Confirmation number as 'confirmation', then finish.",
     ),
 }
 CAP_ID = {k: f"meridian_{k if k != 'inquiry_by_name' else 'member_inquiry_by_name'}"

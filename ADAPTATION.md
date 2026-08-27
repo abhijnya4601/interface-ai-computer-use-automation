@@ -3,7 +3,7 @@
 The take-home core (discover → typed capability artifact → deterministic replay, with guardrails,
 evidence, escalation) pointed at the hosted legacy target `web-sample.interface-hiring.com`, its
 full §2.1 surface covered, and wrapped as **API → chatbot → dashboard**. Every decision and the
-bugs found along the way are in `DECISIONS.md` (D36–D44); this is the summary.
+bugs found along the way are in `DECISIONS.md` (D36–D45); this is the summary.
 
 ## 1. What adapting took, and what changed in the core
 
@@ -150,12 +150,16 @@ recover, couldn't, safe to retry the whole run later". Verified live both ways: 
 
 **Cut, deliberately:**
 - **A small `generalize()` pass after discovery.** All 7 §2.1 capabilities come from a real
-  LLM discovery run (`scripts/discover_all_meridian.py`), but a freshly-discovered capability
-  has a concrete member id in its entry URL and concrete values in its form steps. A
-  `surface/meridian_flows.py::generalize()` pass rewrites the URL to a `{member_id}` template,
-  maps each recorded literal to a typed param, and sets the risk level / required role /
-  checkpoint. This is a deliberate seam, not per-run hand-editing: the same spec would drive a
-  discovery-time parameter-naming step in a fuller system.
+  LLM discovery run (`scripts/discover_all_meridian.py`), then a
+  `surface/meridian_flows.py::generalize()` pass rewrites the entry URL to a `{member_id}`
+  template, maps each recorded literal to a typed param, and sets risk level / required role /
+  checkpoint — a deliberate seam (the parameter-naming step a fuller system would have the LLM
+  do), not per-run hand-editing. **6 of 7 are pure discovery + generalize.** `funds_transfer`
+  and `place_hold` carry one appended deterministic step each (a Reason Code select / a
+  Confirmation extract): on those dual-dropdown forms the observe→act loop kept re-selecting
+  the first combobox (both share a label pattern and default value) and finished before the
+  extract — a named limitation of the loop on ambiguous multi-control forms, with the
+  dead-end transcripts kept as evidence.
 - **Concurrency** — one browser, one lock; invokes queue.
 - **Dashboard auth** — read-only over synthetic data; the operator console keeps its auth.
 - **Real KMS** for at-rest encryption — carried over from the take-home.

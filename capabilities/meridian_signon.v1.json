@@ -1,8 +1,8 @@
 {
   "capability_id": "meridian_signon",
   "version": "1.0.0",
-  "created_from_run_id": "run_d3a8be178b",
-  "description": "Sign on to MERIDIAN CORE. Type operator ID 'teller1' into the Operator ID field, type 'password' into the Password field, set the Branch field to 'MAIN-001 - Main Office', and click Sign On. Finish once the main menu is shown.",
+  "created_from_run_id": "run_6e380df5ac",
+  "description": "Sign on to MERIDIAN CORE. Use the type tool: type 'teller1' into the Operator ID field, type 'password' into the Password field, and type 'MAIN-001' into the Branch dropdown (it is a combobox \u2014 use the type tool, do not click an option). Then click Sign On. Finish once the main menu is shown.",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "https://web-sample.interface-hiring.com/signon",
@@ -133,7 +133,7 @@
             "text": "Branch"
           }
         ],
-        "reasoning": "select the Branch dropdown by its visible label (added post-discovery: the discovery run left 'branch' unset, so a caller supplying it had no effect)."
+        "reasoning": "role='combobox' name='Branch' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Branch' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'branch' (load-bearing HTML the backend requires, not a test id)."
       },
       "value": {
         "param_ref": "branch"
