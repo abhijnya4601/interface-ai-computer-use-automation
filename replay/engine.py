@@ -80,27 +80,36 @@ def _locate_table_position(page, primary: dict):
 
     for ctx in _contexts(page):
         try:
-            tables = ctx.locator("table")
-            table_count = tables.count()
+            handle = ctx.evaluate_handle(
+                """([wantHeaders, rowIndex, colIndex]) => {
+                    const tables = Array.from(document.querySelectorAll('table'));
+                    for (const table of tables) {
+                        const rows = Array.from(table.querySelectorAll('tr'))
+                            .filter(r => r.closest('table') === table);
+                        const headerRow =
+                            rows.find(r => r.querySelector('th[scope="col"]')) || rows[0];
+                        if (!headerRow) continue;
+                        const headers = Array.from(headerRow.querySelectorAll('th, td'))
+                            .map(c => c.textContent.trim());
+                        if (headers.length !== wantHeaders.length) continue;
+                        if (!headers.every((h, i) => h === wantHeaders[i])) continue;
+                        const dataRows = rows.filter(
+                            r => r !== headerRow && r.querySelector('td'));
+                        const tr = dataRows[rowIndex];
+                        if (!tr) continue;
+                        const cell = tr.children[colIndex];
+                        if (!cell) continue;
+                        return cell;
+                    }
+                    return null;
+                }""",
+                [headers, row_index, column_index],
+            )
+            element = handle.as_element()
+            if element is not None:
+                return element
         except Exception:
             continue
-        for i in range(table_count):
-            table = tables.nth(i)
-            try:
-                header_row = table.locator("xpath=.//tr[th[@scope='col']]").first
-                if header_row.count() == 0:
-                    continue
-                if header_row.locator("th").all_text_contents() != headers:
-                    continue
-                data_rows = table.locator("xpath=.//tr[td]")
-                if data_rows.count() <= row_index:
-                    continue
-                cells = data_rows.nth(row_index).locator("td")
-                if cells.count() <= column_index:
-                    continue
-                return cells.nth(column_index)
-            except Exception:
-                continue
     return None
 
 
@@ -278,7 +287,7 @@ def _execute_step(step: Step, page, params: dict, tier_log: list, outputs: dict,
                 except Exception:
                     locator.select_option(value, timeout=step.wait_policy.timeout_ms)
             elif step.action_type == "extract":
-                value = _extract_value(locator)
+                value = _extract_value(locator, step.target.strategy if step.target else None)
                 outputs[step.extract_as] = value
         except Exception as exc:
             outcome = _check_expected_outcomes(step, page)
@@ -306,7 +315,26 @@ def _execute_step(step: Step, page, params: dict, tier_log: list, outputs: dict,
     return _hard_failure(page, run_id, step.step_id, "a known action_type", step.action_type)
 
 
-def _extract_value(locator) -> str:
+def _extract_value(locator, strategy: str | None = None) -> str:
+    """
+    Read the value at a resolved locator. The right rule depends on how the locator was
+    declared:
+
+    - table_position / labeled_field / field_name: the locator already points at the exact
+      cell or the exact form control — return its own value/text. The row-relative heuristic
+      below would be wrong (it returns the row's *first* cell regardless).
+    - role_name / structural / text: the recorder anchored on a label (a `<th scope="row">`),
+      so the value is in a sibling `<td>` in the same row.
+    """
+    if strategy in ("table_position", "labeled_field", "field_name"):
+        try:
+            value = locator.input_value(timeout=1000)
+            if value:
+                return value
+        except Exception:
+            pass
+        return (locator.text_content() or "").strip()
+
     try:
         row_value_cell = locator.locator("xpath=ancestor::tr[1]//td[1]")
         if row_value_cell.count() > 0:

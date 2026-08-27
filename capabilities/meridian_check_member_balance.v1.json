@@ -1,0 +1,280 @@
+{
+  "capability_id": "meridian_check_member_balance",
+  "version": "1.0.0",
+  "created_from_run_id": "run_f9e05c9d33",
+  "description": "Search for member 100234 by member number, then click Select to open their member record. Now call the extract tool four separate times against the first data row of the SHARES / BALANCES table: extract the Share ID cell as 'share_id', the Type cell as 'share_type', the Balance cell as 'balance', and the Status cell as 'status'. Then call finish with success=true and all four in outputs.",
+  "target": {
+    "app_name": "mock-core-banking",
+    "entry_point": "https://web-sample.interface-hiring.com/members",
+    "surface_type": "legacy_web"
+  },
+  "risk_level": "safe",
+  "input_schema": {
+    "member_id": {
+      "type": "string",
+      "description": "the member id to use for this run"
+    }
+  },
+  "output_schema": {
+    "share_id": {
+      "type": "string"
+    },
+    "share_type": {
+      "type": "string"
+    },
+    "balance": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    }
+  },
+  "checkpoint": {
+    "type": "url_match",
+    "locator": null,
+    "expected": "members"
+  },
+  "steps": [
+    {
+      "step_id": "s1",
+      "action_type": "navigate",
+      "target": null,
+      "value": "https://web-sample.interface-hiring.com/members",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s2",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Value",
+          "control_role": "textbox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "q"
+          },
+          {
+            "strategy": "text",
+            "text": "Value"
+          }
+        ],
+        "reasoning": "role='textbox' name='Value' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Value' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'q' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "member_id"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s3",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "button",
+          "name": "Search"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Search"
+          }
+        ],
+        "reasoning": "role='button' name='Search' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s4",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "link",
+          "name": "Select"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Select"
+          }
+        ],
+        "reasoning": "role='link' name='Select' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s5",
+      "action_type": "extract",
+      "target": {
+        "strategy": "table_position",
+        "primary": {
+          "table_headers": [
+            "Share ID",
+            "Type",
+            "Balance",
+            "Status"
+          ],
+          "row_index": 0,
+          "column_index": 0
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "100234-S0001"
+          }
+        ],
+        "reasoning": "role='cell' name='100234-S0001' sits in a data table (columns ['Share ID', 'Type', 'Balance', 'Status']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes, since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 0 ('Share ID')."
+      },
+      "value": null,
+      "extract_as": "share_id",
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s6",
+      "action_type": "extract",
+      "target": {
+        "strategy": "table_position",
+        "primary": {
+          "table_headers": [
+            "Share ID",
+            "Type",
+            "Balance",
+            "Status"
+          ],
+          "row_index": 0,
+          "column_index": 1
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Regular Shares"
+          }
+        ],
+        "reasoning": "role='cell' name='Regular Shares' sits in a data table (columns ['Share ID', 'Type', 'Balance', 'Status']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes, since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 1 ('Type')."
+      },
+      "value": null,
+      "extract_as": "share_type",
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s7",
+      "action_type": "extract",
+      "target": {
+        "strategy": "table_position",
+        "primary": {
+          "table_headers": [
+            "Share ID",
+            "Type",
+            "Balance",
+            "Status"
+          ],
+          "row_index": 0,
+          "column_index": 2
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "$1,500.00"
+          }
+        ],
+        "reasoning": "role='cell' name='$1,500.00' sits in a data table (columns ['Share ID', 'Type', 'Balance', 'Status']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes, since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 2 ('Balance')."
+      },
+      "value": null,
+      "extract_as": "balance",
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s8",
+      "action_type": "extract",
+      "target": {
+        "strategy": "table_position",
+        "primary": {
+          "table_headers": [
+            "Share ID",
+            "Type",
+            "Balance",
+            "Status"
+          ],
+          "row_index": 0,
+          "column_index": 3
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "HOLD [HOLD]"
+          }
+        ],
+        "reasoning": "role='cell' name='HOLD [HOLD]' sits in a data table (columns ['Share ID', 'Type', 'Balance', 'Status']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes, since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 3 ('Status')."
+      },
+      "value": null,
+      "extract_as": "status",
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    }
+  ]
+}

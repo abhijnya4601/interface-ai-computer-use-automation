@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import re
 import os
 import secrets
 import socket
@@ -89,8 +90,17 @@ def _default_checkpoint(final_url: str, target_url: str) -> Checkpoint:
     if final_url == target_url:
         return Checkpoint(type="url_match", expected=target_url)
     path_segments = [seg for seg in urllib.parse.urlparse(final_url).path.split("/") if seg]
+    # Skip trailing segments that look like a per-run id (all digits, or a share/txn id like
+    # 100234-S0001) — matching on those would make the checkpoint fail for any other
+    # parameterised replay. Walk back to the last non-id segment (e.g. "members").
+    def _looks_like_an_id(seg: str) -> bool:
+        return seg.isdigit() or bool(re.match(r"^[0-9][0-9A-Za-z-]*$", seg))
+
+    for seg in reversed(path_segments):
+        if not _looks_like_an_id(seg):
+            return Checkpoint(type="url_match", expected=seg)
     if path_segments:
-        return Checkpoint(type="url_match", expected=path_segments[-1])
+        return Checkpoint(type="url_match", expected=path_segments[0])
     return Checkpoint(type="url_match", expected=final_url)
 
 
@@ -273,7 +283,13 @@ def main():
                 sys.exit(1)
             print(f"[session] signed on as {role} ({creds['operator']}) — discovery starts authenticated")
 
-        result = run_discovery(goal=args.goal, target_url=args.target, page=page, max_steps=args.max_steps)
+        # Unless an operator console is actually wired up (--auto-approve / --open-console), a
+        # dead-end or model escalation would otherwise block this unattended run forever. Cap the
+        # wait so the run fails cleanly with status=escalation_timeout and still writes its
+        # transcript.
+        esc_wait = None if (args.auto_approve_escalation or args.open_console_on_escalation) else 150.0
+        result = run_discovery(goal=args.goal, target_url=args.target, page=page,
+                                max_steps=args.max_steps, escalation_max_wait_s=esc_wait)
 
         stop_event.set()
         if operator_proc:

@@ -1,0 +1,12 @@
+{
+  "status": "hard_failure",
+  "outputs": {},
+  "business_outcome_code": null,
+  "failure_detail": {
+    "step_id": "s5",
+    "expected": "element for {'table_headers': ['Share ID', 'Type', 'Balance', 'Status'], 'row_index': 0, 'column_index': 0}",
+    "observed": "no element resolved on the live page",
+    "screenshot_ref": "evidence/replay_sess_1787817266611_failure_s5.png"
+  },
+  "evidence_ref": "evidence/replay_sess_1787817266611_failure_s5.png"
+}

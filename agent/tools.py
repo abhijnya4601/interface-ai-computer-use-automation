@@ -219,22 +219,31 @@ def execute_navigate(page: Page, url: str) -> str:
 
 def execute_extract(page: Page, role: str, name: str) -> str:
     """
-    Reads the value associated with a label. Primary strategy: the label (e.g. a `<th
-    scope="row">` rendered as role "rowheader") sits in the same table row as its value
-    `<td>` — walk up to the row, then take the first cell that isn't the label itself. Falls
-    back to the anchor's own form value, then its own text content, for shapes that aren't the
-    row/label pattern.
+    Reads a value off the page.
+
+    - role "cell"/"gridcell": the model is pointing at a specific data-table cell (MERIDIAN
+      CORE's SHARES/BALANCES table, transaction lists) — return that cell's own text. The
+      row-relative heuristic below is wrong here: it would always return the row's *first*
+      cell regardless of which one was asked for.
+    - role "rowheader"/"th" label (the take-home's `<th scope="row">Savings Balance</th>`
+      shape): the value lives in a sibling `<td>` in the same row — walk to the row and take
+      the first cell that isn't the label.
+    - anything else: the anchor's own form value, then its own text content.
     """
     locator, _ = locate_by_role_name(page, role, name)
 
-    try:
-        row_value_cell = locator.locator("xpath=ancestor::tr[1]//td[1]")
-        if row_value_cell.count() > 0:
-            text = row_value_cell.first.text_content()
-            if text and text.strip():
-                return text.strip()
-    except Exception:
-        pass
+    if role.lower() in ("cell", "gridcell"):
+        return (locator.text_content() or "").strip()
+
+    if role.lower() in ("rowheader", "columnheader"):
+        try:
+            row_value_cell = locator.locator("xpath=ancestor::tr[1]//td[1]")
+            if row_value_cell.count() > 0:
+                text = row_value_cell.first.text_content()
+                if text and text.strip():
+                    return text.strip()
+        except Exception:
+            pass
 
     try:
         value = locator.input_value(timeout=1000)

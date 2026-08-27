@@ -184,46 +184,73 @@ class Recorder:
 
     def _try_table_position_locator(self, role: str, name: str, page) -> LocatorTarget | None:
         """
-        If (role, name) resolves to a single <td> cell sitting in a data-table row with no
-        per-row label (<th>), but the table itself has column headers (<th scope="col">), build
-        a position-based locator instead of the normal role_name-by-value tier — see module
-        docstring point 3. Returns None (caller falls back to the normal
-        tiers) if the shape doesn't match; never raises.
+        If (role, name) points at a <td> cell in a data-table row with no per-row label (<th>),
+        build a position-based locator instead of anchoring on the cell's own value — which is
+        exactly what differs between replays. The header row is a `<th scope="col">` row if the
+        table has one, otherwise the table's first row (MERIDIAN CORE's tables label their
+        columns with plain `<td>` in a `class="lbl"` first row, not `<th>`). Resolves the target
+        cell even when role+name matches many cells (a share-id prefix like `100234-S0001` is a
+        substring of `100234-S0001-3`, `-6`, …): the first match is row 0, which is what the
+        agent acted on. Returns None (caller falls back to the normal tiers) if the shape
+        doesn't fit; never raises.
         """
         if role.lower() != "cell":
             return None
 
+        # Match a LEAF <td> whose own trimmed text is (or contains) the value. get_by_role("cell")
+        # also matches the big layout <td> that merely *contains* this text as a descendant —
+        # and that ancestor comes first in document order, which is how a MERIDIAN record page
+        # ends up reporting the page banner as the "table headers".
+        name_lit = name.replace('"', "").strip()
         contexts = [page] + [f for f in page.frames if f != page.main_frame]
         for ctx in contexts:
-            try:
-                candidate = ctx.get_by_role("cell", name=name)
-                if candidate.count() != 1:
+            cell = None
+            for xp in (
+                f'xpath=.//td[not(.//td) and normalize-space(.)="{name_lit}"]',
+                f'xpath=.//td[not(.//td) and contains(normalize-space(.), "{name_lit}")]',
+            ):
+                try:
+                    cand = ctx.locator(xp)
+                    if cand.count() >= 1:
+                        cell = cand.first
+                        break
+                except Exception:
                     continue
-            except Exception:
+            if cell is None:
                 continue
 
-            cell = candidate.first
             try:
                 row = cell.locator("xpath=ancestor::tr[1]")
                 if row.count() == 0 or row.locator("xpath=./th").count() > 0:
-                    continue  # has its own label -- the label/value tiers already cover this
+                    continue  # has its own row label -- the label/value tiers already cover this
 
-                table = cell.locator("xpath=ancestor::table[1]")
-                if table.count() == 0:
-                    continue
-                header_row = table.locator("xpath=.//tr[th[@scope='col']]").first
-                if header_row.count() == 0:
-                    continue
-                headers = header_row.locator("th").all_text_contents()
-                if not headers:
-                    continue
-
-                row_index = row.evaluate(
-                    "el => Array.from(el.parentElement.children)"
-                    ".filter(tr => tr.querySelector('td'))"
-                    ".indexOf(el)"
+                pos = cell.evaluate(
+                    """el => {
+                        const table = el.closest('table');
+                        if (!table) return null;
+                        const rows = Array.from(table.querySelectorAll('tr'))
+                            .filter(r => r.closest('table') === table);
+                        const headerRow =
+                            rows.find(r => r.querySelector('th[scope="col"]')) || rows[0];
+                        const headerCells = headerRow
+                            ? Array.from(headerRow.querySelectorAll('th, td')) : [];
+                        const headers = headerCells.map(c => c.textContent.trim());
+                        const tr = el.closest('tr');
+                        const dataRows = rows.filter(
+                            r => r !== headerRow && r.querySelector('td'));
+                        return {
+                            headers,
+                            row_index: dataRows.indexOf(tr),
+                            column_index: Array.from(tr.children).indexOf(el),
+                        };
+                    }"""
                 )
-                col_index = cell.evaluate("el => Array.from(el.parentElement.children).indexOf(el)")
+                if not pos:
+                    continue
+                headers = [h for h in (pos.get("headers") or [])]
+                row_index, col_index = pos.get("row_index"), pos.get("column_index")
+                if not headers or not any(headers):
+                    continue
                 if row_index is None or row_index < 0 or col_index is None or col_index < 0:
                     continue
 

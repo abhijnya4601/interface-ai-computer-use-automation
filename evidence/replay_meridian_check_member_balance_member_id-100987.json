@@ -1,0 +1,12 @@
+{
+  "status": "success",
+  "outputs": {
+    "share_id": "100987-S0001",
+    "share_type": "Regular Shares",
+    "balance": "$56.00",
+    "status": "HOLD [HOLD]"
+  },
+  "business_outcome_code": null,
+  "failure_detail": null,
+  "evidence_ref": null
+}

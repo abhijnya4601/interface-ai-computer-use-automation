@@ -41,7 +41,8 @@ MAX_TOKENS = 1536
 
 @dataclass
 class DiscoveryResult:
-    status: str  # "success" | "business_outcome" | "escalated" | "max_steps" | "timeout" | "guardrail_violation"
+    status: str  # success | business_outcome | escalated | max_steps | timeout |
+                 # escalation_timeout | guardrail_violation
     outputs: dict = field(default_factory=dict)
     business_outcome_code: str | None = None
     summary: str = ""
@@ -109,6 +110,7 @@ def run_discovery(
     model: str = DEFAULT_MODEL,
     max_steps: int = MAX_STEPS,
     timeout_s: float = WALL_CLOCK_TIMEOUT_S,
+    escalation_max_wait_s: float | None = None,
 ) -> DiscoveryResult:
     client = anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
     run_id = f"run_{uuid.uuid4().hex[:10]}"
@@ -156,7 +158,13 @@ def run_discovery(
                       "observable state change")
             _log({"type": "dead_end", "reason": reason})
             escalation_started = time.monotonic()
-            lease = trigger_escalation(reason, page, run_id=run_id)
+            try:
+                lease = trigger_escalation(reason, page, run_id=run_id,
+                                           max_wait_s=escalation_max_wait_s)
+            except TimeoutError as exc:
+                _log({"type": "stop", "reason": "escalation_timeout", "detail": str(exc)})
+                return DiscoveryResult(status="escalation_timeout", run_id=run_id, recorder=recorder,
+                                        transcript=transcript, summary=str(exc))
             # A human can reasonably take minutes to review and decide; that thinking time must
             # not burn the run's own wall-clock budget — shift start_time forward by however
             # long the wait actually took, so only real elapsed *working* time counts against
@@ -264,6 +272,11 @@ def run_discovery(
                     raise
                 last_action_result = f"extracted {tool_input['as_var']} = {value!r}"
                 tool_result_content = value
+                # extract() is a read — it never changes the page, so a run of consecutive
+                # extracts (reading several values off one table, as MERIDIAN's SHARES/BALANCES
+                # screen needs) must NOT accumulate toward the dead-end detector, which trips on
+                # 3 identical page states in a row. Clear the streak after a successful read.
+                recent_hashes.clear()
 
             elif name == "finish":
                 _log({"type": "finish", "input": tool_input})
@@ -282,7 +295,14 @@ def run_discovery(
                 reason = tool_input.get("reason", "model requested escalation")
                 _log({"type": "escalate_requested", "reason": reason})
                 escalation_started = time.monotonic()
-                lease = trigger_escalation(reason, page, run_id=run_id)
+                try:
+                    lease = trigger_escalation(reason, page, run_id=run_id,
+                                               max_wait_s=escalation_max_wait_s)
+                except TimeoutError as exc:
+                    _log({"type": "stop", "reason": "escalation_timeout", "detail": str(exc)})
+                    return DiscoveryResult(status="escalation_timeout", run_id=run_id,
+                                            recorder=recorder, transcript=transcript,
+                                            summary=str(exc))
                 # Same as the dead-end escalation path above: human review time must not count
                 # against the run's own wall-clock timeout.
                 start_time += time.monotonic() - escalation_started
