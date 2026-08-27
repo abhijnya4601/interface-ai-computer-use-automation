@@ -204,7 +204,7 @@ routed to the operator console."). One model call per turn, tools only.
 - D4 ✅ server-rendered dashboard (`/`, `/runs/<id>`), meta-refresh, evidence inline.
 - New: `Capability.requires_role` (additive).
 
-**Phase E — remaining §2.1 surface (after the spine is solid)**
+**Phase E — remaining §2.1 surface — ✅ DONE (D42), verified live**
 - E1 `open_new_share` (risky, review→post).
 - E2 `update_member_info` (email/phone/address; natural `INVALID_CONTACT`).
 - E3 `place_account_hold` — recorded under `super1`; `requires_role: supervisor`; teller path →
