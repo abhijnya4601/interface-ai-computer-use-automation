@@ -199,8 +199,15 @@ def main():
     parser.add_argument("--meridian-session", action="store_true",
                          help="force pre-discovery operator sign-on (auto-enabled for a "
                               "web-sample.interface-hiring.com target)")
+    parser.add_argument("--no-session", action="store_true",
+                         help="skip pre-discovery sign-on even for a session-gated target "
+                              "(use when the goal IS the sign-on)")
     parser.add_argument("--session-role", default="teller", choices=["teller", "supervisor"],
                          help="which operator role to sign on as for a session-gated target")
+    parser.add_argument("--generalize", default=None,
+                         help="after compiling, apply a surface/meridian_flows.py spec: "
+                              "{member_id} URL template, recorded literals -> typed params, "
+                              "risk level, requires_role, checkpoint (flow key, e.g. funds_transfer)")
     args = parser.parse_args()
 
     if not os.environ.get("ANTHROPIC_API_KEY"):
@@ -266,7 +273,7 @@ def main():
         # login page. Pre-authenticate the SAME persistent context here by replaying the
         # meridian_signon capability, so the recorded capability never contains the login steps
         # or any credential; agent/session.py composes signon + capability again at replay time.
-        if _needs_session(args.target) or args.meridian_session:
+        if (_needs_session(args.target) or args.meridian_session) and not args.no_session:
             from agent.session import credentials_for, load_signon_capability
             from replay.engine import replay as _replay
             role = args.session_role
@@ -338,6 +345,11 @@ def main():
                 checkpoint=checkpoint,
                 description=args.goal,
             )
+            if args.generalize:
+                from surface.meridian_flows import generalize
+                capability = generalize(capability, args.generalize)
+                print(f"generalized with surface/meridian_flows.py spec {args.generalize!r}")
+
             saved_path = save_capability(capability)
             print(f"capability saved to {saved_path}")
         else:
