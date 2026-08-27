@@ -38,7 +38,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from flask import Flask, abort, jsonify, redirect, request, send_file, url_for
 
-from agent_interface.catalog import build_tool_catalog, load_capabilities
+from agent_interface.catalog import _NOT_A_TOOL, build_tool_catalog, load_capabilities
 from agent_interface.invoke import invoke_capability
 from agent_interface.runs import get_run, list_runs, record_run
 from agent.session import run_with_session
@@ -125,7 +125,7 @@ def health():
 @app.get("/api/capabilities")
 def capabilities():
     caps = load_capabilities()
-    catalog = build_tool_catalog()
+    catalog = build_tool_catalog(include_preconditions=True)
     for tool in catalog:
         cap = caps.get(tool["name"])
         if cap:
@@ -141,6 +141,8 @@ def invoke(cap_id: str):
     caps = load_capabilities()
     if cap_id not in caps:
         abort(404, f"unknown capability {cap_id!r}")
+    if cap_id in _NOT_A_TOOL:
+        abort(400, f"{cap_id!r} is a session precondition, not directly invocable")
     body = request.get_json(silent=True) or {}
     args = body.get("args", body.get("params", {}))
     role = body.get("role")  # NOT `confirm` — deliberately not accepted from the caller
@@ -202,12 +204,13 @@ def _status_badge(s: str) -> str:
 def dashboard():
     caps = load_capabilities()
     cap_rows = ""
-    for tool in build_tool_catalog():
+    for tool in build_tool_catalog(include_preconditions=True):
         cap = caps.get(tool["name"])
         risk = cap.risk_level if cap else "?"
         role = (cap.requires_role if cap else None) or "teller"
+        tag = "" if tool.get("invocable", True) else " <span class='muted'>(precondition)</span>"
         cap_rows += (
-            f"<tr><td><code>{html.escape(tool['name'])}</code></td>"
+            f"<tr><td><code>{html.escape(tool['name'])}</code>{tag}</td>"
             f"<td>{html.escape(tool['description'])}</td>"
             f"<td>{html.escape(risk)}</td><td>{html.escape(role)}</td>"
             f"<td class='muted'>{html.escape(', '.join(tool['input_schema']['properties']))}</td></tr>"

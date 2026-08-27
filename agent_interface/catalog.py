@@ -46,7 +46,8 @@ def load_capabilities(capabilities_dir: Path = CAPABILITIES_DIR) -> dict[str, Ca
     return capabilities
 
 
-def build_tool_catalog(capabilities_dir: Path = CAPABILITIES_DIR) -> list[dict]:
+def build_tool_catalog(capabilities_dir: Path = CAPABILITIES_DIR,
+                       include_preconditions: bool = False) -> list[dict]:
     """
     One Claude tool-use tool per capability. Deliberately does NOT expose `confirm` as a
     tool parameter even for risk_level="risky" capabilities: that gate exists so a human (or
@@ -54,15 +55,22 @@ def build_tool_catalog(capabilities_dir: Path = CAPABILITIES_DIR) -> list[dict]:
     choosing to call the tool. Exposing it here would let the model set confirm=True itself and
     silently defeat the same guardrail replay.py already enforces server-side
     (guardrails/policy.py::check_risk_confirmation) -- see invoke.py.
+
+    `include_preconditions=True` also lists the session precondition(s) (`meridian_signon`) with
+    `invocable: False` — so a dashboard can show the full §2.1 surface while a caller/LLM still
+    knows not to invoke them directly (agent/session.py composes them).
     """
     tools = []
     for cap in load_capabilities(capabilities_dir).values():
-        if cap.capability_id in _NOT_A_TOOL:
+        is_precondition = cap.capability_id in _NOT_A_TOOL
+        if is_precondition and not include_preconditions:
             continue
         description = cap.description or f"(no description recorded for {cap.capability_id})"
         description = _generalize_description(description, cap.input_schema)
         if cap.risk_level == "risky":
             description += " [risky: state-changing, requires human confirmation to execute]"
+        if is_precondition:
+            description += " [precondition: composed automatically before other capabilities; not invoked directly]"
         tools.append({
             "name": cap.capability_id,
             "description": description,
@@ -71,5 +79,6 @@ def build_tool_catalog(capabilities_dir: Path = CAPABILITIES_DIR) -> list[dict]:
                 "properties": cap.input_schema,
                 "required": list(cap.input_schema.keys()),
             },
+            "invocable": not is_precondition,
         })
     return tools

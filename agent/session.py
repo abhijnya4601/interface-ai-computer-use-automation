@@ -104,6 +104,9 @@ def run_with_session(
         page = browser.new_page()
         try:
             signon_result = replay(signon, params=creds, page=page, run_id=f"{run_id}_signon")
+            if signon_result.status == "business_outcome":
+                # e.g. BAD_CREDENTIALS — a real, expected result the caller needs, not a crash
+                return signon_result
             if signon_result.status != "success":
                 return Result(
                     status="hard_failure",

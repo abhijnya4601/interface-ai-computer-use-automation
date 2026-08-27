@@ -60,7 +60,7 @@ def _tools_for_claude(catalog: list[dict]) -> list[dict]:
     # the API enriches the catalog with risk_level/target/etc; Claude's tools param wants only
     # name/description/input_schema
     return [{"name": t["name"], "description": t["description"], "input_schema": t["input_schema"]}
-            for t in catalog]
+            for t in catalog if t.get("invocable", True)]
 
 
 def main() -> int:

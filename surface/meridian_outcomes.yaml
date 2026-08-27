@@ -61,6 +61,10 @@ body_conditions:
     classification: business_outcome
     code: MEMBER_NOT_FOUND
     detail: "the member search returned no rows"
+  - contains: "Invalid operator ID or password"
+    classification: business_outcome
+    code: BAD_CREDENTIALS
+    detail: "sign-on rejected the operator id / password"
   - contains: "Record Not Found"
     classification: business_outcome
     code: RECORD_NOT_FOUND

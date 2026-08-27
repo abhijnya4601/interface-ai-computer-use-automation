@@ -70,13 +70,18 @@ def client(registry, monkeypatch):
 def test_health_and_catalog(client):
     assert client.get("/api/health").get_json()["ok"] is True
     cat = client.get("/api/capabilities").get_json()
-    names = {t["name"] for t in cat}
-    assert "meridian_check_member_balance" in names
-    assert "meridian_signon" not in names  # a precondition, not an agent tool
-    tool = next(t for t in cat if t["name"] == "meridian_funds_transfer")
+    by_name = {t["name"]: t for t in cat}
+    assert by_name["meridian_check_member_balance"]["invocable"] is True
+    # the session precondition is listed (dashboard shows the full surface) but not invocable
+    assert by_name["meridian_signon"]["invocable"] is False
+    tool = by_name["meridian_funds_transfer"]
     assert tool["risk_level"] == "risky" and tool["needs_session"] is True
     # `confirm` is never a callable parameter — the risky gate is the operator console, not a flag
     assert "confirm" not in tool["input_schema"]["properties"]
+
+
+def test_invoke_refuses_a_precondition(client):
+    assert client.post("/api/capabilities/meridian_signon/invoke", json={"args": {}}).status_code == 400
 
 
 def test_invoke_unknown_capability_404(client):
