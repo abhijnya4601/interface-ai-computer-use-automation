@@ -177,11 +177,16 @@ routed to the operator console."). One model call per turn, tools only.
   one session (3/3). +6 tests.
 - **Gate MET:** `run_with_session` logs in and reaches a member record, by real run.
 
-**Phase B — the two mandated capabilities**
-- B1 `check_member_balance` (search → Select → read shares/type/balance/status + member_status).
-- B2 `funds_transfer` (member → form → from/to/amount/memo → review → post), `risk_level: risky`,
-  params `member_id` + `amount` (+ shares if `<select>` label-proximity proves stable).
-- B3 replay both against a fresh session and a *different* member. Evidence in `/evidence/`.
+**Phase B — the two mandated capabilities — ✅ DONE (D39), verified live**
+- B1 ✅ `meridian_check_member_balance` — real LLM discovery run (`discovery_run_f9e05c9d33`).
+  Replays `success` for member 100987 (its own data) via `table_position`. Forced out 3
+  robustness fixes (cell extraction, dead-end-on-reads, `<td>` table headers) + a checkpoint fix.
+- B2 ✅ `meridian_funds_transfer` — scripted recorder (documented, like signon). `risk_level:
+  risky`, fully parameterised (`{member_id}` URL template + from/to/amount/memo params). Replays
+  `success` with `--confirm` (confirmation `CN480425`, real post); `hard_failure` at the risky
+  gate without it.
+- New: `labeled_value` locator strategy; `_resolve_value` URL templating; perception token cap;
+  `scripts/run_meridian.py` session-aware replay CLI.
 
 **Phase C — error taxonomy (criterion #3, do not cut)**
 - C1 HTTP-status capture + global status→classification map.
