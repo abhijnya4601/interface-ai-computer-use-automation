@@ -77,6 +77,8 @@ def run_with_session(
     headless: bool = True,
     run_id: str | None = None,
     capabilities_dir: Path = CAPABILITIES_DIR,
+    risky_mode: str = "confirm",
+    escalation_max_wait_s: float | None = None,
 ) -> Result:
     """
     Sign on as ``role``, then deterministically replay ``capability`` on the same authenticated
@@ -84,11 +86,14 @@ def run_with_session(
     the sign-on failure if that step didn't reach the menu.
     """
     run_id = run_id or f"sess_{int(time.time() * 1000)}"
+    role = role or capability.requires_role or "teller"
     try:
         creds = credentials_for(role)
     except MissingCredentials as exc:
+        # A capability that requires a role we have no credentials for is an escalation, not a
+        # crash — a human needs to supply them or run it themselves.
         return Result(
-            status="hard_failure",
+            status="escalated",
             failure_detail={"step_id": "signon", "expected": f"{role} credentials in the environment",
                             "observed": str(exc)},
         )
@@ -109,7 +114,8 @@ def run_with_session(
                                     f"{signon_result.failure_detail}",
                     },
                 )
-            return replay(capability, params=params, confirm=confirm, page=page, run_id=run_id)
+            return replay(capability, params=params, confirm=confirm, page=page, run_id=run_id,
+                          risky_mode=risky_mode, escalation_max_wait_s=escalation_max_wait_s)
         finally:
             if not headless:
                 time.sleep(5)

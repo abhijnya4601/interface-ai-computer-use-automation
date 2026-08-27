@@ -42,6 +42,7 @@ from playwright.sync_api import sync_playwright
 
 from agent.legacy_locate import locate_field_name, locate_labeled_field, locate_labeled_value
 from artifact.schema import Capability, ExpectedOutcome, Result, Step
+from escalation.controller import trigger_escalation
 from guardrails.policy import GuardrailViolation, check_risk_confirmation, guardrail_check, redact
 from surface.outcomes import classify as classify_outcome, profile_for
 
@@ -423,11 +424,29 @@ def _verify_checkpoint(capability: Capability, page) -> bool:
     return False
 
 
+def _last_click_step_id(capability: Capability) -> str | None:
+    """The irreversible commit on a review->post flow is the final click (Post Transfer / Post
+    Hold / Confirm). Used as the escalation point when a risky capability is invoked in
+    `escalate` mode instead of with `confirm=True`."""
+    for step in reversed(capability.steps):
+        if step.action_type == "click":
+            return step.step_id
+    return None
+
+
 def _walk_capability(capability: Capability, params: dict, page, run_id: str,
-                     tier_log: list, outputs: dict) -> Result:
+                     tier_log: list, outputs: dict,
+                     escalate_before: str | None = None,
+                     escalation_max_wait_s: float | None = None) -> Result:
     """Walk the capability's Steps against a live `page` and verify the checkpoint. No browser
     lifecycle here — the caller owns the page (see `replay`, and `agent/session.py` which runs a
-    signon capability then a target capability on one shared authenticated context)."""
+    signon capability then a target capability on one shared authenticated context).
+
+    If `escalate_before` is a step id, replay pauses there and routes an intervention request to
+    the operator console (escalation/controller.trigger_escalation) before taking that step —
+    this is how a risky capability invoked through the API gets a human in the loop without a
+    caller-supplied `confirm=True`.
+    """
     run_ctx = {"profile": profile_for(capability.target), "http_status": None}
     # capture the main-frame document HTTP status of click-triggered navigations (page.goto's
     # status is read directly in _execute_step)
@@ -444,6 +463,26 @@ def _walk_capability(capability: Capability, params: dict, page, run_id: str,
 
     try:
         for step in capability.steps:
+            if escalate_before and step.step_id == escalate_before:
+                reason = (f"risky capability {capability.capability_id!r} invoked without "
+                          f"confirm — pausing before step {step.step_id} "
+                          f"({step.action_type} {(step.target.primary if step.target else '')}) "
+                          "for human approval of the irreversible action.")
+                lease = trigger_escalation(reason, page, run_id=run_id,
+                                           max_wait_s=escalation_max_wait_s)
+                decision = lease.context.get("decision")
+                note = lease.context.get("human_actions_summary", "")
+                if decision != "approved":
+                    return Result(
+                        status="escalated",
+                        business_outcome_code=None,
+                        failure_detail=redact({
+                            "step_id": step.step_id,
+                            "expected": "operator approval of the irreversible action",
+                            "observed": f"operator decision={decision!r} ({note or 'no note'})",
+                        }),
+                    )
+
             action_url = _resolve_value(step.value, params) if step.action_type == "navigate" else None
             try:
                 guardrail_check({"type": step.action_type, "url": action_url},
@@ -477,29 +516,47 @@ def replay(
     headless: bool = True,
     run_id: str | None = None,
     page=None,
+    risky_mode: str = "confirm",
+    escalation_max_wait_s: float | None = None,
 ) -> Result:
     """
     Deterministic, no-LLM replay of a capability. Owns its own Playwright browser unless `page`
     is supplied — passing an existing (already-authenticated) page lets a caller compose a
     signon capability and a target capability on one session without this function knowing about
     sessions (see agent/session.py). When `page` is supplied the caller also owns closing it.
+
+    `risky_mode` decides how a `risk_level: risky` capability is gated when `confirm` is False:
+      - "confirm"  (default, take-home behaviour): pre-flight refuse with a hard_failure.
+      - "escalate" (the API path): run up to the final click, then route an intervention request
+        to the operator console and only take that step if a human approves; a decline returns
+        status="escalated".
     """
     run_id = run_id or f"replay_{int(time.time() * 1000)}"
 
-    try:
-        check_risk_confirmation(capability.risk_level, confirm)
-    except GuardrailViolation as exc:
-        return Result(
-            status="hard_failure",
-            failure_detail={"step_id": None, "expected": "confirm=True for a risky capability", "observed": str(exc)},
-        )
+    escalate_before = None
+    if capability.risk_level == "risky" and not confirm:
+        if risky_mode == "escalate":
+            escalate_before = _last_click_step_id(capability)
+        else:
+            try:
+                check_risk_confirmation(capability.risk_level, confirm)
+            except GuardrailViolation as exc:
+                return Result(
+                    status="hard_failure",
+                    failure_detail={"step_id": None, "expected": "confirm=True for a risky capability",
+                                    "observed": str(exc)},
+                )
 
     tier_log: list[dict] = []
     outputs: dict = {}
+    _walk = lambda pg: _walk_capability(  # noqa: E731
+        capability, params, pg, run_id, tier_log, outputs,
+        escalate_before=escalate_before, escalation_max_wait_s=escalation_max_wait_s,
+    )
 
     if page is not None:
         try:
-            return _walk_capability(capability, params, page, run_id, tier_log, outputs)
+            return _walk(page)
         finally:
             print(f"[replay {run_id}] locator tier log: {tier_log}")
 
@@ -507,7 +564,7 @@ def replay(
         browser = p.chromium.launch(headless=headless)
         page = browser.new_page()
         try:
-            return _walk_capability(capability, params, page, run_id, tier_log, outputs)
+            return _walk(page)
         finally:
             print(f"[replay {run_id}] locator tier log: {tier_log}")
             if not headless:

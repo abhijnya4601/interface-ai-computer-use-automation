@@ -21,7 +21,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import time
+
 from agent.session import run_with_session
+from agent_interface.runs import record_run
 from artifact.schema import Capability
 from guardrails.policy import redact
 
@@ -55,8 +58,18 @@ def main() -> int:
                 print(f"[inject] entry navigation -> {step.value}")
                 break
 
+    started = time.time()
+    run_id = f"cli_{int(started * 1000)}"
     result = run_with_session(
-        capability, params, role=args.role, confirm=args.confirm, headless=not args.headed
+        capability, params, role=args.role, confirm=args.confirm, headless=not args.headed,
+        run_id=run_id,
+    )
+    record_run(
+        run_id, "replay", capability.capability_id, status=result.status, params=params,
+        outputs=result.outputs, business_outcome_code=result.business_outcome_code,
+        failure_detail=result.failure_detail, started_at=started,
+        evidence_refs=[p.name for p in sorted(EVIDENCE_DIR.glob(f"*{run_id}*"))],
+        extra={"via": "cli", "inject": args.inject},
     )
 
     print(f"\nstatus: {result.status}")

@@ -101,6 +101,15 @@ class Capability(BaseModel):
     )
     target: TargetSpec
     risk_level: Literal["safe", "risky"]
+    requires_role: str | None = Field(
+        default=None,
+        description=(
+            "operator role the session must sign on as for this capability to succeed, e.g. "
+            '"supervisor" for Place Account Hold. Orthogonal to risk_level: risk_level gates '
+            "whether an irreversible action needs confirmation; requires_role is which "
+            "credential the session uses. None = the default (teller) role."
+        ),
+    )
     input_schema: dict = Field(..., description="JSON-schema-like typed inputs")
     output_schema: dict = Field(..., description="JSON-schema-like typed outputs")
     checkpoint: Checkpoint

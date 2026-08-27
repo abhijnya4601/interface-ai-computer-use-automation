@@ -51,9 +51,11 @@ def test_credentials_for_unknown_role_raises():
         credentials_for("root")
 
 
-def test_run_with_session_missing_creds_returns_hard_failure_not_exception():
+def test_run_with_session_missing_creds_escalates_not_crashes():
+    # a capability requiring a role we have no credentials for -> escalate (a human supplies
+    # them or runs it), not a crash and not a plain hard_failure
     result = run_with_session(_TARGET, params={}, role="supervisor")
-    assert result.status == "hard_failure"
+    assert result.status == "escalated"
     assert "credentials" in str(result.failure_detail)
 
 

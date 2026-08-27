@@ -14,6 +14,10 @@ from artifact.schema import Capability
 
 CAPABILITIES_DIR = Path(__file__).parent.parent / "capabilities"
 
+# Not agent-invocable: a session precondition, not a task. Its inputs are credentials, and
+# agent/session.py composes it automatically before any MERIDIAN capability.
+_NOT_A_TOOL = {"meridian_signon"}
+
 
 def _generalize_description(description: str, input_schema: dict) -> str:
     """
@@ -53,6 +57,8 @@ def build_tool_catalog(capabilities_dir: Path = CAPABILITIES_DIR) -> list[dict]:
     """
     tools = []
     for cap in load_capabilities(capabilities_dir).values():
+        if cap.capability_id in _NOT_A_TOOL:
+            continue
         description = cap.description or f"(no description recorded for {cap.capability_id})"
         description = _generalize_description(description, cap.input_schema)
         if cap.risk_level == "risky":
