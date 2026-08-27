@@ -256,6 +256,7 @@ def compile_capability(
     checkpoint: Checkpoint,
     surface_type: str = "legacy_web",
     description: str = "",
+    app_name: str = "mock-core-banking",
 ) -> Capability:
     steps = _attach_expected_outcomes(capability_id, recorder.steps)
     return Capability(
@@ -263,7 +264,7 @@ def compile_capability(
         version=version,
         created_from_run_id=run_id,
         description=description,
-        target=TargetSpec(app_name="mock-core-banking", entry_point=target_url, surface_type=surface_type),
+        target=TargetSpec(app_name=app_name, entry_point=target_url, surface_type=surface_type),
         risk_level=risk_level,
         input_schema=infer_input_schema(steps),
         output_schema=infer_output_schema(outputs, steps),
@@ -290,6 +291,40 @@ def save_capability(capability: Capability, path: Path | None = None) -> Path:
         path = CAPABILITIES_DIR / f"{capability.capability_id}.v{major}.json"
     path.parent.mkdir(exist_ok=True)
     dumped = capability.model_dump()
-    dumped["steps"] = redact(dumped["steps"])
+    dumped["steps"] = _redact_credential_step_values(redact(dumped["steps"]))
     path.write_text(json.dumps(dumped, indent=2, default=str))
     return path
+
+
+_PASSWORD_FIELD_MARKERS = ("password", "passcode", "pin")
+
+
+def _looks_like_credential_step(step: dict) -> bool:
+    target = step.get("target") or {}
+    primary = target.get("primary") or {}
+    haystacks = [str(primary.get("label", "")), str(primary.get("name", ""))]
+    haystacks += [str(fb.get("name", "")) for fb in target.get("fallbacks") or []]
+    blob = " ".join(haystacks).lower()
+    return any(marker in blob for marker in _PASSWORD_FIELD_MARKERS)
+
+
+def _redact_credential_step_values(steps: list) -> list:
+    """
+    Defence in depth for the "never persist secrets" guarantee: `redact()` masks by key name and
+    by value shape, but a password typed into a form control lands in `Step.value` as a plain
+    string under the innocuous key `value`, with no secret-looking shape. If a step targets a
+    control that looks like a password field and its value is a literal (not a {"param_ref": ...}
+    reference), blank it. The right pattern is to parameterize credentials (see
+    scripts/record_meridian_signon.py) — this catches the case where someone didn't.
+    """
+    for step in steps:
+        if (
+            step.get("action_type") == "type"
+            and isinstance(step.get("value"), str)
+            and step["value"]
+            and _looks_like_credential_step(step)
+        ):
+            print(f"[compiler] WARNING: step {step.get('step_id')} types a literal value into what "
+                  "looks like a password field — redacting it. Parameterize credentials instead.")
+            step["value"] = "***REDACTED***"
+    return steps

@@ -166,13 +166,16 @@ routed to the operator console."). One model call per turn, tools only.
 
 ## 4. Sequenced delivery
 
-**Phase A — prove the surface (do first, highest risk; timebox to end of day 1)**
-- A1 config: allowlist + target constants. Commit.
-- A2 `labeled_field` + `field_name` tiers; perception name-synthesis. Unit tests on captured
-  MERIDIAN aria snapshots + live smoke: fill & submit `/signon`.
-- A3 `SessionProvider` + `signon` capability; env creds. Live smoke: signon → `/menu`.
-- **Gate:** a discovery run logs in and reaches a member record. If A2/A3 slip, nothing
-  downstream is real.
+**Phase A — prove the surface — ✅ DONE (D37), verified live**
+- A1 ✅ config: `web-sample.interface-hiring.com` in both allowlists; `/settings` blocked both phases.
+- A2 ✅ `agent/legacy_locate.py` (`labeled_field` + `field_name`); `perception.py` enriches
+  unnamed controls; `recorder.py` / `replay/engine.py` / `tools.py` wired; schema strategies
+  added. `scripts/smoke_meridian_signon.py` drives the real login end to end (8/8). +26 tests.
+- A3 ✅ `replay()` takes an optional `page=`; `capabilities/meridian_signon.v1.json` (credentials
+  as params, none stored); `agent/session.py::run_with_session` (env creds only); compiler scrubs
+  literal password values. `scripts/smoke_meridian_session.py`: signon → authed target replay on
+  one session (3/3). +6 tests.
+- **Gate MET:** `run_with_session` logs in and reaches a member record, by real run.
 
 **Phase B — the two mandated capabilities**
 - B1 `check_member_balance` (search → Select → read shares/type/balance/status + member_status).

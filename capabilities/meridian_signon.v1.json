@@ -1,0 +1,179 @@
+{
+  "capability_id": "meridian_signon",
+  "version": "1.0.0",
+  "created_from_run_id": "scripted_recorder",
+  "description": "Sign on to MERIDIAN CORE with an operator ID, password and branch.",
+  "target": {
+    "app_name": "mock-core-banking",
+    "entry_point": "https://web-sample.interface-hiring.com/signon",
+    "surface_type": "legacy_web"
+  },
+  "risk_level": "safe",
+  "input_schema": {
+    "operator": {
+      "type": "string",
+      "description": "MERIDIAN CORE operator ID to sign on with"
+    },
+    "password": {
+      "type": "string",
+      "description": "operator password (supplied from the environment, never stored)"
+    },
+    "branch": {
+      "type": "string",
+      "description": "branch code, e.g. MAIN-001"
+    }
+  },
+  "output_schema": {},
+  "checkpoint": {
+    "type": "url_match",
+    "locator": null,
+    "expected": "menu"
+  },
+  "steps": [
+    {
+      "step_id": "s1",
+      "action_type": "navigate",
+      "target": null,
+      "value": "https://web-sample.interface-hiring.com/signon",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s2",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Operator ID",
+          "control_role": "textbox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "operator"
+          },
+          {
+            "strategy": "text",
+            "text": "Operator ID"
+          }
+        ],
+        "reasoning": "role='textbox' name='Operator ID' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Operator ID' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'operator' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "operator"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s3",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Password",
+          "control_role": "textbox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "password"
+          },
+          {
+            "strategy": "text",
+            "text": "Password"
+          }
+        ],
+        "reasoning": "role='textbox' name='Password' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Password' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'password' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "password"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s4",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Branch",
+          "control_role": "combobox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "branch"
+          },
+          {
+            "strategy": "text",
+            "text": "Branch"
+          }
+        ],
+        "reasoning": "role='combobox' name='Branch' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Branch' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'branch' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "branch"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s5",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "button",
+          "name": "Sign On"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Sign On"
+          }
+        ],
+        "reasoning": "role='button' name='Sign On' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    }
+  ]
+}
