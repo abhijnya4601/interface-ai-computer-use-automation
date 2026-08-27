@@ -197,11 +197,12 @@ routed to the operator console."). One model call per turn, tools only.
   natural cases. Evidence: `evidence/replay_c_inj_*`, `replay_t_*`. `scripts/run_meridian.py
   --inject`, `scripts/meridian_inject.py`.
 
-**Phase D — wrappers**
-- D1 Flask API + `runs.jsonl` registry.
-- D2 escalation on risky replay via API → operator console → resume → post. Evidence.
-- D3 chatbot CLI over the API.
-- D4 dashboard: catalog + history + run detail with evidence.
+**Phase D — wrappers — ✅ DONE (D41), verified live end to end**
+- D1 ✅ `api/app.py` Flask API + `agent_interface/runs.py` (`evidence/runs.jsonl`).
+- D2 ✅ `replay(risky_mode="escalate")` → operator console approve→post (`CN480430`) / decline→`escalated`.
+- D3 ✅ `chatbot/cli.py` — Claude tool-use over the API.
+- D4 ✅ server-rendered dashboard (`/`, `/runs/<id>`), meta-refresh, evidence inline.
+- New: `Capability.requires_role` (additive).
 
 **Phase E — remaining §2.1 surface (after the spine is solid)**
 - E1 `open_new_share` (risky, review→post).
