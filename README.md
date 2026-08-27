@@ -9,6 +9,12 @@ and a human-in-the-loop escalation/handoff path.
 See [`REPORT.md`](REPORT.md) for the design write-up, including the trade-offs made and several
 real bugs found while building this — what broke and how they were fixed.
 
+> **Adaptation project — MERIDIAN CORE.** This same core has been pointed at the hosted legacy
+> target `web-sample.interface-hiring.com` and wrapped as an **API + chatbot + dashboard**. If
+> that's what you're here for, jump to [§8. MERIDIAN CORE adaptation](#8-meridian-core-adaptation)
+> and read [`ADAPTATION.md`](ADAPTATION.md) (the ~2-page write-up). The rest of this README is the
+> original take-home against the local mock app.
+
 **A note for Windows users:** every terminal command block below that needs a different form on
 Windows has a collapsed **Windows (PowerShell)** toggle directly underneath it — click it to
 expand instead of translating bash yourself.
@@ -682,3 +688,88 @@ Asks Claude "What's the current balance for member 23456?" with the tool catalog
 watch it choose `lookup_member_balance`, call it with `{"member_id": "23456"}`, get back a real
 result from the deterministic replay engine (no LLM in that path), and answer correctly. Saves
 the full transcript to `evidence/agent_capability_interface_demo_*.json`.
+
+## 8. MERIDIAN CORE adaptation
+
+The adaptation project points this core at the hosted legacy target
+**`web-sample.interface-hiring.com`** (a period-accurate credit-union servicing console — no
+`<label for>`, no test IDs, table layout, a per-transaction hidden token, operator sessions) and
+wraps it as an API a chatbot drives and a dashboard shows. Full write-up: [`ADAPTATION.md`](ADAPTATION.md).
+Decisions: `DECISIONS.md` D36–D42.
+
+### Setup (in addition to §1)
+
+```bash
+# MERIDIAN demo operators (public, no real data) — add to .env
+cat >> .env <<'ENV'
+MERIDIAN_OPERATOR=teller1
+MERIDIAN_PASSWORD=password
+MERIDIAN_BRANCH=MAIN-001
+MERIDIAN_SUPERVISOR_OPERATOR=super1
+MERIDIAN_SUPERVISOR_PASSWORD=password
+ENV
+
+# one-time: record the sign-on capability (credentials become typed params, none are stored)
+python scripts/record_meridian_signon.py
+```
+
+The 7 §2.1 capabilities are already committed under `capabilities/meridian_*.json`. To
+re-record the fixed-form ones: `python scripts/record_meridian_flow.py all`. The one produced by
+a real LLM discovery run is `meridian_check_member_balance`
+(`python scripts/run_discovery.py --goal "…" --target https://web-sample.interface-hiring.com/members --capability-id meridian_check_member_balance --headless`
+— it auto-signs-on first).
+
+### Demo path
+
+```bash
+# deterministic replay (no LLM, no API key): happy path + an injected 503 + a not-found outcome
+bash scripts/demo_meridian.sh
+
+# a session-aware replay of any MERIDIAN capability, for a member never used to record it
+python scripts/run_meridian.py \
+  --capability capabilities/meridian_check_member_balance.v1.json \
+  --params '{"member_id": "100987"}'
+
+# force a runtime fault on the entry navigation (validation|notfound|permission|timeout|maintenance|server)
+python scripts/run_meridian.py --capability capabilities/meridian_check_member_balance.v1.json \
+  --params '{"member_id":"100987"}' --inject maintenance
+
+# a risky capability replayed with --confirm actually posts; without it -> hard_failure at the gate
+python scripts/run_meridian.py --capability capabilities/meridian_funds_transfer.v1.json \
+  --params '{"member_id":"100234","from_share":"100234-MMKT-10","to_share":"100234-S0001-11","amount":"1.00","memo":"demo"}' --confirm
+```
+
+### API + chatbot + dashboard
+
+```bash
+# terminal A — capability API + dashboard (Flask, port 8000). Starts the operator console
+# (port 5001) lazily on the first risky invoke.
+python -m api
+#   http://localhost:8000            dashboard: catalog + run history + evidence
+#   GET  /api/capabilities           the callable catalog (typed args)
+#   POST /api/capabilities/<id>/invoke   {args, role?}  ->  {run_id, result}
+#   GET  /api/runs[/<id>[/evidence/<name>]]
+
+# terminal B — chatbot over the API (needs ANTHROPIC_API_KEY)
+python -m chatbot.cli
+#   you> what is the first share balance and status for member 101555?
+#   you> transfer 1.00 from 100234-MMKT-10 to 100234-S0001-11 for member 100234
+#        -> the risky transfer pauses; approve at http://localhost:5001, then it posts
+```
+
+**Escalation on the replay path.** A risky capability invoked through the API (no `confirm` —
+it's never a request field) runs to its final click, then routes an intervention request
+(capability, step, reason, URL, screenshot) to the operator console. Approve → it commits;
+decline → `status: escalated`, nothing posted. Fully scripted version (real browser, real
+operator process, real HTTP, no clicking):
+
+```bash
+python scripts/demo_meridian_escalation.py   # -> evidence/demo_meridian_escalation.json
+```
+
+### Running offline / without live services
+
+`pytest tests/` (200+ tests, no network) covers the legacy-form locator adapter, the session
+module, the outcome taxonomy, the run registry, and the API (Flask test client with the invoke
+path stubbed). The MERIDIAN target itself must be reachable for any replay; there is no mock of
+it (it's the point of the exercise).

@@ -1,0 +1,21 @@
+{
+  "approved": {
+    "decision": "approved",
+    "status": "success",
+    "outputs": {
+      "confirmation": "CN480439"
+    },
+    "failure_detail": null
+  },
+  "declined": {
+    "decision": "declined",
+    "status": "escalated",
+    "outputs": {},
+    "failure_detail": {
+      "step_id": "s7",
+      "expected": "operator approval of the irreversible action",
+      "observed": "operator decision='declined' (scripted demo declined)"
+    }
+  },
+  "at": 1787820452.344325
+}
