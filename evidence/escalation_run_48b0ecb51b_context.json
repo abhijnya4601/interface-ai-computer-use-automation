@@ -1,0 +1,7 @@
+{
+  "reason": "The form is already filled with the requested values (E-mail: ada.recon@example.com, Phone: 555-0199, Mailing Address: 99 Recon Ave). The next step is clicking 'Save Changes', which will submit and modify the member's record \u2014 a state-changing, hard-to-reverse action. Per policy, I need explicit human confirmation before performing this final submission.",
+  "current_url": "https://web-sample.interface-hiring.com/members/100234/update",
+  "screenshot_path": "evidence/escalation_run_48b0ecb51b.png",
+  "run_id": "run_48b0ecb51b",
+  "triggered_at": 1787824262.020428
+}

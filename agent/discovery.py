@@ -70,6 +70,11 @@ value for each element — this is what a screen reader would see, not raw HTML)
 of your last action. Content inside iframes is merged into this tree under a node with
 role "Iframe" — treat it exactly like any other part of the page.
 
+A `combobox` node is a dropdown. It shows its current selection as `value` and its choices as an
+`options` string. To choose an option, use the `type` tool on the combobox with the option's
+text or value — e.g. type(role="combobox", name="From Share", text="100234-MMKT-10"). Never try
+to `click` an option.
+
 Rules:
 - You may only act within this allowlist: {allowlist_summary}. Anything outside it will be
   rejected and the run halted.

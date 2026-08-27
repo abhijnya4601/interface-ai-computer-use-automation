@@ -19,6 +19,7 @@ current capability in place and is reported as a miss.
 from __future__ import annotations
 
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -49,16 +50,18 @@ RUNS: dict[str, tuple] = {
     "inquiry_by_name": (
         f"{BASE}/members",
         ["--max-steps", "10"],
-        "On the Member Inquiry screen set 'Search by' to Last Name, type 'Lovelace' into the "
-        "search value field, and click Search. Then from the first results row extract the "
-        "Member No. cell as 'member_no' and the Name cell as 'member_name', and finish with both.",
+        "On the Member Inquiry screen: use the type tool on the 'Search by' dropdown with text "
+        "'Last Name'. Then use the type tool on the search value field with text 'Lovelace'. "
+        "Then click Search. From the first results row, extract the Member No. cell as "
+        "'member_no' and the Name cell as 'member_name'. Do not click on individual dropdown "
+        "options. Then finish with both values in outputs.",
     ),
     "update_info": (
         f"{BASE}/members/100234/update",
         ["--max-steps", "10"],
-        "On the Update Member Information form, set E-mail to 'ada.recon@example.com', Phone to "
-        "'555-0199', Mailing Address to '99 Recon Ave', and click Save Changes. Finish once the "
-        "information-updated confirmation is shown.",
+        "On the Update Member Information form, replace the E-mail with 'ada.lovelace@example.com', the Phone "
+        "with '555-0142', the Mailing Address with '12 Analytical Engine Rd', then click Save Changes. "
+        "Finish once the information-updated confirmation is shown.",
     ),
     "funds_transfer": (
         f"{BASE}/members/100234/transfer",
@@ -90,22 +93,38 @@ CAP_ID = {k: f"meridian_{k if k != 'inquiry_by_name' else 'member_inquiry_by_nam
 CAP_ID["check_member_balance"] = "meridian_check_member_balance"
 
 
+def _kill_stray_console() -> None:
+    for pat in ("operator_page.py", "chrome-headless-shell.*playwright-profile"):
+        subprocess.run(["pkill", "-9", "-f", pat], capture_output=True)
+    subprocess.run("lsof -ti :5001 | xargs kill -9", shell=True, capture_output=True)
+    for p in ((REPO / "escalation" / "state" / "lease.json"),
+              (REPO / "escalation" / "state" / "resume.signal")):
+        p.unlink(missing_ok=True)
+
+
 def run_one(flow: str) -> bool:
     target, extra, goal = RUNS[flow]
     cap_id = CAP_ID[flow]
     cap_file = CAPS / f"{cap_id}.v1.json"
     before = cap_file.read_text() if cap_file.exists() else None
+    risky = "--auto-approve-escalation" in extra
+    if risky:
+        _kill_stray_console()
 
     cmd = [sys.executable, str(REPO / "scripts" / "run_discovery.py"),
            "--goal", goal, "--target", target, "--capability-id", cap_id,
            "--generalize", flow, "--headless", *extra]
     print(f"\n{'='*70}\n{flow}  ->  {cap_id}\n{'='*70}")
     t0 = time.time()
-    proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, timeout=600)
-    tail = "\n".join(proc.stdout.splitlines()[-6:])
-    print(tail)
-    if proc.returncode != 0:
-        print(f"  stderr: {proc.stderr[-400:]}")
+    try:
+        proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True,
+                              timeout=360, start_new_session=True)
+        print("\n".join(proc.stdout.splitlines()[-7:]))
+        if proc.returncode != 0:
+            print(f"  stderr: {proc.stderr[-400:]}")
+    except subprocess.TimeoutExpired:
+        print("  TIMEOUT after 360s — killing and moving on")
+    _kill_stray_console()
 
     now = cap_file.read_text() if cap_file.exists() else None
     changed = now is not None and now != before

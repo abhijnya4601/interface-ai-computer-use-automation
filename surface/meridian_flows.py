@@ -81,8 +81,8 @@ FLOWS: dict[str, dict] = {
         risk_level="risky",
         requires_role=None,
         description="Update a member's e-mail, phone and mailing address.",
-        rec_params={"member_id": "100234", "email": "ada.recon@example.com",
-                    "phone": "555-0199", "address": "99 Recon Ave"},
+        rec_params={"member_id": "100234", "email": "ada.lovelace@example.com",
+                    "phone": "555-0142", "address": "12 Analytical Engine Rd"},
         param_schema={
             "member_id": "member number to update",
             "email": "new e-mail address",

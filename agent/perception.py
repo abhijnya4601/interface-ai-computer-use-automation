@@ -175,8 +175,35 @@ def prune_accessibility_tree(raw_tree: dict, max_depth: int = 15) -> dict:
         return out
 
     pruned = _prune(raw_tree, depth=0) or {"role": raw_tree.get("role", "generic")}
+    _collapse_selects(pruned)
     _cap_long_child_lists(pruned)
     return pruned
+
+
+_MAX_OPTION_HINT = 20
+
+
+def _collapse_selects(node: dict) -> None:
+    """
+    A `combobox` with `option` children reads to an LLM as a list of clickable things — and on a
+    native `<select>` clicking an option does nothing, so a discovery run trying to pick a
+    non-default option (a share on the transfer form, a reason code) dead-ends. Collapse each
+    combobox to no children plus an `options` hint string, so the only way to act on it is
+    `type(role="combobox", name=..., text="<option label>")`, which the tools layer routes to
+    select_option.
+    """
+    for child in node.get("children") or []:
+        _collapse_selects(child)
+    if node.get("role") == "combobox":
+        opts = [c.get("name") for c in (node.get("children") or [])
+                if c.get("role") == "option" and c.get("name")]
+        if opts:
+            shown = opts[:_MAX_OPTION_HINT]
+            more = f" … (+{len(opts) - len(shown)} more)" if len(opts) > len(shown) else ""
+            node["options"] = " | ".join(shown) + more
+            node["children"] = [c for c in node["children"] if c.get("role") != "option"]
+            if not node["children"]:
+                node.pop("children", None)
 
 
 def build_observation(page, last_action_result: str = "") -> dict:

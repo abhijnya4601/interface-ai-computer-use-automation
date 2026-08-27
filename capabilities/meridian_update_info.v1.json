@@ -1,11 +1,11 @@
 {
   "capability_id": "meridian_update_info",
   "version": "1.0.0",
-  "created_from_run_id": "scripted_recorder",
-  "description": "Update a member's e-mail, phone and mailing address.",
+  "created_from_run_id": "run_201c71be65",
+  "description": "On the Update Member Information form, replace the E-mail with 'ada.lovelace@example.com', the Phone with '555-0142', the Mailing Address with '12 Analytical Engine Rd', then click Save Changes. Finish once the information-updated confirmation is shown.",
   "target": {
-    "app_name": "meridian-core",
-    "entry_point": "https://web-sample.interface-hiring.com/members/{member_id}/update",
+    "app_name": "mock-core-banking",
+    "entry_point": "https://web-sample.interface-hiring.com/members/100234/update",
     "surface_type": "legacy_web"
   },
   "risk_level": "risky",

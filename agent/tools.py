@@ -167,6 +167,12 @@ def locate_by_role_name(page: Page, role: str, name: str):
 
 
 def execute_click(page: Page, role: str, name: str) -> str:
+    if role.lower() == "option":
+        raise ToolExecutionError(
+            f"cannot click a dropdown option ({name!r}). To choose it, use the `type` tool on "
+            "the combobox: type(role='combobox', name='<the dropdown label>', text='<option "
+            "text or value>')."
+        )
     locator, where = locate_by_role_name(page, role, name)
     try:
         locator.click(timeout=5000)

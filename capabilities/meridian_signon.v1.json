@@ -1,14 +1,15 @@
 {
   "capability_id": "meridian_signon",
   "version": "1.0.0",
-  "created_from_run_id": "scripted_recorder",
-  "description": "Sign on to MERIDIAN CORE with an operator ID, password and branch.",
+  "created_from_run_id": "run_d3a8be178b",
+  "description": "Sign on to MERIDIAN CORE. Type operator ID 'teller1' into the Operator ID field, type 'password' into the Password field, set the Branch field to 'MAIN-001 - Main Office', and click Sign On. Finish once the main menu is shown.",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "https://web-sample.interface-hiring.com/signon",
     "surface_type": "legacy_web"
   },
   "risk_level": "safe",
+  "requires_role": null,
   "input_schema": {
     "operator": {
       "type": "string",
@@ -115,40 +116,6 @@
     },
     {
       "step_id": "s4",
-      "action_type": "type",
-      "target": {
-        "strategy": "labeled_field",
-        "primary": {
-          "label": "Branch",
-          "control_role": "combobox"
-        },
-        "fallbacks": [
-          {
-            "strategy": "field_name",
-            "name": "branch"
-          },
-          {
-            "strategy": "text",
-            "text": "Branch"
-          }
-        ],
-        "reasoning": "role='combobox' name='Branch' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Branch' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'branch' (load-bearing HTML the backend requires, not a test id)."
-      },
-      "value": {
-        "param_ref": "branch"
-      },
-      "extract_as": null,
-      "wait_policy": {
-        "timeout_ms": 5000,
-        "retry_count": 2,
-        "retry_on": [
-          "transient_load"
-        ]
-      },
-      "expected_outcomes": []
-    },
-    {
-      "step_id": "s5",
       "action_type": "click",
       "target": {
         "strategy": "role_name",

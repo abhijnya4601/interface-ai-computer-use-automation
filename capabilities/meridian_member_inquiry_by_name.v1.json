@@ -1,10 +1,10 @@
 {
   "capability_id": "meridian_member_inquiry_by_name",
   "version": "1.0.0",
-  "created_from_run_id": "scripted_recorder",
-  "description": "Find a member by last name and return the first match's number and name.",
+  "created_from_run_id": "run_323aa06201",
+  "description": "On the Member Inquiry screen: use the type tool on the 'Search by' dropdown with text 'Last Name'. Then use the type tool on the search value field with text 'Lovelace'. Then click Search. From the first results row, extract the Member No. cell as 'member_no' and the Name cell as 'member_name'. Do not click on individual dropdown options. Then finish with both values in outputs.",
   "target": {
-    "app_name": "meridian-core",
+    "app_name": "mock-core-banking",
     "entry_point": "https://web-sample.interface-hiring.com/members",
     "surface_type": "legacy_web"
   },

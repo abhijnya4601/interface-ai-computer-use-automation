@@ -294,7 +294,12 @@ def main():
         # dead-end or model escalation would otherwise block this unattended run forever. Cap the
         # wait so the run fails cleanly with status=escalation_timeout and still writes its
         # transcript.
-        esc_wait = None if (args.auto_approve_escalation or args.open_console_on_escalation) else 150.0
+        # --open-console: a human is watching, wait indefinitely. --auto-approve: a watcher
+        # should resume in ~2s, but if it can't (stale :5001, crashed subprocess) don't hang the
+        # run forever — cap it generously. Neither flag: the bounded default.
+        esc_wait = (None if args.open_console_on_escalation
+                    else 240.0 if args.auto_approve_escalation
+                    else 150.0)
         discovery_started = time.time()
         result = run_discovery(goal=args.goal, target_url=args.target, page=page,
                                 max_steps=args.max_steps, escalation_max_wait_s=esc_wait)
