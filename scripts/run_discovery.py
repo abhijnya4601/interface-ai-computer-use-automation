@@ -54,6 +54,14 @@ EVIDENCE_DIR = Path(__file__).parent.parent / "evidence"
 USER_DATA_DIR = Path(__file__).parent.parent / ".playwright-profile"
 OPERATOR_BASE = "http://localhost:5001"
 
+# Hosts whose every route 302s to a login page without a session cookie — discovery must be
+# pre-authenticated against these (see agent/session.py).
+SESSION_REQUIRED_HOSTS = {"web-sample.interface-hiring.com"}
+
+
+def _needs_session(target_url: str) -> bool:
+    return urllib.parse.urlparse(target_url).netloc in SESSION_REQUIRED_HOSTS
+
 CHECKPOINTS = {
     "lookup_member_balance": Checkpoint(
         type="element_present",
@@ -178,6 +186,11 @@ def main():
                          help="if the run escalates, auto-open the operator console in your "
                               "browser the moment it happens, instead of you having to notice "
                               "the escalation and go find localhost:5001 yourself")
+    parser.add_argument("--meridian-session", action="store_true",
+                         help="force pre-discovery operator sign-on (auto-enabled for a "
+                              "web-sample.interface-hiring.com target)")
+    parser.add_argument("--session-role", default="teller", choices=["teller", "supervisor"],
+                         help="which operator role to sign on as for a session-gated target")
     args = parser.parse_args()
 
     if not os.environ.get("ANTHROPIC_API_KEY"):
@@ -237,6 +250,28 @@ def main():
     with sync_playwright() as p:
         context = p.chromium.launch_persistent_context(str(USER_DATA_DIR), headless=args.headless)
         page = context.pages[0] if context.pages else context.new_page()
+
+        # Targets that gate every route behind an operator sign-on (MERIDIAN CORE) need the
+        # session established before discovery starts — otherwise every navigation 302s to the
+        # login page. Pre-authenticate the SAME persistent context here by replaying the
+        # meridian_signon capability, so the recorded capability never contains the login steps
+        # or any credential; agent/session.py composes signon + capability again at replay time.
+        if _needs_session(args.target) or args.meridian_session:
+            from agent.session import credentials_for, load_signon_capability
+            from replay.engine import replay as _replay
+            role = args.session_role
+            try:
+                creds = credentials_for(role)
+            except Exception as exc:
+                print(f"ERROR: {args.target} needs an operator session but {exc}", file=sys.stderr)
+                context.close()
+                sys.exit(1)
+            sres = _replay(load_signon_capability(), params=creds, page=page, run_id="discovery_signon")
+            if sres.status != "success":
+                print(f"ERROR: pre-discovery sign-on failed: {sres.failure_detail}", file=sys.stderr)
+                context.close()
+                sys.exit(1)
+            print(f"[session] signed on as {role} ({creds['operator']}) — discovery starts authenticated")
 
         result = run_discovery(goal=args.goal, target_url=args.target, page=page, max_steps=args.max_steps)
 
