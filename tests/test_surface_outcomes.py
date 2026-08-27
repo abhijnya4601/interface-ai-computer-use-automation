@@ -63,7 +63,14 @@ def test_body_condition_matched_with_no_status():
     assert out.code == "MEMBER_NOT_FOUND" and out.classification == "business_outcome"
 
 
-def test_supervisor_override_body_is_a_business_outcome():
+def test_supervisor_override_denial_body_is_a_business_outcome():
     prof = profile_for(MERIDIAN)
-    out = classify(prof, 403, "RESTRICTED FUNCTION - SUPERVISOR OVERRIDE REQUIRED")
+    # the denial text, not the "SUPERVISOR OVERRIDE REQUIRED" heading (which is also a static
+    # warning on the Place Hold form, shown to a supervisor too)
+    out = classify(prof, 403, "Operator profile teller1 is not authorized to perform this function.")
     assert out.code == "SUPERVISOR_OVERRIDE_REQUIRED"
+
+
+def test_supervisor_override_heading_alone_is_NOT_flagged():
+    prof = profile_for(MERIDIAN)
+    assert classify(prof, 200, "RESTRICTED FUNCTION - SUPERVISOR OVERRIDE REQUIRED ... <form>") is None

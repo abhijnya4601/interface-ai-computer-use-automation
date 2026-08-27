@@ -1,0 +1,243 @@
+{
+  "capability_id": "meridian_place_hold",
+  "version": "1.0.0",
+  "created_from_run_id": "scripted_recorder",
+  "description": "Place a hold on one of a member's shares (reason code + notes). Supervisor only.",
+  "target": {
+    "app_name": "meridian-core",
+    "entry_point": "https://web-sample.interface-hiring.com/members/{member_id}/hold",
+    "surface_type": "legacy_web"
+  },
+  "risk_level": "risky",
+  "requires_role": "supervisor",
+  "input_schema": {
+    "member_id": {
+      "type": "string",
+      "description": "member number"
+    },
+    "share": {
+      "type": "string",
+      "description": "share id to place on hold, e.g. 100234-MMKT-13"
+    },
+    "reason": {
+      "type": "string",
+      "description": "reason code: FRAUD, LEGAL, or DECEASED"
+    },
+    "notes": {
+      "type": "string",
+      "description": "free-text notes"
+    }
+  },
+  "output_schema": {
+    "confirmation": {
+      "type": "string"
+    }
+  },
+  "checkpoint": {
+    "type": "text_match",
+    "locator": null,
+    "expected": "HOLD APPLIED"
+  },
+  "steps": [
+    {
+      "step_id": "s1",
+      "action_type": "navigate",
+      "target": null,
+      "value": "https://web-sample.interface-hiring.com/members/{member_id}/hold",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s2",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Share",
+          "control_role": "combobox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "share"
+          },
+          {
+            "strategy": "text",
+            "text": "Share"
+          }
+        ],
+        "reasoning": "role='combobox' name='Share' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Share' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'share' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "share"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s3",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Reason Code",
+          "control_role": "combobox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "reason"
+          },
+          {
+            "strategy": "text",
+            "text": "Reason Code"
+          }
+        ],
+        "reasoning": "role='combobox' name='Reason Code' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Reason Code' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'reason' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "reason"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s4",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Notes",
+          "control_role": "textbox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "notes"
+          },
+          {
+            "strategy": "text",
+            "text": "Notes"
+          }
+        ],
+        "reasoning": "role='textbox' name='Notes' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Notes' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'notes' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "notes"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s5",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "button",
+          "name": "Continue"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Continue"
+          }
+        ],
+        "reasoning": "role='button' name='Continue' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s6",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "button",
+          "name": "Apply Hold"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Apply Hold"
+          }
+        ],
+        "reasoning": "role='button' name='Apply Hold' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s7",
+      "action_type": "extract",
+      "target": {
+        "strategy": "labeled_value",
+        "primary": {
+          "label": "Confirmation"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Confirmation:"
+          }
+        ],
+        "reasoning": "read-only value in a <td class='lbl'>Confirmation:</td><td>\u2026</td> row. Anchored on the label text, which is stable, rather than the value, which is exactly what differs on every run."
+      },
+      "value": null,
+      "extract_as": "confirmation",
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    }
+  ]
+}

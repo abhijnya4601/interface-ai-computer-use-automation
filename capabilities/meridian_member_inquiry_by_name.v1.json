@@ -1,0 +1,211 @@
+{
+  "capability_id": "meridian_member_inquiry_by_name",
+  "version": "1.0.0",
+  "created_from_run_id": "scripted_recorder",
+  "description": "Find a member by last name and return the first match's number and name.",
+  "target": {
+    "app_name": "meridian-core",
+    "entry_point": "https://web-sample.interface-hiring.com/members",
+    "surface_type": "legacy_web"
+  },
+  "risk_level": "safe",
+  "requires_role": null,
+  "input_schema": {
+    "last_name": {
+      "type": "string",
+      "description": "member's last name to search for"
+    }
+  },
+  "output_schema": {
+    "member_no": {
+      "type": "string"
+    },
+    "member_name": {
+      "type": "string"
+    }
+  },
+  "checkpoint": {
+    "type": "text_match",
+    "locator": null,
+    "expected": "Select"
+  },
+  "steps": [
+    {
+      "step_id": "s1",
+      "action_type": "navigate",
+      "target": null,
+      "value": "https://web-sample.interface-hiring.com/members",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s2",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Search by",
+          "control_role": "combobox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "by"
+          },
+          {
+            "strategy": "text",
+            "text": "Search by"
+          }
+        ],
+        "reasoning": "role='combobox' name='Search by' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Search by' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'by' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": "Last Name",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s3",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Value",
+          "control_role": "textbox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "q"
+          },
+          {
+            "strategy": "text",
+            "text": "Value"
+          }
+        ],
+        "reasoning": "role='textbox' name='Value' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Value' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'q' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "last_name"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s4",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "button",
+          "name": "Search"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Search"
+          }
+        ],
+        "reasoning": "role='button' name='Search' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s5",
+      "action_type": "extract",
+      "target": {
+        "strategy": "table_position",
+        "primary": {
+          "table_headers": [
+            "Member No.",
+            "Name",
+            "Shares",
+            ""
+          ],
+          "row_index": 0,
+          "column_index": 0
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "100234"
+          }
+        ],
+        "reasoning": "role='cell' name='100234' sits in a data table (columns ['Member No.', 'Name', 'Shares', '']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes, since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 0 ('Member No.')."
+      },
+      "value": null,
+      "extract_as": "member_no",
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s6",
+      "action_type": "extract",
+      "target": {
+        "strategy": "table_position",
+        "primary": {
+          "table_headers": [
+            "Member No.",
+            "Name",
+            "Shares",
+            ""
+          ],
+          "row_index": 0,
+          "column_index": 1
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Lovelace, Ada"
+          }
+        ],
+        "reasoning": "role='cell' name='Lovelace, Ada' sits in a data table (columns ['Member No.', 'Name', 'Shares', '']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes, since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 1 ('Name')."
+      },
+      "value": null,
+      "extract_as": "member_name",
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "capability_id": "meridian_open_share",
+  "version": "1.0.0",
+  "created_from_run_id": "scripted_recorder",
+  "description": "Open a new share of a given type for a member with an initial deposit.",
+  "target": {
+    "app_name": "meridian-core",
+    "entry_point": "https://web-sample.interface-hiring.com/members/{member_id}/open-share",
+    "surface_type": "legacy_web"
+  },
+  "risk_level": "risky",
+  "requires_role": null,
+  "input_schema": {
+    "member_id": {
+      "type": "string",
+      "description": "member number to open the share for"
+    },
+    "share_type": {
+      "type": "string",
+      "description": "share type code: S0001 (Regular), S0070 (Checking), MMKT, or CERT"
+    },
+    "deposit": {
+      "type": "string",
+      "description": "initial deposit amount, e.g. 5.00"
+    }
+  },
+  "output_schema": {
+    "confirmation": {
+      "type": "string"
+    }
+  },
+  "checkpoint": {
+    "type": "text_match",
+    "locator": null,
+    "expected": "SHARE OPENED"
+  },
+  "steps": [
+    {
+      "step_id": "s1",
+      "action_type": "navigate",
+      "target": null,
+      "value": "https://web-sample.interface-hiring.com/members/{member_id}/open-share",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s2",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Share Type",
+          "control_role": "combobox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "type"
+          },
+          {
+            "strategy": "text",
+            "text": "Share Type"
+          }
+        ],
+        "reasoning": "role='combobox' name='Share Type' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Share Type' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'type' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "share_type"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s3",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Initial Deposit",
+          "control_role": "textbox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "deposit"
+          },
+          {
+            "strategy": "text",
+            "text": "Initial Deposit"
+          }
+        ],
+        "reasoning": "role='textbox' name='Initial Deposit' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Initial Deposit' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'deposit' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "deposit"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s4",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "button",
+          "name": "Continue"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Continue"
+          }
+        ],
+        "reasoning": "role='button' name='Continue' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s5",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "button",
+          "name": "Open Share"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Open Share"
+          }
+        ],
+        "reasoning": "role='button' name='Open Share' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s6",
+      "action_type": "extract",
+      "target": {
+        "strategy": "labeled_value",
+        "primary": {
+          "label": "Confirmation"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Confirmation:"
+          }
+        ],
+        "reasoning": "read-only value in a <td class='lbl'>Confirmation:</td><td>\u2026</td> row. Anchored on the label text, which is stable, rather than the value, which is exactly what differs on every run."
+      },
+      "value": null,
+      "extract_as": "confirmation",
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    }
+  ]
+}

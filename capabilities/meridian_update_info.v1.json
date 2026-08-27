@@ -1,0 +1,184 @@
+{
+  "capability_id": "meridian_update_info",
+  "version": "1.0.0",
+  "created_from_run_id": "scripted_recorder",
+  "description": "Update a member's e-mail, phone and mailing address.",
+  "target": {
+    "app_name": "meridian-core",
+    "entry_point": "https://web-sample.interface-hiring.com/members/{member_id}/update",
+    "surface_type": "legacy_web"
+  },
+  "risk_level": "risky",
+  "requires_role": null,
+  "input_schema": {
+    "member_id": {
+      "type": "string",
+      "description": "member number to update"
+    },
+    "email": {
+      "type": "string",
+      "description": "new e-mail address"
+    },
+    "phone": {
+      "type": "string",
+      "description": "new phone number"
+    },
+    "address": {
+      "type": "string",
+      "description": "new mailing address"
+    }
+  },
+  "output_schema": {},
+  "checkpoint": {
+    "type": "text_match",
+    "locator": null,
+    "expected": "INFORMATION UPDATED"
+  },
+  "steps": [
+    {
+      "step_id": "s1",
+      "action_type": "navigate",
+      "target": null,
+      "value": "https://web-sample.interface-hiring.com/members/{member_id}/update",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s2",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "E-mail",
+          "control_role": "textbox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "email"
+          },
+          {
+            "strategy": "text",
+            "text": "E-mail"
+          }
+        ],
+        "reasoning": "role='textbox' name='E-mail' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'E-mail' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'email' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "email"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s3",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Phone",
+          "control_role": "textbox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "phone"
+          },
+          {
+            "strategy": "text",
+            "text": "Phone"
+          }
+        ],
+        "reasoning": "role='textbox' name='Phone' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Phone' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'phone' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "phone"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s4",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
+          "label": "Mailing Address",
+          "control_role": "textbox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "address"
+          },
+          {
+            "strategy": "text",
+            "text": "Mailing Address"
+          }
+        ],
+        "reasoning": "role='textbox' name='Mailing Address' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Mailing Address' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'address' (load-bearing HTML the backend requires, not a test id)."
+      },
+      "value": {
+        "param_ref": "address"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s5",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "button",
+          "name": "Save Changes"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Save Changes"
+          }
+        ],
+        "reasoning": "role='button' name='Save Changes' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    }
+  ]
+}

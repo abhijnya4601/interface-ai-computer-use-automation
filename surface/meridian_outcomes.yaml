@@ -49,10 +49,12 @@ body_conditions:
     classification: business_outcome
     code: INSUFFICIENT_FUNDS
     detail: "the source share does not have enough available balance for this transfer"
-  - contains: "SUPERVISOR OVERRIDE REQUIRED"
+  # NB: match the denial text, not "SUPERVISOR OVERRIDE REQUIRED" — that string is also a static
+  # warning heading on the Place Hold *form*, shown to every operator including a supervisor.
+  - contains: "is not authorized to perform this function"
     classification: business_outcome
     code: SUPERVISOR_OVERRIDE_REQUIRED
-    detail: "this function requires a supervisor operator; re-run with role=supervisor"
+    detail: "the signed-on operator is not authorized; re-run with role=supervisor"
   - contains: "No member records matched your search"
     classification: business_outcome
     code: MEMBER_NOT_FOUND
@@ -61,11 +63,15 @@ body_conditions:
     classification: business_outcome
     code: RECORD_NOT_FOUND
     detail: "no such member / record"
-  - contains: "not a valid e-mail"
+  - contains: "E-mail address is not in a valid format"
     classification: business_outcome
     code: INVALID_CONTACT
-    detail: "the submitted email/phone failed validation"
-  - contains: "not a valid phone"
+    detail: "the submitted email failed validation"
+  - contains: "Phone number is not in a valid format"
     classification: business_outcome
     code: INVALID_CONTACT
-    detail: "the submitted email/phone failed validation"
+    detail: "the submitted phone failed validation"
+  - contains: "Please correct the following"
+    classification: business_outcome
+    code: VALIDATION_REJECTED
+    detail: "one or more submitted fields failed validation"

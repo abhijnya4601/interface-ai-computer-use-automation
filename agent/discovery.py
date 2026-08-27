@@ -253,6 +253,11 @@ def run_discovery(
                     recorder.steps.pop()
                     raise
                 tool_result_content = last_action_result
+                # Typing into a field — especially selecting a <select> option — frequently
+                # doesn't change the pruned accessibility tree at all (MERIDIAN's <select>s
+                # report only the current label). A successful type must not accumulate toward
+                # the dead-end detector, same reasoning as extract above.
+                recent_hashes.clear()
 
             elif name == "navigate":
                 recorder.record_navigate(tool_input["url"])

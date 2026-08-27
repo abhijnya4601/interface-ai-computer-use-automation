@@ -35,7 +35,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--capability", required=True)
     parser.add_argument("--params", default="{}", help='JSON, e.g. \'{"member_id": "100987"}\'')
-    parser.add_argument("--role", default="teller", choices=["teller", "supervisor"])
+    parser.add_argument("--role", default=None, choices=["teller", "supervisor"],
+                        help="operator role to sign on as; default: the capability's "
+                             "requires_role, else teller")
     parser.add_argument("--confirm", action="store_true")
     parser.add_argument("--headed", action="store_true")
     parser.add_argument("--label", default=None, help="tag for the saved evidence filename")
