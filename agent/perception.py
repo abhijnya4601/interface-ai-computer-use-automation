@@ -252,9 +252,14 @@ def _enrich_unnamed_controls(page, tree: dict) -> None:
         return
     nameless = _collect_nameless_control_nodes(tree)
     for node, field in zip(nameless, fields):
-        label = (field or {}).get("label")
-        if label:
-            node["name"] = label
+        field = field or {}
+        if field.get("label"):
+            node["name"] = field["label"]
+        # carry the control's current value too — MERIDIAN's <select>s and pre-filled inputs
+        # otherwise look unchanged in the pruned tree, which makes filling a form read as a
+        # dead-end and hides from the model what it has already entered.
+        if field.get("value"):
+            node["value"] = field["value"]
 
 
 def _find_nodes_by_role(node: dict, role: str) -> list[dict]:

@@ -74,11 +74,22 @@ DERIVE_UNNAMED_FIELD_LABELS_JS = r"""
     if (!label) label = el.getAttribute('placeholder') || "";
     if (!label) label = el.getAttribute('name') || "";
 
+    let value = "";
+    if (el.tagName === 'SELECT') {
+      const opt = el.options[el.selectedIndex];
+      value = opt ? (opt.textContent || opt.value || "").trim() : "";
+    } else if ((el.getAttribute('type') || "").toLowerCase() === 'password') {
+      value = el.value ? '•'.repeat(Math.min(el.value.length, 8)) : "";
+    } else {
+      value = (el.value || "").trim();
+    }
+
     out.push({
       label: norm(label),
       name: el.getAttribute('name') || null,
       tag: el.tagName.toLowerCase(),
       type: (el.getAttribute('type') || "").toLowerCase() || null,
+      value: value,
     });
   }
   return out;

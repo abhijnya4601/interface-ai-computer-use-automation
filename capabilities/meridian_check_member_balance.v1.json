@@ -1,8 +1,8 @@
 {
   "capability_id": "meridian_check_member_balance",
   "version": "1.0.0",
-  "created_from_run_id": "run_e97a37ec0c",
-  "description": "Search for member 101555 by member number and open their record with Select. Then use the extract tool four times on the first data row of the SHARES / BALANCES table: extract the Share ID as 'share_id', Type as 'share_type', Balance as 'balance', Status as 'status'. Then finish with all four in outputs.",
+  "created_from_run_id": "run_c612111ab2",
+  "description": "Search for member 101555 by member number and click Select to open the record. Then use the extract tool four times on the first data row of the SHARES / BALANCES table: Share ID as 'share_id', Type as 'share_type', Balance as 'balance', Status as 'status'. Then finish with all four in outputs.",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "https://web-sample.interface-hiring.com/members",
@@ -13,7 +13,7 @@
   "input_schema": {
     "member_id": {
       "type": "string",
-      "description": "the member id to use for this run"
+      "description": "member number to look up"
     }
   },
   "output_schema": {
