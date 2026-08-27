@@ -1,14 +1,15 @@
 {
   "capability_id": "meridian_check_member_balance",
   "version": "1.0.0",
-  "created_from_run_id": "run_f9e05c9d33",
-  "description": "Search for member 100234 by member number, then click Select to open their member record. Now call the extract tool four separate times against the first data row of the SHARES / BALANCES table: extract the Share ID cell as 'share_id', the Type cell as 'share_type', the Balance cell as 'balance', and the Status cell as 'status'. Then call finish with success=true and all four in outputs.",
+  "created_from_run_id": "run_e97a37ec0c",
+  "description": "Search for member 101555 by member number and open their record with Select. Then use the extract tool four times on the first data row of the SHARES / BALANCES table: extract the Share ID as 'share_id', Type as 'share_type', Balance as 'balance', Status as 'status'. Then finish with all four in outputs.",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "https://web-sample.interface-hiring.com/members",
     "surface_type": "legacy_web"
   },
   "risk_level": "safe",
+  "requires_role": null,
   "input_schema": {
     "member_id": {
       "type": "string",
@@ -158,10 +159,10 @@
         "fallbacks": [
           {
             "strategy": "text",
-            "text": "100234-S0001"
+            "text": "101555-S0001"
           }
         ],
-        "reasoning": "role='cell' name='100234-S0001' sits in a data table (columns ['Share ID', 'Type', 'Balance', 'Status']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes, since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 0 ('Share ID')."
+        "reasoning": "role='cell' name='101555-S0001' sits in a data table (columns ['Share ID', 'Type', 'Balance', 'Status']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes, since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 0 ('Share ID')."
       },
       "value": null,
       "extract_as": "share_id",
@@ -226,10 +227,10 @@
         "fallbacks": [
           {
             "strategy": "text",
-            "text": "$1,500.00"
+            "text": "$17,925.98"
           }
         ],
-        "reasoning": "role='cell' name='$1,500.00' sits in a data table (columns ['Share ID', 'Type', 'Balance', 'Status']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes, since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 2 ('Balance')."
+        "reasoning": "role='cell' name='$17,925.98' sits in a data table (columns ['Share ID', 'Type', 'Balance', 'Status']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes, since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 2 ('Balance')."
       },
       "value": null,
       "extract_as": "balance",
