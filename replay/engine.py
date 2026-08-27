@@ -40,6 +40,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+from agent.legacy_locate import locate_field_name, locate_labeled_field
 from artifact.schema import Capability, ExpectedOutcome, Result, Step
 from guardrails.policy import GuardrailViolation, check_risk_confirmation, guardrail_check, redact
 
@@ -114,6 +115,25 @@ def _locate(page, target):
         loc = _locate_table_position(page, target.primary)
         return (loc, "table_position") if loc is not None else (None, None)
 
+    if target.strategy == "labeled_field":
+        label = target.primary.get("label")
+        control_role = target.primary.get("control_role")
+        for ctx in _contexts(page):
+            loc = locate_labeled_field(ctx, label, control_role)
+            if loc is not None:
+                try:
+                    if loc.count() >= 1:
+                        return loc.first, "labeled_field"
+                except Exception:
+                    continue
+        # fall through to the declared fallbacks (field_name, then text)
+
+    if target.strategy == "field_name":
+        for ctx in _contexts(page):
+            loc = locate_field_name(ctx, target.primary.get("name"))
+            if loc is not None:
+                return loc, "field_name"
+
     role = target.primary.get("role")
     name = target.primary.get("name")
     nth = target.primary.get("nth", 0)
@@ -129,6 +149,12 @@ def _locate(page, target):
                 return candidate.nth(nth), target.strategy
 
     for fallback in target.fallbacks:
+        if fallback.get("strategy") == "field_name" and fallback.get("name"):
+            for ctx in _contexts(page):
+                loc = locate_field_name(ctx, fallback["name"])
+                if loc is not None:
+                    return loc, "field_name (fallback)"
+            continue
         ftext = fallback.get("text")
         if not ftext:
             continue

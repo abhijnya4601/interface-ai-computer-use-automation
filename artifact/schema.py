@@ -30,15 +30,22 @@ class TargetSpec(BaseModel):
 
 
 class LocatorTarget(BaseModel):
-    strategy: Literal["role_name", "structural", "text", "table_position"]
+    strategy: Literal[
+        "role_name", "structural", "text", "table_position", "labeled_field", "field_name"
+    ]
     primary: dict = Field(
         ...,
         description=(
-            'e.g. {"role": "button", "name": "Go"}, or for strategy="table_position" '
+            'e.g. {"role": "button", "name": "Go"}; for strategy="table_position" '
             '{"table_headers": [...], "row_index": 0, "column_index": 2} — a data-table '
             "cell with no per-row label has nothing stable to anchor on except its own value, "
             "which is exactly what changes between replays, so it's addressed by position "
-            "(which table, by its column headers; which row; which column) instead."
+            "(which table, by its column headers; which row; which column) instead; "
+            'for strategy="labeled_field" {"label": "Amount", "control_role": "textbox"} — a '
+            "form control on a legacy surface with no accessible name, addressed by the visible "
+            "label text next to it (see agent/legacy_locate.py); for strategy=\"field_name\" "
+            '{"name": "amount"} — the same control addressed by its server-contract name '
+            "attribute, an opaque but highly stable last resort."
         ),
     )
     fallbacks: list[dict] = Field(default_factory=list)

@@ -6,7 +6,8 @@
 # involved and this system's own guardrails are the only thing standing between the automation
 # and the live app).
 allowed_domains:
-  - "localhost:5050"
+  - "localhost:5050"                        # take-home mock core-banking app
+  - "web-sample.interface-hiring.com"       # MERIDIAN CORE — the adaptation target (§2)
 
 # Discovery-only allowlist — deliberately separate from (and here, a strict subset of)
 # allowed_domains above. Every discovery turn sends the observed page content to a third-party
@@ -15,8 +16,10 @@ allowed_domains:
 # Safety section). Keeping this as its own list, checked with phase="discovery", makes
 # that rule an enforced technical control instead of just a documented one: adding a production
 # domain to allowed_domains (for replay) does NOT automatically permit discovery there too.
+# MERIDIAN CORE is a hosted demo target with no real data (brief §2), so it is safe for both.
 discovery_allowed_domains:
   - "localhost:5050"
+  - "web-sample.interface-hiring.com"
 
 allowed_actions:
   - click
@@ -26,6 +29,10 @@ allowed_actions:
   - select
   - wait_for
 
-# Explicit route-level denylist, checked even for an otherwise-allowed domain/action.
-# Empty for the mock app; a real deployment would list admin/bulk-operation routes here.
-blocked_routes: []
+# Explicit route-level denylist, checked even for an otherwise-allowed domain/action, in BOTH
+# phases. MERIDIAN CORE's /settings screen toggles fault injection (error rate, forced inject
+# kind) — the automation must never be able to reach it, so a compromised or confused capability
+# can't silently disable the very fault handling we're demonstrating. A real deployment would
+# also list admin/bulk-operation routes here.
+blocked_routes:
+  - "/settings"

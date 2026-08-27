@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from playwright.sync_api import Error as PlaywrightError, Page
 
+from agent.legacy_locate import locate_labeled_field
+
 TOOLS = [
     {
         "name": "click",
@@ -147,6 +149,20 @@ def locate_by_role_name(page: Page, role: str, name: str):
         if count >= 1:
             label = "main" if ctx is page else ctx.url
             return candidate.first, label
+
+    # Legacy fallback: a form control with no accessible name, addressed by the visible label
+    # text next to it (agent/legacy_locate.py). This is what carries MERIDIAN CORE, whose inputs
+    # have no <label for>/aria-label/placeholder — perception.py surfaces such a control to the
+    # model under its derived label, and this resolves that label back to the element.
+    for ctx in _contexts(page):
+        try:
+            loc = locate_labeled_field(ctx, name, control_role=role_norm)
+        except Exception:
+            loc = None
+        if loc is not None:
+            where = "main (labeled_field)" if ctx is page else f"{ctx.url} (labeled_field)"
+            return loc.first, where
+
     raise ToolExecutionError(f"no element found for role={role!r} name={name!r} on page or in any frame")
 
 

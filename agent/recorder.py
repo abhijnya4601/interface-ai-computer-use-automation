@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import re
 
+from agent.legacy_locate import locate_field_name, locate_labeled_field
 from artifact.schema import LocatorTarget, Step
 
 _PARAM_NAME = "member_id"  # see module docstring — the only varying input across both capabilities
@@ -105,6 +106,9 @@ class Recorder:
                 ),
             )
         else:
+            legacy = self._try_legacy_field_locator(role_norm, name, page, step_id)
+            if legacy is not None:
+                return legacy
             tier = "text"
             target = LocatorTarget(
                 strategy="text",
@@ -123,6 +127,58 @@ class Recorder:
             print(f"[recorder] WARNING: step {step_id} ({role_norm} '{name}') fell back to "
                   "tier-3 text locator — most brittle, watch this in future replays")
         return target
+
+    # ---- legacy label-less form field locator ---------------------------------------------
+
+    def _try_legacy_field_locator(self, role: str, name: str, page, step_id: str) -> LocatorTarget | None:
+        """
+        The accessibility tree gave role+name zero matches. Before falling back to a raw
+        text-content match, try the legacy-web strategies (agent/legacy_locate.py): resolve the
+        control by the visible label next to it, and — if that lands a single element — read its
+        server-contract ``name=`` attribute off the page and record it as a fallback tier.
+        MERIDIAN CORE's form controls have no accessible name at all, so this is the tier that
+        actually carries login, search, transfer, hold, and update. Returns None (caller falls
+        back to ``text``) if the label doesn't resolve either.
+        """
+        contexts = [page] + [f for f in page.frames if f != page.main_frame]
+        for ctx in contexts:
+            try:
+                loc = locate_labeled_field(ctx, name, control_role=role)
+            except Exception:
+                continue
+            if loc is None:
+                continue
+            try:
+                if loc.count() != 1:
+                    continue
+                name_attr = loc.get_attribute("name")
+            except Exception:
+                continue
+
+            fallbacks: list[dict] = []
+            if name_attr:
+                fallbacks.append({"strategy": "field_name", "name": name_attr})
+            fallbacks.append({"strategy": "text", "text": name})
+
+            self.tier_log.append(
+                {"step_id": step_id, "role": role, "name": name, "tier": "labeled_field"}
+            )
+            return LocatorTarget(
+                strategy="labeled_field",
+                primary={"label": name, "control_role": role},
+                fallbacks=fallbacks,
+                reasoning=(
+                    f"role={role!r} name={name!r} resolved to no element via the accessibility "
+                    "tree — this legacy surface gives its form controls no accessible name "
+                    "(no <label for>, aria-label, or placeholder). Resolved instead by the "
+                    f"visible label text {name!r} sitting next to the control, which is what a "
+                    "human reads on screen and does not depend on any class or id. Fallback tier "
+                    + (f"is the control's server-contract name attribute {name_attr!r} "
+                       "(load-bearing HTML the backend requires, not a test id)."
+                       if name_attr else "is a raw text-content match.")
+                ),
+            )
+        return None
 
     # ---- table_position locator -------------------------------------------------------------
 

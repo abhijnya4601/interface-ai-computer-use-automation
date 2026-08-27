@@ -34,6 +34,8 @@ from typing import Any
 
 import yaml
 
+from agent.legacy_locate import CONTROL_ROLES, derive_unnamed_field_labels
+
 _NODE_HEAD_RE = re.compile(r'^(?P<role>[A-Za-z][A-Za-z0-9_-]*)(?:\s+"(?P<name>(?:[^"\\]|\\.)*)")?')
 
 
@@ -167,12 +169,54 @@ def build_observation(page, last_action_result: str = "") -> dict:
             elif frame_tree.get("name") or frame_tree.get("value"):
                 iframe_node["children"] = [frame_tree]
 
+    try:
+        _enrich_unnamed_controls(page, tree)
+    except Exception:
+        # Enrichment is a best-effort adapter for label-less legacy forms — a page that can't be
+        # evaluated (mid-navigation, detached frame) must never break the core observation.
+        pass
+
     pruned = prune_accessibility_tree(tree)
     return {
         "url": page.url,
         "accessibility_tree": pruned,
         "last_action_result": last_action_result,
     }
+
+
+def _collect_nameless_control_nodes(node: dict, out: list[dict] | None = None) -> list[dict]:
+    """Every interactive control node in document order that the accessibility tree left with no
+    name — the ones an LLM can see but can't target."""
+    out = [] if out is None else out
+    if node.get("role") in CONTROL_ROLES and not node.get("name"):
+        out.append(node)
+    for child in node.get("children") or []:
+        _collect_nameless_control_nodes(child, out)
+    return out
+
+
+def _enrich_unnamed_controls(page, tree: dict) -> None:
+    """
+    MERIDIAN CORE and surfaces like it give form controls no accessible name at all (no
+    ``<label for>``, no ``aria-label``, no placeholder). The raw accessibility tree then shows a
+    bare ``- textbox`` the LLM can describe but not act on. This pass derives a name for each
+    such control from the visible label text next to it (see agent/legacy_locate.py), matching
+    the derived list against the tree's nameless control nodes in document order — the order
+    ``aria_snapshot()`` and ``querySelectorAll`` agree on. Mutates ``tree`` in place. If the two
+    lists don't line up (some controls did have names after all), only the aligned prefix is
+    enriched — a wrong name is worse than none.
+    """
+    fields: list[dict] = list(derive_unnamed_field_labels(page))
+    for frame in page.frames:
+        if frame != page.main_frame:
+            fields.extend(derive_unnamed_field_labels(frame))
+    if not fields:
+        return
+    nameless = _collect_nameless_control_nodes(tree)
+    for node, field in zip(nameless, fields):
+        label = (field or {}).get("label")
+        if label:
+            node["name"] = label
 
 
 def _find_nodes_by_role(node: dict, role: str) -> list[dict]:
