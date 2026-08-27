@@ -1,11 +1,11 @@
 {
   "capability_id": "meridian_open_share",
   "version": "1.0.0",
-  "created_from_run_id": "scripted_recorder",
-  "description": "Open a new share of a given type for a member with an initial deposit.",
+  "created_from_run_id": "run_ac5f4976ff",
+  "description": "On the Open New Share form set Share Type to the option starting 'MMKT', Initial Deposit to 5.00, and click Continue. Opening the share is irreversible, so call escalate for human approval first; after approval click 'Open Share' and finish.",
   "target": {
-    "app_name": "meridian-core",
-    "entry_point": "https://web-sample.interface-hiring.com/members/{member_id}/open-share",
+    "app_name": "mock-core-banking",
+    "entry_point": "https://web-sample.interface-hiring.com/members/100234/open-share",
     "surface_type": "legacy_web"
   },
   "risk_level": "risky",
@@ -17,7 +17,7 @@
     },
     "share_type": {
       "type": "string",
-      "description": "share type code: S0001 (Regular), S0070 (Checking), MMKT, or CERT"
+      "description": "share type code: S0001, S0070, MMKT, or CERT"
     },
     "deposit": {
       "type": "string",
@@ -25,7 +25,7 @@
     }
   },
   "output_schema": {
-    "confirmation": {
+    "confirmation_number": {
       "type": "string"
     }
   },
@@ -191,7 +191,7 @@
         "reasoning": "read-only value in a <td class='lbl'>Confirmation:</td><td>\u2026</td> row. Anchored on the label text, which is stable, rather than the value, which is exactly what differs on every run."
       },
       "value": null,
-      "extract_as": "confirmation",
+      "extract_as": "confirmation_number",
       "wait_policy": {
         "timeout_ms": 5000,
         "retry_count": 2,

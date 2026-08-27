@@ -1,0 +1,7 @@
+{
+  "reason": "Ready to open a new MMKT (Money Market) share for member 100234 - Lovelace, Ada with an initial deposit of $5.00. This action is irreversible (creates a new share record), so requesting human approval before clicking 'Open Share' to finalize.",
+  "current_url": "https://web-sample.interface-hiring.com/members/100234/open-share/review",
+  "screenshot_path": "evidence/escalation_run_ac5f4976ff.png",
+  "run_id": "run_ac5f4976ff",
+  "triggered_at": 1787825950.213496
+}

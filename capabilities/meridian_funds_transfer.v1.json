@@ -1,22 +1,23 @@
 {
   "capability_id": "meridian_funds_transfer",
   "version": "1.0.0",
-  "created_from_run_id": "scripted_recorder",
-  "description": "Transfer funds from one of a member's shares to another and post the transfer.",
+  "created_from_run_id": "run_d778e22c4f",
+  "description": "On the Funds Transfer form set From Share to the option starting '100234-MMKT-10', To Share to the option starting '100234-S0001-11', Amount to 1.00, Memo to 'recorded transfer', and click Continue to reach the confirmation screen. Posting is irreversible, so call escalate for human approval first; after approval click 'Post Transfer' and finish.",
   "target": {
-    "app_name": "meridian-core",
-    "entry_point": "https://web-sample.interface-hiring.com/members/{member_id}/transfer",
+    "app_name": "mock-core-banking",
+    "entry_point": "https://web-sample.interface-hiring.com/members/100234/transfer",
     "surface_type": "legacy_web"
   },
   "risk_level": "risky",
+  "requires_role": null,
   "input_schema": {
     "member_id": {
       "type": "string",
-      "description": "member number whose shares to move funds between"
+      "description": "member number"
     },
     "from_share": {
       "type": "string",
-      "description": "source share id, e.g. 100234-MMKT-13 (must be OPEN, not HOLD)"
+      "description": "source share id (must be OPEN, not HOLD)"
     },
     "to_share": {
       "type": "string",
@@ -28,7 +29,7 @@
     },
     "memo": {
       "type": "string",
-      "description": "free-text memo for the transfer"
+      "description": "free-text memo"
     }
   },
   "output_schema": {
@@ -260,10 +261,10 @@
         "fallbacks": [
           {
             "strategy": "text",
-            "text": "Confirmation:"
+            "text": "Confirmation"
           }
         ],
-        "reasoning": "read-only value in a <td class='lbl'>Confirmation:</td><td>\u2026</td> row. Anchored on the label text, which is stable, rather than the value, which is exactly what differs on every run."
+        "reasoning": "read the confirmation number from the <td class=lbl>Confirmation:</td><td>\u2026</td> row on the posted page, by the label (stable) not the value."
       },
       "value": null,
       "extract_as": "confirmation",

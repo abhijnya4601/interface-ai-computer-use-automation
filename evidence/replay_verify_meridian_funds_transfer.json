@@ -1,0 +1,13 @@
+{
+  "status": "hard_failure",
+  "outputs": {},
+  "business_outcome_code": null,
+  "failure_detail": {
+    "step_id": "s2",
+    "expected": "action to succeed",
+    "observed": "Locator.select_option: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"xpath=.//*[(self::td or self::th) and contains(concat(' ', normalize-space(@class), ' '), ' lbl ')][normalize-space(translate(., ':*', '')) = 'From Share']/following-sibling::*[self::td or self::th]//*[self::select]\").first\n    - locator resolved to <select class=\"fld\" name=\"from\">\u2026</select>\n  - attempting select option action\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n      - waiting 100ms\n    10 \u00d7 waiting for element to be visible and enabled\n       - did not find some options\n     - retrying select option action\n       - waiting 500ms\n",
+    "screenshot_ref": "evidence/replay_cli_1787826043859_failure_s2.png"
+  },
+  "evidence_ref": "evidence/replay_cli_1787826043859_failure_s2.png",
+  "recovery": null
+}

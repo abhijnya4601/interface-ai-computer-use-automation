@@ -1,11 +1,11 @@
 {
   "capability_id": "meridian_place_hold",
   "version": "1.0.0",
-  "created_from_run_id": "scripted_recorder",
-  "description": "Place a hold on one of a member's shares (reason code + notes). Supervisor only.",
+  "created_from_run_id": "run_f49c21b497",
+  "description": "On the Place Account Hold form set Share to the option starting '100234-MMKT-13', Reason Code to FRAUD, Notes to 'recorded demo hold', and click Continue. Placing a hold is irreversible, so call escalate for human approval first; after approval click 'Apply Hold' and finish.",
   "target": {
-    "app_name": "meridian-core",
-    "entry_point": "https://web-sample.interface-hiring.com/members/{member_id}/hold",
+    "app_name": "mock-core-banking",
+    "entry_point": "https://web-sample.interface-hiring.com/members/100234/hold",
     "surface_type": "legacy_web"
   },
   "risk_level": "risky",
@@ -94,40 +94,6 @@
       "target": {
         "strategy": "labeled_field",
         "primary": {
-          "label": "Reason Code",
-          "control_role": "combobox"
-        },
-        "fallbacks": [
-          {
-            "strategy": "field_name",
-            "name": "reason"
-          },
-          {
-            "strategy": "text",
-            "text": "Reason Code"
-          }
-        ],
-        "reasoning": "role='combobox' name='Reason Code' resolved to no element via the accessibility tree \u2014 this legacy surface gives its form controls no accessible name (no <label for>, aria-label, or placeholder). Resolved instead by the visible label text 'Reason Code' sitting next to the control, which is what a human reads on screen and does not depend on any class or id. Fallback tier is the control's server-contract name attribute 'reason' (load-bearing HTML the backend requires, not a test id)."
-      },
-      "value": {
-        "param_ref": "reason"
-      },
-      "extract_as": null,
-      "wait_policy": {
-        "timeout_ms": 5000,
-        "retry_count": 2,
-        "retry_on": [
-          "transient_load"
-        ]
-      },
-      "expected_outcomes": []
-    },
-    {
-      "step_id": "s4",
-      "action_type": "type",
-      "target": {
-        "strategy": "labeled_field",
-        "primary": {
           "label": "Notes",
           "control_role": "textbox"
         },
@@ -157,7 +123,7 @@
       "expected_outcomes": []
     },
     {
-      "step_id": "s5",
+      "step_id": "s4",
       "action_type": "click",
       "target": {
         "strategy": "role_name",
@@ -185,7 +151,7 @@
       "expected_outcomes": []
     },
     {
-      "step_id": "s6",
+      "step_id": "s5",
       "action_type": "click",
       "target": {
         "strategy": "role_name",
@@ -213,7 +179,7 @@
       "expected_outcomes": []
     },
     {
-      "step_id": "s7",
+      "step_id": "s6",
       "action_type": "extract",
       "target": {
         "strategy": "labeled_value",
@@ -223,10 +189,10 @@
         "fallbacks": [
           {
             "strategy": "text",
-            "text": "Confirmation:"
+            "text": "Confirmation"
           }
         ],
-        "reasoning": "read-only value in a <td class='lbl'>Confirmation:</td><td>\u2026</td> row. Anchored on the label text, which is stable, rather than the value, which is exactly what differs on every run."
+        "reasoning": "read the confirmation number from the <td class=lbl>Confirmation:</td><td>\u2026</td> row on the posted page, by the label (stable) not the value."
       },
       "value": null,
       "extract_as": "confirmation",

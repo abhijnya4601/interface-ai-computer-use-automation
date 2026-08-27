@@ -135,15 +135,29 @@ def generalize(capability: Capability, flow_key: str) -> Capability:
     required role, and (if given) a text-match checkpoint.
     """
     spec = FLOWS[flow_key]
-    lit_to_param = {
-        str(v): k for k, v in spec["rec_params"].items()
+    params = {
+        k: str(v) for k, v in spec["rec_params"].items()
         if not (k == "member_id" and spec.get("member_id_in_url", True))
     }
 
+    def _param_for(value: str) -> str | None:
+        """Map a recorded literal to a param name. Lenient about dropdown values: the model may
+        record the short option value ('100234-MMKT-10') or the full visible label
+        ('100234-MMKT-10 - Money Market ($2,947.00)') — and the label carries a balance that
+        goes stale. Match on exact, on the leading token before ' - ', or on prefix."""
+        v = value.strip()
+        head = v.split(" - ", 1)[0].strip()
+        for name, recval in params.items():
+            if v == recval or head == recval or v.startswith(recval + " "):
+                return name
+        return None
+
     capability.steps[0].value = spec["url_template"]
     for step in capability.steps:
-        if isinstance(step.value, str) and step.value in lit_to_param:
-            step.value = {"param_ref": lit_to_param[step.value]}
+        if isinstance(step.value, str):
+            name = _param_for(step.value)
+            if name:
+                step.value = {"param_ref": name}
     capability.risk_level = spec["risk_level"]
     capability.requires_role = spec["requires_role"]
     capability.input_schema = {
