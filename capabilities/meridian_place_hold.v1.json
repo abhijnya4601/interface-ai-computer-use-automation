@@ -94,6 +94,40 @@
       "target": {
         "strategy": "labeled_field",
         "primary": {
+          "label": "Reason Code",
+          "control_role": "combobox"
+        },
+        "fallbacks": [
+          {
+            "strategy": "field_name",
+            "name": "reason"
+          },
+          {
+            "strategy": "text",
+            "text": "Reason Code"
+          }
+        ],
+        "reasoning": "select the Reason Code dropdown by its visible label (added post-discovery: the discovery run left 'reason' unset, so a caller supplying it had no effect)."
+      },
+      "value": {
+        "param_ref": "reason"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": []
+    },
+    {
+      "step_id": "s4",
+      "action_type": "type",
+      "target": {
+        "strategy": "labeled_field",
+        "primary": {
           "label": "Notes",
           "control_role": "textbox"
         },
@@ -123,7 +157,7 @@
       "expected_outcomes": []
     },
     {
-      "step_id": "s4",
+      "step_id": "s5",
       "action_type": "click",
       "target": {
         "strategy": "role_name",
@@ -151,7 +185,7 @@
       "expected_outcomes": []
     },
     {
-      "step_id": "s5",
+      "step_id": "s6",
       "action_type": "click",
       "target": {
         "strategy": "role_name",
@@ -179,7 +213,7 @@
       "expected_outcomes": []
     },
     {
-      "step_id": "s6",
+      "step_id": "s7",
       "action_type": "extract",
       "target": {
         "strategy": "labeled_value",

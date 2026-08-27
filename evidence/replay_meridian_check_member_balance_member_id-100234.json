@@ -1,9 +1,9 @@
 {
   "status": "success",
   "outputs": {
-    "share_id": "100987-S0001",
+    "share_id": "100234-S0001",
     "share_type": "Regular Shares",
-    "balance": "$50.00",
+    "balance": "$2,500.00",
     "status": "OPEN"
   },
   "business_outcome_code": null,

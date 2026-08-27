@@ -1,10 +1,7 @@
 {
   "status": "success",
   "outputs": {
-    "share_id": "100987-S0001",
-    "share_type": "Regular Shares",
-    "balance": "$50.00",
-    "status": "OPEN"
+    "confirmation": "CN480010"
   },
   "business_outcome_code": null,
   "failure_detail": null,
