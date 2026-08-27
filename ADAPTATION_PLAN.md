@@ -188,11 +188,14 @@ routed to the operator console."). One model call per turn, tools only.
 - New: `labeled_value` locator strategy; `_resolve_value` URL templating; perception token cap;
   `scripts/run_meridian.py` session-aware replay CLI.
 
-**Phase C — error taxonomy (criterion #3, do not cut)**
-- C1 HTTP-status capture + global status→classification map.
-- C2 per-capability body-text business outcomes.
-- C3 verify each: `?inject=notfound|validation|permission|maintenance|server` on transfer +
-  natural overdraw + `inject=timeout` → `SESSION_EXPIRED`. One evidence file each.
+**Phase C — error taxonomy — ✅ DONE (D40), full matrix verified live**
+- C1 ✅ `surface/outcomes.py` + `surface/meridian_outcomes.yaml` — per-TARGET profile (replaces
+  the per-capability-id `_KNOWN_OUTCOMES` dict). HTTP-status map + body-text conditions,
+  body-first precedence. `replay/engine.py` captures main-frame HTTP status.
+- C2 ✅ natural business outcomes: `MEMBER_NOT_FOUND`, `SOURCE_SHARE_ON_HOLD`, `INSUFFICIENT_FUNDS`.
+- C3 ✅ every `--inject` kind (400/403/404/440/503/500) on both mandated capabilities +
+  natural cases. Evidence: `evidence/replay_c_inj_*`, `replay_t_*`. `scripts/run_meridian.py
+  --inject`, `scripts/meridian_inject.py`.
 
 **Phase D — wrappers**
 - D1 Flask API + `runs.jsonl` registry.
