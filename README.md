@@ -10,10 +10,10 @@ See [`REPORT.md`](REPORT.md) for the design write-up, including the trade-offs m
 real bugs found while building this — what broke and how they were fixed.
 
 > **Adaptation project — MERIDIAN CORE.** This same core has been pointed at the hosted legacy
-> target `web-sample.interface-hiring.com` and wrapped as an **API + chatbot + dashboard**. If
-> that's what you're here for, jump to [§8. MERIDIAN CORE adaptation](#8-meridian-core-adaptation)
-> and read [`ADAPTATION.md`](ADAPTATION.md) (the ~2-page write-up). The rest of this README is the
-> original take-home against the local mock app.
+> target `web-sample.interface-hiring.com` and wrapped as an **API + chatbot + dashboard**. For
+> the design, read [`ADAPTATION.md`](ADAPTATION.md) (~2 pages). To run the live demo end to end,
+> follow [`DEMO.md`](DEMO.md). Section [§8](#8-meridian-core-adaptation) below is the short
+> version. The rest of this README is the original take-home against the local mock app.
 
 **A note for Windows users:** every terminal command block below that needs a different form on
 Windows has a collapsed **Windows (PowerShell)** toggle directly underneath it — click it to
