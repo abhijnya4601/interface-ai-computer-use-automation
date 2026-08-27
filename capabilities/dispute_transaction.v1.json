@@ -1,8 +1,8 @@
 {
   "capability_id": "dispute_transaction",
   "version": "1.0.0",
-  "created_from_run_id": "run_28f22f1fe0",
-  "description": "File a dispute for member 12345's most recent transaction, reason 'unauthorized charge'.",
+  "created_from_run_id": "run_afa6e8b3d8",
+  "description": "File a dispute for member 23456's most recent transaction, reason 'duplicate charge'.",
   "target": {
     "app_name": "mock-core-banking",
     "entry_point": "http://localhost:5050/search",
@@ -181,7 +181,7 @@
             "text": "Dispute"
           }
         ],
-        "reasoning": "role='link' name='Dispute' matched 4 elements \u2014 not unique. Resolved structurally as the first (index 0) match in DOM order, since that is what the discovery agent actually acted on. Weaker than tier 1: only reliable if replay's runtime page produces matches in the same order."
+        "reasoning": "role='link' name='Dispute' matched 2 elements \u2014 not unique. Resolved structurally as the first (index 0) match in DOM order, since that is what the discovery agent actually acted on. Weaker than tier 1: only reliable if replay's runtime page produces matches in the same order."
       },
       "value": null,
       "extract_as": null,
@@ -211,7 +211,7 @@
         ],
         "reasoning": "role='textbox' name='Reason for dispute' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
-      "value": "unauthorized charge",
+      "value": "duplicate charge",
       "extract_as": null,
       "wait_policy": {
         "timeout_ms": 5000,

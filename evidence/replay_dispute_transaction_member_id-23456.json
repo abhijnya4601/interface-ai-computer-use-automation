@@ -1,0 +1,12 @@
+{
+  "status": "hard_failure",
+  "outputs": {},
+  "business_outcome_code": null,
+  "failure_detail": {
+    "step_id": "s7",
+    "expected": "element for {'role': 'textbox', 'name': 'Reason for dispute'}",
+    "observed": "no element resolved on the live page",
+    "screenshot_ref": "evidence/replay_replay_1787238493200_failure_s7.png"
+  },
+  "evidence_ref": "evidence/replay_replay_1787238493200_failure_s7.png"
+}

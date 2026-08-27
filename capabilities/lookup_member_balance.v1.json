@@ -1,7 +1,7 @@
 {
   "capability_id": "lookup_member_balance",
   "version": "1.0.0",
-  "created_from_run_id": "run_150cea0c47",
+  "created_from_run_id": "run_bbdee94e7a",
   "description": "Look up member 12345 and read their current savings balance.",
   "target": {
     "app_name": "mock-core-banking",

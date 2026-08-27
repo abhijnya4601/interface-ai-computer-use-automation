@@ -1,0 +1,7 @@
+{
+  "reason": "Ready to submit dispute for member 23456's most recent transaction (2026-08-12, Online Transfer Out, -50.00) with reason 'duplicate charge'. This is a state-changing, hard-to-reverse action (filing a formal dispute), so per policy I need human confirmation before clicking 'Submit Dispute'.",
+  "current_url": "http://localhost:5050/member/23456/transactions/5/dispute",
+  "screenshot_path": "evidence/escalation_run_afa6e8b3d8.png",
+  "run_id": "run_afa6e8b3d8",
+  "triggered_at": 1787235859.444491
+}
