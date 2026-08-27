@@ -218,6 +218,7 @@ def dashboard():
         rid = html.escape(r.get("run_id", ""))
         run_rows += (
             f"<tr><td><a href='{url_for('run_page', run_id=rid)}'>{rid}</a></td>"
+            f"<td>{html.escape(r.get('kind',''))}</td>"
             f"<td>{html.escape(r.get('capability_id',''))}</td>"
             f"<td>{_status_badge(r.get('status'))}"
             f"{(' <span class=muted>'+html.escape(str(r.get('business_outcome_code')))+'</span>') if r.get('business_outcome_code') else ''}</td>"
@@ -233,8 +234,8 @@ def dashboard():
 <main>
 <h2>Capabilities ({len(caps)})</h2>
 <table><tr><th>id</th><th>what it does</th><th>risk</th><th>role</th><th>inputs</th></tr>{cap_rows}</table>
-<h2>Runs (newest first, auto-refresh 4s)</h2>
-<table><tr><th>run</th><th>capability</th><th>status</th><th>params</th><th>outputs</th><th>dur</th><th>at</th></tr>{run_rows or '<tr><td colspan=7 class=muted>no runs yet</td></tr>'}</table>
+<h2>Runs — discovery &amp; replay, newest first (auto-refresh 4s)</h2>
+<table><tr><th>run</th><th>kind</th><th>capability</th><th>status</th><th>params</th><th>outputs</th><th>dur</th><th>at</th></tr>{run_rows or '<tr><td colspan=8 class=muted>no runs yet</td></tr>'}</table>
 </main>"""
 
 

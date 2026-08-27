@@ -288,6 +288,7 @@ def main():
         # wait so the run fails cleanly with status=escalation_timeout and still writes its
         # transcript.
         esc_wait = None if (args.auto_approve_escalation or args.open_console_on_escalation) else 150.0
+        discovery_started = time.time()
         result = run_discovery(goal=args.goal, target_url=args.target, page=page,
                                 max_steps=args.max_steps, escalation_max_wait_s=esc_wait)
 
@@ -306,6 +307,20 @@ def main():
             for entry in result.transcript:
                 f.write(json.dumps(redact(entry), default=str) + "\n")
         print(f"transcript saved to {transcript_path}")
+
+        # the run registry the dashboard reads holds discovery AND replay runs (brief §3.4)
+        from agent_interface.runs import record_run
+        record_run(
+            result.run_id, "discovery", args.capability_id,
+            status=result.status, outputs=result.outputs,
+            business_outcome_code=result.business_outcome_code,
+            started_at=discovery_started,
+            tier_log=result.recorder.tier_log if result.recorder else [],
+            evidence_refs=[transcript_path.name]
+            + [p.name for p in sorted(EVIDENCE_DIR.glob(f"*{result.run_id}*"))
+               if p.name != transcript_path.name],
+            extra={"goal": args.goal, "target": args.target},
+        )
 
         if result.status in ("success", "business_outcome"):
             checkpoint = CHECKPOINTS.get(
