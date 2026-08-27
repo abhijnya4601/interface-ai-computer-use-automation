@@ -713,11 +713,18 @@ ENV
 python scripts/record_meridian_signon.py
 ```
 
-The 7 §2.1 capabilities are already committed under `capabilities/meridian_*.json`. To
-re-record the fixed-form ones: `python scripts/record_meridian_flow.py all`. The one produced by
-a real LLM discovery run is `meridian_check_member_balance`
-(`python scripts/run_discovery.py --goal "…" --target https://web-sample.interface-hiring.com/members --capability-id meridian_check_member_balance --headless`
-— it auto-signs-on first).
+All 7 §2.1 capabilities are committed under `capabilities/meridian_*.json` and each was
+produced by a **real LLM discovery run** (`created_from_run_id` in the file; transcripts in
+`evidence/discovery_run_*.jsonl`). To re-discover them all:
+
+```bash
+python scripts/discover_all_meridian.py          # one Anthropic-driven run per function,
+                                                 # then surface/meridian_flows.py generalize()
+```
+
+`generalize()` turns a freshly-discovered capability (concrete member id in the URL, concrete
+form values) into a parameterised one: `{member_id}` URL template, recorded literals -> typed
+params, risk level, required role, checkpoint.
 
 ### Demo path
 

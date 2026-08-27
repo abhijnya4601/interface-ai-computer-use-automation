@@ -3,7 +3,7 @@
 The take-home core (discover → typed capability artifact → deterministic replay, with guardrails,
 evidence, escalation) pointed at the hosted legacy target `web-sample.interface-hiring.com`, its
 full §2.1 surface covered, and wrapped as **API → chatbot → dashboard**. Every decision and the
-bugs found along the way are in `DECISIONS.md` (D36–D42); this is the summary.
+bugs found along the way are in `DECISIONS.md` (D36–D44); this is the summary.
 
 ## 1. What adapting took, and what changed in the core
 
@@ -42,9 +42,10 @@ shared long-lived session (idle-timeout breaks unrelated invokes) were both reje
 
 **Other core changes**, all small and defended in `DECISIONS.md`: `execute_extract` /
 `_extract_value` return a data-table cell's own text (the take-home's row-relative heuristic is
-right only for a `<th scope=row>` label); a successful `extract` or `type` no longer trips the
-dead-end detector (a read / a `<select>` change doesn't move MERIDIAN's tree); `trigger_escalation`
-takes a bounded `max_wait_s` so an unattended run can't block forever.
+right only for a `<th scope=row>` label); perception collapses a `<select>`'s option list to a hint string and surfaces every control's
+current value, and a successful `extract`/`type` no longer trips the dead-end detector — without
+these three, a discovery run filling a MERIDIAN form (dropdowns, pre-filled inputs) dead-ends;
+`trigger_escalation` takes a bounded `max_wait_s` so an unattended run can't block forever.
 
 ## 2. The capability API
 
@@ -148,13 +149,13 @@ recover, couldn't, safe to retry the whole run later". Verified live both ways: 
 ## 5. Cuts, and what's next
 
 **Cut, deliberately:**
-- **Discovery for every function.** One real LLM discovery run (`meridian_check_member_balance`,
-  `discovery_run_f9e05c9d33`) demonstrates the loop against MERIDIAN. The other fixed-form
-  capabilities are recorded with a scripted recorder — the browser actions are real, only *which*
-  actions is scripted — because they're non-branching forms and burning API budget (and an
-  irreversible POST) to re-derive a known flow is a poor trade. A name-search discovery attempt
-  dead-ended on the `<select>` and is kept as evidence (`discovery_run_337512dba3`).
-- **Bounded auto-recovery on `SESSION_EXPIRED`** — detected and reported, not healed.
+- **A small `generalize()` pass after discovery.** All 7 §2.1 capabilities come from a real
+  LLM discovery run (`scripts/discover_all_meridian.py`), but a freshly-discovered capability
+  has a concrete member id in its entry URL and concrete values in its form steps. A
+  `surface/meridian_flows.py::generalize()` pass rewrites the URL to a `{member_id}` template,
+  maps each recorded literal to a typed param, and sets the risk level / required role /
+  checkpoint. This is a deliberate seam, not per-run hand-editing: the same spec would drive a
+  discovery-time parameter-naming step in a fuller system.
 - **Concurrency** — one browser, one lock; invokes queue.
 - **Dashboard auth** — read-only over synthetic data; the operator console keeps its auth.
 - **Real KMS** for at-rest encryption — carried over from the take-home.
