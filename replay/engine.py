@@ -269,10 +269,78 @@ def _apply_wait_policy(page, step: Step):
             continue
 
 
+def _perform_action(step: Step, page, params: dict, run_ctx: dict, outputs: dict) -> None:
+    """Re-perform just this step's action (no outcome check). Used by the recovery retry loop
+    (_resolve_outcome). Best-effort — swallows errors so the retry loop, not this, decides."""
+    try:
+        if step.action_type == "navigate":
+            run_ctx["http_status"] = None
+            resp = page.goto(_resolve_value(step.value, params), timeout=step.wait_policy.timeout_ms)
+            run_ctx["http_status"] = resp.status if resp is not None else None
+            return
+        run_ctx["http_status"] = None
+        loc, _ = _locate(page, step.target)
+        if loc is None:
+            return
+        if step.action_type == "click":
+            loc.click(timeout=step.wait_policy.timeout_ms)
+            try:
+                page.wait_for_load_state("load", timeout=step.wait_policy.timeout_ms)
+            except Exception:
+                pass
+        elif step.action_type in ("type", "select"):
+            v = _resolve_value(step.value, params)
+            try:
+                loc.fill(v, timeout=step.wait_policy.timeout_ms)
+            except Exception:
+                loc.select_option(v, timeout=step.wait_policy.timeout_ms)
+        elif step.action_type == "extract":
+            outputs[step.extract_as] = _extract_value(
+                loc, step.target.strategy if step.target else None)
+    except Exception:
+        pass
+
+
+def _resolve_outcome(outcome: ExpectedOutcome, step: Step, page, params: dict, run_ctx: dict,
+                     outputs: dict, recovery_log: list, reauth) -> Result | None:
+    """
+    Turn a detected outcome into a short-circuit Result — OR, for a `recoverable` outcome that
+    declares a `recovery`, actually attempt the recovery (retry the step, or re-authenticate and
+    retry) up to N times. Returns None if recovery cleared it (caller continues the run), a
+    Result otherwise. A plain `recoverable` with no `recovery` still just stops
+    (`recoverable_handled`).
+    """
+    if not (outcome.classification == "recoverable" and outcome.recovery):
+        return _outcome_to_result(outcome, outputs)
+
+    action = outcome.recovery.get("action", "retry")
+    attempts = int(outcome.recovery.get("max_attempts", 1))
+    backoff = float(outcome.recovery.get("backoff_ms", 500)) / 1000.0
+    for i in range(1, attempts + 1):
+        time.sleep(backoff)
+        if action == "reauth_and_retry" and reauth is not None:
+            try:
+                reauth()
+            except Exception:
+                pass
+        _perform_action(step, page, params, run_ctx, outputs)
+        again = _check_expected_outcomes(step, page, run_ctx)
+        if again is None or again.classification == "business_outcome":
+            recovery_log.append({"step_id": step.step_id, "code": outcome.code,
+                                 "action": action, "attempts": i, "outcome": "recovered"})
+            return _outcome_to_result(again, outputs) if again is not None else None
+    recovery_log.append({"step_id": step.step_id, "code": outcome.code,
+                         "action": action, "attempts": attempts, "outcome": "gave_up"})
+    return _outcome_to_result(outcome, outputs)
+
+
 def _execute_step(step: Step, page, params: dict, tier_log: list, outputs: dict, run_id: str,
-                  run_ctx: dict) -> Result | None:
+                  run_ctx: dict, recovery_log: list, reauth=None) -> Result | None:
     """Returns a Result to short-circuit the run (business outcome / recoverable / hard
     failure), or None to continue to the next step."""
+
+    def _resolve(outcome):
+        return _resolve_outcome(outcome, step, page, params, run_ctx, outputs, recovery_log, reauth)
 
     if step.action_type == "navigate":
         url = _resolve_value(step.value, params)
@@ -283,12 +351,12 @@ def _execute_step(step: Step, page, params: dict, tier_log: list, outputs: dict,
         except Exception as exc:
             outcome = _check_expected_outcomes(step, page, run_ctx)
             if outcome:
-                return _outcome_to_result(outcome, outputs)
+                return _resolve(outcome)
             return _hard_failure(page, run_id, step.step_id, f"navigate to {url}", str(exc))
         _apply_wait_policy(page, step)
         outcome = _check_expected_outcomes(step, page, run_ctx)
         if outcome:
-            return _outcome_to_result(outcome, outputs)
+            return _resolve(outcome)
         return None
 
     if step.action_type in ("click", "type", "select", "extract"):
@@ -300,7 +368,7 @@ def _execute_step(step: Step, page, params: dict, tier_log: list, outputs: dict,
         if locator is None:
             outcome = _check_expected_outcomes(step, page, run_ctx)
             if outcome:
-                return _outcome_to_result(outcome, outputs)
+                return _resolve(outcome)
             return _hard_failure(
                 page, run_id, step.step_id,
                 f"element for {step.target.primary}", "no element resolved on the live page",
@@ -321,7 +389,7 @@ def _execute_step(step: Step, page, params: dict, tier_log: list, outputs: dict,
         except Exception as exc:
             outcome = _check_expected_outcomes(step, page, run_ctx)
             if outcome:
-                return _outcome_to_result(outcome, outputs)
+                return _resolve(outcome)
             return _hard_failure(page, run_id, step.step_id, "action to succeed", str(exc))
 
         if step.action_type == "click":
@@ -339,7 +407,7 @@ def _execute_step(step: Step, page, params: dict, tier_log: list, outputs: dict,
         # hard_failure (a 500 after a technically-successful navigation is still a hard failure).
         outcome = _check_expected_outcomes(step, page, run_ctx)
         if outcome:
-            return _outcome_to_result(outcome, outputs)
+            return _resolve(outcome)
         return None
 
     if step.action_type == "wait_for":
@@ -437,7 +505,8 @@ def _last_click_step_id(capability: Capability) -> str | None:
 def _walk_capability(capability: Capability, params: dict, page, run_id: str,
                      tier_log: list, outputs: dict,
                      escalate_before: str | None = None,
-                     escalation_max_wait_s: float | None = None) -> Result:
+                     escalation_max_wait_s: float | None = None,
+                     reauth=None) -> Result:
     """Walk the capability's Steps against a live `page` and verify the checkpoint. No browser
     lifecycle here — the caller owns the page (see `replay`, and `agent/session.py` which runs a
     signon capability then a target capability on one shared authenticated context).
@@ -448,6 +517,13 @@ def _walk_capability(capability: Capability, params: dict, page, run_id: str,
     caller-supplied `confirm=True`.
     """
     run_ctx = {"profile": profile_for(capability.target), "http_status": None}
+    recovery_log: list[dict] = []
+
+    def _done(result: Result) -> Result:
+        if recovery_log:
+            result.recovery = recovery_log
+        return result
+
     # capture the main-frame document HTTP status of click-triggered navigations (page.goto's
     # status is read directly in _execute_step)
     def _on_response(resp):
@@ -473,7 +549,7 @@ def _walk_capability(capability: Capability, params: dict, page, run_id: str,
                 decision = lease.context.get("decision")
                 note = lease.context.get("human_actions_summary", "")
                 if decision != "approved":
-                    return Result(
+                    return _done(Result(
                         status="escalated",
                         business_outcome_code=None,
                         failure_detail=redact({
@@ -481,27 +557,28 @@ def _walk_capability(capability: Capability, params: dict, page, run_id: str,
                             "expected": "operator approval of the irreversible action",
                             "observed": f"operator decision={decision!r} ({note or 'no note'})",
                         }),
-                    )
+                    ))
 
             action_url = _resolve_value(step.value, params) if step.action_type == "navigate" else None
             try:
                 guardrail_check({"type": step.action_type, "url": action_url},
                                  current_url=page.url, phase="replay")
             except GuardrailViolation as exc:
-                return _hard_failure(page, run_id, step.step_id, "action within allowlist", str(exc))
+                return _done(_hard_failure(page, run_id, step.step_id, "action within allowlist", str(exc)))
             except KeyError as exc:
-                return _hard_failure(page, run_id, step.step_id, "all required params provided", str(exc))
+                return _done(_hard_failure(page, run_id, step.step_id, "all required params provided", str(exc)))
 
-            result = _execute_step(step, page, params, tier_log, outputs, run_id, run_ctx)
+            result = _execute_step(step, page, params, tier_log, outputs, run_id, run_ctx,
+                                   recovery_log, reauth)
             if result is not None:
-                return result
+                return _done(result)
 
         if not _verify_checkpoint(capability, page):
-            return _hard_failure(
+            return _done(_hard_failure(
                 page, run_id, "checkpoint", capability.checkpoint.expected,
                 f"checkpoint not satisfied at final url {page.url}",
-            )
-        return Result(status="success", outputs=redact(outputs))
+            ))
+        return _done(Result(status="success", outputs=redact(outputs)))
     finally:
         try:
             page.remove_listener("response", _on_response)
@@ -518,6 +595,7 @@ def replay(
     page=None,
     risky_mode: str = "confirm",
     escalation_max_wait_s: float | None = None,
+    reauth=None,
 ) -> Result:
     """
     Deterministic, no-LLM replay of a capability. Owns its own Playwright browser unless `page`
@@ -552,6 +630,7 @@ def replay(
     _walk = lambda pg: _walk_capability(  # noqa: E731
         capability, params, pg, run_id, tier_log, outputs,
         escalate_before=escalate_before, escalation_max_wait_s=escalation_max_wait_s,
+        reauth=reauth,
     )
 
     if page is not None:

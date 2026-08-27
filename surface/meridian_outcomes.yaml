@@ -27,11 +27,13 @@ http_status:
   440:
     classification: recoverable
     code: SESSION_EXPIRED
-    detail: "operator session expired mid-flow; a fresh sign-on is required before the run can be retried"
+    detail: "operator session expired mid-flow; re-authenticate and retry the step"
+    recovery: {action: reauth_and_retry, max_attempts: 1}
   503:
     classification: recoverable
     code: MAINTENANCE
-    detail: "unexpected maintenance interstitial; the whole run is safe to retry later"
+    detail: "maintenance interstitial; retry the request a few times, then give up"
+    recovery: {action: retry, max_attempts: 3, backoff_ms: 700}
   500:
     classification: hard_failure
     code: SERVER_ERROR

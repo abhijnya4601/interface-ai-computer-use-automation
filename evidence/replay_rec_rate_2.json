@@ -1,0 +1,21 @@
+{
+  "status": "hard_failure",
+  "outputs": {},
+  "business_outcome_code": null,
+  "failure_detail": {
+    "step_id": "s8",
+    "expected": "element for {'label': 'Confirmation'}",
+    "observed": "no element resolved on the live page",
+    "screenshot_ref": "evidence/replay_cli_1787823367474_failure_s8.png"
+  },
+  "evidence_ref": "evidence/replay_cli_1787823367474_failure_s8.png",
+  "recovery": [
+    {
+      "step_id": "s7",
+      "code": "SESSION_EXPIRED",
+      "action": "reauth_and_retry",
+      "attempts": 1,
+      "outcome": "recovered"
+    }
+  ]
+}

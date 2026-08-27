@@ -1,0 +1,21 @@
+{
+  "status": "hard_failure",
+  "outputs": {},
+  "business_outcome_code": null,
+  "failure_detail": {
+    "step_id": "s7",
+    "expected": "element for {'role': 'button', 'name': 'Post Transfer'}",
+    "observed": "no element resolved on the live page",
+    "screenshot_ref": "evidence/replay_cli_1787823405170_failure_s7.png"
+  },
+  "evidence_ref": "evidence/replay_cli_1787823405170_failure_s7.png",
+  "recovery": [
+    {
+      "step_id": "s6",
+      "code": "MAINTENANCE",
+      "action": "retry",
+      "attempts": 1,
+      "outcome": "recovered"
+    }
+  ]
+}

@@ -109,10 +109,18 @@ Verified live, full matrix (evidence in `evidence/replay_c_inj_*`, `replay_t_*`,
 | bad email on update (natural) | 400 | business_outcome | `INVALID_CONTACT` |
 | teller attempts Place Hold | 403 | business_outcome | `PERMISSION_DENIED` |
 
-`recoverable_handled` stops cleanly (it does not silently retry) — for a banking replay engine an
-unrecognised retry is the wrong instinct; the caller gets a status distinct from `hard_failure`
-meaning "safe to retry the whole run later". Bounded auto-recovery on `SESSION_EXPIRED` is a
-named next step, not built.
+**Recovery is bounded and declared, never open-ended.** A recoverable outcome in
+`surface/meridian_outcomes.yaml` carries a `recovery` hint: `503 MAINTENANCE` →
+`{action: retry, max_attempts: 3, backoff_ms: 700}`, `440 SESSION_EXPIRED` →
+`{action: reauth_and_retry, max_attempts: 1}` (re-runs the `meridian_signon` capability on the
+same page, then retries the step). `replay()` performs exactly that — re-executes the failed
+step up to N times, re-checking after each. If it clears, the run **continues** and can still end
+`success`; the `Result.recovery` list records `{step_id, code, action, attempts, outcome}`. If it
+doesn't clear (a *forced* `?inject=` fault never will), replay stops at `recoverable_handled`
+with the same log — the caller gets a status distinct from `hard_failure` meaning "I tried to
+recover, couldn't, safe to retry the whole run later". Verified live both ways: forced
+`--inject maintenance` → retry ×3 → `gave_up`; a transient error-rate 503/440 mid-transfer →
+`recovered`, run continues.
 
 ## 4. Safety, evidence, escalation through the new surface
 

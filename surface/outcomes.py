@@ -68,5 +68,6 @@ def classify(profile: dict | None, http_status: int | None, body: str) -> Expect
                 classification=entry["classification"],
                 code=entry.get("code"),
                 handling=entry.get("detail"),
+                recovery=entry.get("recovery"),
             )
     return None

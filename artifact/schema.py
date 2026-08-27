@@ -58,6 +58,15 @@ class ExpectedOutcome(BaseModel):
     classification: Literal["business_outcome", "recoverable", "hard_failure"]
     code: str | None = Field(default=None, description='e.g. "MEMBER_NOT_FOUND"')
     handling: str | None = Field(default=None, description='e.g. "dismiss and retry"')
+    recovery: dict | None = Field(
+        default=None,
+        description=(
+            "for classification='recoverable': how replay should try to recover before giving "
+            'up, e.g. {"action": "retry", "max_attempts": 3, "backoff_ms": 700} or '
+            '{"action": "reauth_and_retry", "max_attempts": 1}. Absent -> detect and stop '
+            "(report recoverable_handled), do not retry."
+        ),
+    )
 
 
 class WaitPolicy(BaseModel):
@@ -126,3 +135,12 @@ class Result(BaseModel):
         default=None, description="{step_id, expected, observed, screenshot_ref}"
     )
     evidence_ref: str | None = None
+    recovery: list[dict] | None = Field(
+        default=None,
+        description=(
+            "populated when replay hit a recoverable condition and acted on it: one entry per "
+            'step it recovered (or gave up) at — {step_id, code, action, attempts, outcome: '
+            '"recovered"|"gave_up"}. A run can still be status="success" if every recoverable '
+            "condition cleared."
+        ),
+    )

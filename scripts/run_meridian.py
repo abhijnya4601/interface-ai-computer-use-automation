@@ -69,7 +69,7 @@ def main() -> int:
     record_run(
         run_id, "replay", capability.capability_id, status=result.status, params=params,
         outputs=result.outputs, business_outcome_code=result.business_outcome_code,
-        failure_detail=result.failure_detail, started_at=started,
+        failure_detail=result.failure_detail, started_at=started, recovery=result.recovery,
         evidence_refs=[p.name for p in sorted(EVIDENCE_DIR.glob(f"*{run_id}*"))],
         extra={"via": "cli", "inject": args.inject},
     )
@@ -78,6 +78,8 @@ def main() -> int:
     print(f"outputs: {result.outputs}")
     print(f"business_outcome_code: {result.business_outcome_code}")
     print(f"failure_detail: {result.failure_detail}")
+    if result.recovery:
+        print(f"recovery: {result.recovery}")
 
     EVIDENCE_DIR.mkdir(exist_ok=True)
     label = args.label or (

@@ -144,3 +144,90 @@ def test_locate_table_position_returns_none_with_missing_row_index():
 
 def test_locate_table_position_returns_none_with_missing_column_index():
     assert _locate_table_position(None, {"table_headers": ["Date"], "row_index": 0}) is None
+
+
+# ---- _resolve_outcome: recoverable recovery (retry / reauth+retry) --------------------------
+
+from replay.engine import _resolve_outcome, _perform_action  # noqa: E402
+from artifact.schema import Step, LocatorTarget  # noqa: E402
+
+
+class _FakePage:
+    """A page whose main-frame document status is scripted per navigation."""
+    def __init__(self, statuses, content=""):
+        self._statuses = list(statuses)
+        self._content = content
+        self.url = "https://web-sample.interface-hiring.com/members"
+
+    def goto(self, *a, **k):
+        self._cur = self._statuses.pop(0) if self._statuses else 200
+        class _R:  # noqa
+            status = self._cur
+        return _R()
+
+    def content(self):
+        return self._content
+
+    def wait_for_load_state(self, *a, **k):
+        pass
+
+
+MERIDIAN_TARGET = {"app_name": "meridian-core",
+                   "entry_point": "https://web-sample.interface-hiring.com/members",
+                   "surface_type": "legacy_web"}
+
+
+def _nav_step():
+    return Step(step_id="s1", action_type="navigate",
+               value="https://web-sample.interface-hiring.com/members")
+
+
+def _run_ctx():
+    from surface.outcomes import profile_for
+    from artifact.schema import TargetSpec
+    return {"profile": profile_for(TargetSpec(**MERIDIAN_TARGET)), "http_status": None}
+
+
+def test_recovery_retry_clears_a_transient_503_and_continues():
+    # 503 on the first check, then the retry navigation returns 200 -> recovered, run continues
+    page = _FakePage(statuses=[200])  # the retry goto() returns 200
+    ctx = _run_ctx()
+    ctx["http_status"] = 503
+    from surface.outcomes import classify
+    outcome = classify(ctx["profile"], 503, "")
+    rec_log = []
+    result = _resolve_outcome(outcome, _nav_step(), page, {}, ctx, {}, rec_log, reauth=None)
+    assert result is None                       # None => caller continues the run
+    assert rec_log == [{"step_id": "s1", "code": "MAINTENANCE", "action": "retry",
+                        "attempts": 1, "outcome": "recovered"}]
+
+
+def test_recovery_retry_gives_up_after_max_attempts():
+    page = _FakePage(statuses=[503, 503, 503])  # every retry still 503
+    ctx = _run_ctx()
+    ctx["http_status"] = 503
+    from surface.outcomes import classify
+    outcome = classify(ctx["profile"], 503, "")
+    rec_log = []
+    result = _resolve_outcome(outcome, _nav_step(), page, {}, ctx, {}, rec_log, reauth=None)
+    assert result.status == "recoverable_handled"
+    assert rec_log[-1]["outcome"] == "gave_up" and rec_log[-1]["attempts"] == 3
+
+
+def test_recovery_reauth_and_retry_calls_the_reauth_hook():
+    page = _FakePage(statuses=[200])
+    ctx = _run_ctx()
+    ctx["http_status"] = 440
+    from surface.outcomes import classify
+    outcome = classify(ctx["profile"], 440, "")
+    calls = []
+    result = _resolve_outcome(outcome, _nav_step(), page, {}, ctx, {}, [],
+                              reauth=lambda: calls.append(1))
+    assert calls == [1]          # the reauth hook fired
+    assert result is None        # then the retry cleared
+
+
+def test_plain_recoverable_with_no_recovery_hint_still_just_stops():
+    outcome = ExpectedOutcome(condition="x", classification="recoverable", code="X")  # no `recovery`
+    result = _resolve_outcome(outcome, _nav_step(), None, {}, {}, {}, [], reauth=None)
+    assert result.status == "recoverable_handled"

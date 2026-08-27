@@ -30,6 +30,7 @@ def record_run(
     started_at: float | None = None,
     tier_log: list | None = None,
     evidence_refs: list[str] | None = None,
+    recovery: list | None = None,
     extra: dict | None = None,
 ) -> dict:
     now = time.time()
@@ -47,6 +48,7 @@ def record_run(
         "duration_s": round(now - started_at, 2) if started_at else None,
         "tier_log": tier_log or [],
         "evidence_refs": evidence_refs or [],
+        "recovery": recovery or None,
     }
     if extra:
         entry.update(extra)

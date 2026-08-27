@@ -107,7 +107,7 @@ def _do_invoke(cap: Capability, args: dict, role: str | None) -> tuple[dict, int
         run_id, "replay", cap.capability_id,
         status=result.status, params=args, outputs=result.outputs,
         business_outcome_code=result.business_outcome_code,
-        failure_detail=result.failure_detail, started_at=started,
+        failure_detail=result.failure_detail, started_at=started, recovery=result.recovery,
         evidence_refs=_evidence_refs_for(run_id),
         extra={"via": "api"},
     )

@@ -1,0 +1,11 @@
+{
+  "status": "hard_failure",
+  "outputs": {},
+  "business_outcome_code": "SERVER_ERROR",
+  "failure_detail": {
+    "expected": "a recoverable/handled state",
+    "observed": "HTTP 500"
+  },
+  "evidence_ref": null,
+  "recovery": null
+}

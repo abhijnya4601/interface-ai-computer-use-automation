@@ -114,8 +114,14 @@ def run_with_session(
                                     f"{signon_result.failure_detail}",
                     },
                 )
+            # reauth: re-run the signon capability on the SAME page, so replay can recover from a
+            # mid-flow session timeout (SESSION_EXPIRED / HTTP 440) instead of just reporting it.
+            def _reauth() -> None:
+                replay(signon, params=creds, page=page, run_id=f"{run_id}_reauth")
+
             return replay(capability, params=params, confirm=confirm, page=page, run_id=run_id,
-                          risky_mode=risky_mode, escalation_max_wait_s=escalation_max_wait_s)
+                          risky_mode=risky_mode, escalation_max_wait_s=escalation_max_wait_s,
+                          reauth=_reauth)
         finally:
             if not headless:
                 time.sleep(5)
