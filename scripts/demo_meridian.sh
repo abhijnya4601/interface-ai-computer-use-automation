@@ -44,7 +44,14 @@ run $PY scripts/run_meridian.py --capability "$CAP" \
 
 echo
 echo "=================================================================="
-echo " 4. INTERACTIVE — run these in two terminals for the live demo"
+echo " 4. DEMO-SAFE INPUTS  (the app is stateful; it only resets on redeploy)"
+echo "=================================================================="
+run $PY scripts/meridian_scout.py 100234 103001 || true
+echo "  ^ use those share ids for the transfer / hold examples below."
+
+echo
+echo "=================================================================="
+echo " 5. INTERACTIVE — run these in two terminals for the live demo"
 echo "=================================================================="
 cat <<'EOF'
 

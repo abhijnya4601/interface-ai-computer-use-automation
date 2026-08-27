@@ -732,6 +732,10 @@ params, risk level, required role, checkpoint.
 # deterministic replay (no LLM, no API key): happy path + an injected 503 + a not-found outcome
 bash scripts/demo_meridian.sh
 
+# the hosted app is stateful (resets only on redeploy) and risky runs move balances /
+# place holds. scout a member for share ids that are usable RIGHT NOW:
+python scripts/meridian_scout.py 100234 103001
+
 # a session-aware replay of any MERIDIAN capability, for a member never used to record it
 python scripts/run_meridian.py \
   --capability capabilities/meridian_check_member_balance.v1.json \
