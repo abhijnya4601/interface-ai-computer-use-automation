@@ -38,15 +38,12 @@ main{max-width:900px;margin:0 0 0 var(--sidebar);padding:46px 56px 200px}
 section{scroll-margin-top:16px;margin:0;padding:28px 0;border-top:1px solid var(--line)}
 section:first-of-type{border-top:none;padding-top:8px}
 h1.title{font-size:40px;line-height:1.12;margin:.15em 0 .35em;letter-spacing:-.01em}
-h2{font-size:25px;margin:.15em 0 .55em;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;letter-spacing:-.01em}
+h2{font-size:25px;margin:.15em 0 .55em;letter-spacing:-.01em}
 h3{font-size:13px;margin:1.5em 0 .5em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 p{margin:.55em 0}
 strong{font-weight:650}
 .lead{font-size:21px;line-height:1.5;color:#2b3138}
 .act{font-size:12px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted);font-weight:700;margin-bottom:2px}
-.minute{font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted);
-  background:#eef1f4;border:1px solid var(--line);padding:5px 9px;border-radius:999px;white-space:nowrap}
-
 table{width:100%;border-collapse:collapse;margin:1.1em 0;font-size:15px}
 th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
 th{background:#f4f6f8;font-weight:650}
@@ -107,7 +104,7 @@ ul.plain li{margin:.4em 0}
 
 <nav class="toc">
   <h1>Discover once, replay forever</h1>
-  <p class="sub">interface.ai — take-home core, then adapted against MERIDIAN CORE. ~31 min narrated.</p>
+  <p class="sub">interface.ai — take-home core, then adapted against MERIDIAN CORE.</p>
   <ol>
     <li><a href="#title">Title / pitch</a></li>
     <li class="grp">Act 1 — the take-home core</li>
@@ -147,7 +144,7 @@ ul.plain li{margin:.4em 0}
 <!-- ============ ACT 1 ============ -->
 <section id="act1">
   <p class="act">Act 1</p>
-  <h2>The take-home core <span class="minute">~14 min</span></h2>
+  <h2>The take-home core</h2>
   <p>Eight modules. Each one: what it is, the exact tool it uses, why that tool and not the
   obvious alternative, a flowchart of its control flow, the scripts that exercise it, and — where
   there was one — a real bug found while building it.</p>
@@ -155,7 +152,7 @@ ul.plain li{margin:.4em 0}
 
 <!-- ---- 3.1 Perception ---- -->
 <section id="perception">
-  <h2>Perception <span class="minute">~1.5 min</span></h2>
+  <h2>Perception</h2>
   <p><strong>What it is:</strong> turns the live webpage into a structured description the AI can
   reason about — not a screenshot, a semantic tree of roles and names.</p>
 
@@ -224,7 +221,7 @@ flowchart TD
 
 <!-- ---- 3.2 Discovery loop ---- -->
 <section id="discovery">
-  <h2>Discovery loop <span class="minute">~2 min</span></h2>
+  <h2>Discovery loop</h2>
   <p><strong>What it is:</strong> the live loop where an AI is given a goal in plain English and
   figures out, step by step, how to complete it — perceive, decide, act, repeat.</p>
   <p><strong>Tool used:</strong> Claude, via the Anthropic API.</p>
@@ -266,7 +263,7 @@ flowchart TD
 
 <!-- ---- 3.3 Recorder ---- -->
 <section id="recorder">
-  <h2>Recorder <span class="minute">~1.5 min</span></h2>
+  <h2>Recorder</h2>
   <p><strong>What it is:</strong> runs inline during discovery, writing down each accepted action
   as a precise step — including <em>how</em> it found the element, not just what it did.</p>
   <p><strong>Tool used:</strong> custom Python — a 4-tier fallback locator builder.</p>
@@ -302,7 +299,7 @@ flowchart TD
 
 <!-- ---- 3.4 Capability schema ---- -->
 <section id="schema">
-  <h2>Capability schema <span class="minute">~1.5 min</span></h2>
+  <h2>Capability schema</h2>
   <p><strong>What it is:</strong> the actual file format for a saved recipe — typed, versioned,
   structured JSON, not code.</p>
   <p><strong>Tool used:</strong> Pydantic.</p>
@@ -327,7 +324,7 @@ flowchart TD
 
 <!-- ---- 3.5 Compiler ---- -->
 <section id="compiler">
-  <h2>Compiler <span class="minute">~1 min</span></h2>
+  <h2>Compiler</h2>
   <p><strong>What it is:</strong> finalizes a raw recording into the schema, and attaches known
   business-outcome rules from actually exploring the app — not just what one lucky/unlucky
   discovery run happened to hit.</p>
@@ -353,7 +350,7 @@ flowchart TD
 
 <!-- ---- 3.6 Replay engine ---- -->
 <section id="replay">
-  <h2>Replay engine <span class="minute">~2 min</span></h2>
+  <h2>Replay engine</h2>
   <p><strong>What it is:</strong> runs a saved recipe against new input, deterministically, with
   zero AI calls.</p>
   <p><strong>Tool used:</strong> Playwright again, no LLM import anywhere in this module.</p>
@@ -390,7 +387,7 @@ flowchart TD
 
 <!-- ---- 3.7 Guardrails ---- -->
 <section id="guardrails">
-  <h2>Guardrails <span class="minute">~2 min</span></h2>
+  <h2>Guardrails</h2>
   <p><strong>What it is:</strong> three independent safety mechanisms — an allowlist checked
   before every action, a redaction pass before anything is written to disk, and real encryption
   at rest.</p>
@@ -433,7 +430,7 @@ flowchart TD
 
 <!-- ---- 3.8 Escalation ---- -->
 <section id="escalation">
-  <h2>Escalation <span class="minute">~1.5 min</span></h2>
+  <h2>Escalation</h2>
   <p><strong>What it is:</strong> a hand-off mechanism — risky or stuck situations pause and wait
   for a real human to approve or decline before anything irreversible happens.</p>
   <p><strong>Tool used:</strong> a shared lease file plus a separate Flask console for the human
@@ -469,7 +466,7 @@ flowchart TD
 <!-- ============ DEMO 1 ============ -->
 <section id="demo1" class="demo">
   <span class="lbl">LIVE DEMO 1</span>
-  <h2>The take-home core, live <span class="minute">~5 min</span></h2>
+  <h2>The take-home core, live</h2>
   <pre><code class="language-bash"># Terminal 1 — mock bank, left running
 cd app &amp;&amp; python3 -c "import models; models.init_db(); models.seed()" &amp;&amp; python3 app.py
 
@@ -490,7 +487,7 @@ python3 scripts/run_replay.py \
 <!-- ============ ACT 2 ============ -->
 <section id="act2">
   <p class="act">Act 2</p>
-  <h2>The MERIDIAN adaptation <span class="minute">~9 min</span></h2>
+  <h2>The MERIDIAN adaptation</h2>
   <p>Point the same core at a real, messy legacy target — <code>web-sample.interface-hiring.com</code>
   — cover its full function surface, and wrap it as a callable API a chatbot drives and a
   dashboard shows. The schema didn't change. Six modules.</p>
@@ -498,7 +495,7 @@ python3 scripts/run_replay.py \
 
 <!-- ---- 4.1 The blocker ---- -->
 <section id="blocker">
-  <h2>The blocker <span class="minute">~1.5 min</span></h2>
+  <h2>The blocker</h2>
   <p><strong>What exactly broke, named precisely:</strong> <code>aria_snapshot()</code> (Perception)
   still runs perfectly fine against MERIDIAN — it's a live, standard browser API, nothing about
   the target breaks it mechanically. What breaks is what it <em>returns</em>: MERIDIAN's forms
@@ -552,7 +549,7 @@ flowchart TD
 
 <!-- ---- 4.2 New locator tiers ---- -->
 <section id="tiers">
-  <h2>New locator tiers — <code>legacy_locate.py</code> <span class="minute">~2 min</span></h2>
+  <h2>New locator tiers — <code>legacy_locate.py</code></h2>
   <p><strong>What was actually added, precisely:</strong> two new functions slotted into the
   existing fallback ladder as tiers 3 and 4 — nothing in tiers 1–2, the schema, or the replay
   engine's control flow was rewritten; this is strictly additive.</p>
@@ -619,7 +616,7 @@ flowchart TD
 
 <!-- ---- 4.3 Sessions ---- -->
 <section id="sessions">
-  <h2>Sessions — <code>session.py</code> <span class="minute">~1.5 min</span></h2>
+  <h2>Sessions — <code>session.py</code></h2>
   <p><strong>What it is:</strong> MERIDIAN requires signing in first, and sessions idle-timeout —
   a concept the take-home never needed.</p>
   <p><strong>Why sign-on is just another recorded capability:</strong> consistent with everything
@@ -647,7 +644,7 @@ flowchart TD
 
 <!-- ---- 4.4 Outcome taxonomy ---- -->
 <section id="taxonomy">
-  <h2>Outcome taxonomy — <code>outcomes.py</code> <span class="minute">~1.5 min</span></h2>
+  <h2>Outcome taxonomy — <code>outcomes.py</code></h2>
   <p><strong>What had to go:</strong> the take-home's <code>_KNOWN_OUTCOMES</code> — a dict
   hand-keyed by <code>capability_id</code>, authored per capability. It doesn't scale to "cover a
   target's full function surface" the brief asks for; every new capability would need its own
@@ -705,7 +702,7 @@ flowchart TD
 
 <!-- ---- 4.5 Generalize ---- -->
 <section id="generalize">
-  <h2>Generalize — <code>meridian_flows.py</code> <span class="minute">~1 min</span></h2>
+  <h2>Generalize — <code>meridian_flows.py</code></h2>
   <p><strong>What it is:</strong> the scripted pass turning a concrete discovery recording into a
   reusable, parameterized capability.</p>
   <p><strong>Honest limit:</strong> 2 of 7 capabilities needed one hand-added step each — two
@@ -723,7 +720,7 @@ flowchart TD
 
 <!-- ---- 4.6 API + chatbot + dashboard ---- -->
 <section id="api">
-  <h2>API + chatbot + dashboard <span class="minute">~1.5 min</span></h2>
+  <h2>API + chatbot + dashboard</h2>
   <p><strong>What it is:</strong> the callable surface — capabilities exposed as a typed API, a
   thin chatbot on top, a dashboard showing run history.</p>
   <p><strong>Why <code>confirm</code> is never a request field:</strong> structurally prevents the
@@ -756,7 +753,7 @@ flowchart TD
 <!-- ============ DEMO 2 ============ -->
 <section id="demo2" class="demo">
   <span class="lbl">LIVE DEMO 2</span>
-  <h2>The MERIDIAN adaptation, live <span class="minute">~5 min</span></h2>
+  <h2>The MERIDIAN adaptation, live</h2>
   <pre><code class="language-bash">python scripts/meridian_scout.py 100234 103001
 
 python scripts/run_discovery.py \
@@ -778,7 +775,7 @@ python -m chatbot.cli</code></pre>
 
 <!-- ============ CUTS ============ -->
 <section id="cuts">
-  <h2>Cuts &amp; what's next <span class="minute">~2 min</span></h2>
+  <h2>Cuts &amp; what's next</h2>
   <ul class="plain">
     <li>Two of seven MERIDIAN capabilities needed one hand-added step each (ambiguous dropdown
     forms confused the discovery loop).</li>
