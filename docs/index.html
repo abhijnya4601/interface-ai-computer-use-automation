@@ -111,6 +111,7 @@ ul.plain li{margin:.45em 0}
   <ol>
     <li><a href="#title">Title / pitch</a></li>
     <li class="grp">Act 1 — the take-home core</li>
+    <li class="nest"><a href="#access">How the model reaches the site</a></li>
     <li class="nest"><a href="#perception">Perception</a></li>
     <li class="nest"><a href="#discovery">Discovery loop</a></li>
     <li class="nest"><a href="#recorder">Recorder</a></li>
@@ -150,7 +151,41 @@ ul.plain li{margin:.45em 0}
   <h2>The take-home core</h2>
   <p>Eight modules. Each is a short write-up — what it is, the tool it uses, why that tool and not
   the obvious alternative — followed by a flowchart of its control flow, the scripts that exercise
-  it, and, where there was one, a real bug found while building it.</p>
+  it, and, where there was one, a real bug found while building it. First, the boundary the whole
+  system sits behind.</p>
+</section>
+
+<!-- ---- How the model reaches the site ---- -->
+<section id="access">
+  <h2>How the model reaches the site</h2>
+
+  <p>The model never touches the website. It has no network access to the target, no DOM handles,
+  no file access. A Python harness owns a real browser (Playwright, Chromium); the model only ever
+  exchanges a text observation for a single tool call.</p>
+
+  <p>Each turn, the harness renders the page, serialises it to text with <code>aria_snapshot()</code>,
+  and hands that to the model as the observation. The model replies with exactly one call from a
+  small fixed set — <code>navigate</code>, <code>click</code>, <code>type</code>,
+  <code>extract</code>, <code>finish</code> (<code>agent/tools.py</code>). The harness runs the
+  guardrail check, then executes that call in the real browser, and the loop repeats. The model
+  cannot run arbitrary JavaScript, make HTTP requests, or see screenshots, raw HTML, cookies, or
+  the filesystem — that small surface is a deliberate security property.</p>
+
+  <p>Discovery and replay use this identical path; the only difference is who supplies the tool
+  calls — the LLM in discovery, a fixed recipe with no LLM in replay. Authentication is the
+  harness's job: it replays sign-on first on the same page and injects credentials as typed
+  parameters, so the model never sees them.</p>
+
+  <pre class="mermaid">
+flowchart LR
+    H[Python harness owns the browser] --&gt; R[Render page in Chromium]
+    R --&gt; S[Serialise to text with aria_snapshot]
+    S --&gt; M[Model returns ONE tool call: navigate / click / type / extract / finish]
+    M --&gt; G{guardrail_check}
+    G --&gt;|blocked| X[Refused before the browser moves]
+    G --&gt;|allowed| E[Harness executes it in the real browser]
+    E --&gt; R
+  </pre>
 </section>
 
 <!-- ---- Perception ---- -->
