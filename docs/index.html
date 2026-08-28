@@ -520,6 +520,25 @@ python3 scripts/run_discovery.py \
 python3 scripts/run_replay.py \
   --capability capabilities/lookup_member_balance.v1.json \
   --params '{"member_id": "23456"}'</code></pre>
+
+  <h3>What happens, line by line</h3>
+  <ol class="plain">
+    <li><strong>Seed &amp; start the mock bank.</strong> Rebuilds the SQLite database from scratch,
+    inserts the demo members, and starts the Flask app on <code>localhost:5050</code>. Leave this
+    terminal running — you'll see its request log during the demo.</li>
+    <li><strong>Discovery run (headed browser, ~30–60s, a handful of LLM calls).</strong> A
+    Chromium window opens and drives itself: the model reads the search page, types
+    <code>56789</code>, submits, reads the results table, and calls <code>finish()</code>. The
+    terminal shows the turn-by-turn log. At the end it compiles a capability.</li>
+    <li><strong>Deterministic replay (no browser drama, sub-second, zero LLM).</strong> Runs a
+    saved recipe against member <code>23456</code> — never seen during the discovery run above —
+    and prints <code>status: success</code> with the extracted balance.</li>
+  </ol>
+  <p style="font-size:14px;color:#6b5417">Note: the replay deliberately loads the committed
+  <code>lookup_member_balance.v1.json</code> (same shape, known-good on stage), not the
+  throwaway <code>demo_live_lookup</code> just discovered — the discovery step proves the learning
+  half, the replay step proves the deterministic half.</p>
+
   <p class="cue">"No LLM call happened in that replay — that's the entire thesis of this project
   in one command."</p>
 </section>
@@ -757,6 +776,27 @@ python scripts/run_meridian.py \
 python -m api
 # terminal B
 python -m chatbot.cli</code></pre>
+
+  <h3>What happens, line by line</h3>
+  <ol class="plain">
+    <li><strong>Scout the live target (~5–10s).</strong> Signs in to MERIDIAN and prints, for
+    each member ID passed, which shares are open, on hold, or safe to act on right now. The hosted
+    app is stateful and only resets on redeploy, so this is how you pick IDs that won't fail for
+    reasons unrelated to the system.</li>
+    <li><strong>Discovery run against the real legacy target (headless, ~1–2 min).</strong> No
+    visible window. The model signs on, searches by member number, clicks Select, and extracts the
+    first SHARES/BALANCES row — finding fields that have <em>no accessible name</em> via the new
+    label-proximity locator tiers. Compiles a capability at the end.</li>
+    <li><strong>Session-aware replay with a fault injected.</strong> Replays a committed capability
+    on an authenticated session, but <code>--inject maintenance</code> forces the target to return
+    a 503. You'll see it recognise that as a <em>declared</em> transient state, retry up to 3×
+    with backoff, then report a clean recoverable outcome — no stack trace, no crash.</li>
+    <li><strong>API + chatbot + dashboard.</strong> Terminal A starts the Flask API and the
+    dashboard; terminal B is a plain-English REPL. Type a request — the chatbot maps it to a
+    capability, invokes it through the API, and the run appears on the dashboard (redacted). A
+    risky capability pauses and routes to the operator console instead of completing.</li>
+  </ol>
+
   <p class="cue">"That maintenance fault is a declared, recognized transient state, not a crash —
   it retries a bounded number of times, then reports honestly if it never clears."</p>
 </section>
