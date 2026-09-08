@@ -11,46 +11,61 @@ that at a volume to persist them.
 
 ## Free, no credit card
 
-### Hugging Face Spaces  (always-on, free, Docker) — recommended
+> Note: Hugging Face **Docker** Spaces are now a paid feature, and HF's free Gradio/Static
+> Spaces can't run a Flask + Playwright backend. The free routes below are Render, a Cloudflare
+> tunnel, or GitHub Pages for the static demo.
 
-Everything the Space needs is already in the repo: the `Dockerfile` (default command runs
-`webconsole/serve.sh`), the HF config block at the top of `README.md` (`sdk: docker`,
-`app_port: 7860`), and UID 1000 / `SPACE_ID`-aware port defaults so it "just runs" there.
+### 1. Render  (Docker web service) — try this first
 
-1. huggingface.co → **New Space** → SDK **Docker** → **Blank**. No card required.
-2. Space **Settings → Variables and secrets**:
-   - secret **`CONSOLE_ACCESS_KEY`** = a random string — your link token. *Set this* — without
-     it the console generates a new key on every restart and the link keeps changing.
-   - (optional) secret `ANTHROPIC_API_KEY` — or leave unset and let viewers paste their own in
-     the Discover tab.
-3. Push this repo to the Space:
-   ```bash
-   git remote add space https://huggingface.co/spaces/<you>/<space-name>
-   git push space <branch>:main       # first push: use a HF access token as the password
-   ```
-4. It builds (~5–10 min — Chromium + deps; watch the **Logs** tab), then:
-   `https://<you>-<space-name>.hf.space/?key=<CONSOLE_ACCESS_KEY>`
+Render's free web-service tier runs a Dockerfile, gives you HTTPS, and doesn't ask for a card to
+start. It **spins down after ~15 min idle** and cold-starts in ~1 min, and it's **512 MB RAM** —
+tight for Chromium, but the container flags (`--disable-dev-shm-usage --no-sandbox`, already set)
+make replay runs work; heavy discovery runs may hit the limit.
 
-Free Spaces sleep after ~48h idle and wake on the next request (~30s). `/data` is ephemeral on
-the free tier, so capabilities discovered through the console reset on a rebuild — the 5 curated
-ones always reseed from the image. Replay mode needs no key; Discover needs one.
+1. Push your branch to GitHub (`git push -u origin <branch>`).
+2. render.com → **New → Web Service** → connect the repo → pick your branch.
+   - **Runtime**: Docker · **Instance type**: Free
+   - **Health check path**: `/health`
+3. **Environment** → add:
+   | key | value |
+   |---|---|
+   | `CONSOLE_ACCESS_KEY` | a random string — your link token |
+   | `CONSOLE_ALLOW_BYO_KEY` | `1` |
+   | `ANTHROPIC_API_KEY` | *(optional — only if you want to pay for Discover runs)* |
+   Render sets `PORT` itself; `serve.sh` honours it. No disk on free → discovered capabilities
+   reset on redeploy (the 5 curated ones reseed).
+4. **Create Web Service.** First build ~5–10 min. Then:
+   `https://<service>.onrender.com/?key=<CONSOLE_ACCESS_KEY>`
 
-**Auto-deploy on push:** `.github/workflows/deploy-hf.yml` mirrors your branch to the Space on
-every push once you set the repo **secret `HF_TOKEN`** (a HF write token) and **variable
-`HF_SPACE`** (`<you>/<space-name>`). Until both are set it's a no-op.
+Every `git push` to that branch redeploys it automatically.
 
-### A quick tunnel from your own machine  (link now, not always-on)
+### 2. Cloudflare named tunnel  (free account, no card) — from a machine you keep on
 
-Free, no account. Needs your Mac + the local servers + the tunnel all running.
+A stable public `https://` URL forwarding to the console running on your own machine (Mac mini,
+an always-plugged-in laptop, a home box). Full RAM, but only up while that machine + the tunnel
+run.
 
 ```bash
-brew install cloudflared          # once
-make app                          # terminal 1 — mock bank
-make console                      # terminal 2 — prints the ?key=
-cloudflared tunnel --url http://localhost:5055   # terminal 3 — prints https://<random>.trycloudflare.com
+brew install cloudflared
+cloudflared tunnel login                    # opens browser, free account
+cloudflared tunnel create live-console
+cloudflared tunnel route dns live-console live-console.<your-cf-domain>   # or use the *.cfargotunnel.com URL it gives
+# then, with the mock bank + console already running locally (make app / make console):
+cloudflared tunnel run --url http://localhost:5055 live-console
 ```
 
-Share `https://<random>.trycloudflare.com/?key=<the key make console printed>`.
+Run `cloudflared` as a launchd/systemd service so it restarts with the machine. Share
+`https://live-console.<your-cf-domain>/?key=<the key make console printed>`.
+
+*(The zero-setup version — `cloudflared tunnel --url http://localhost:5055`, no login — also
+works but the URL is random and changes every restart.)*
+
+### 3. GitHub Pages  (the static demo only)
+
+`docs/live-demo.html` is a self-contained page that replays captured runs — the dashboards, the
+redaction sinks, the tenant patch, a task box. Not the live agent, but zero maintenance and
+truly always-on. Repo **Settings → Pages → Deploy from a branch → `main` / `docs`**, then it's
+at `https://<you>.github.io/<repo>/live-demo.html`.
 
 ---
 
@@ -73,23 +88,9 @@ fly open                                      # then append  ?key=<the CONSOLE_A
 The share link is `https://<app>.fly.dev/?key=<CONSOLE_ACCESS_KEY>`. A cookie carries the key
 after the first visit. `auto_stop_machines` scales it to zero when idle; the next request
 cold-starts it in a few seconds. Set `min_machines_running = 1` in `fly.toml` to keep it warm.
+`shared-cpu-1x` / 1 GB runs it comfortably (~a few dollars a month).
 
-### Render
-
-New **Web Service** from the repo, Docker runtime. Set:
-
-| key | value |
-|---|---|
-| `PORT` | `5055` (Render injects its own; the console honours `$PORT`) |
-| `TARGET_BASE` | `http://localhost:5050` |
-| `CAPABILITIES_DIR` | `/data/capabilities` + attach a **Disk** mounted at `/data` |
-| `CONSOLE_ACCESS_KEY` | a random string |
-| `CONSOLE_ALLOW_BYO_KEY` | `1` |
-| `ANTHROPIC_API_KEY` | *(optional — see below)* |
-
-Start command: `bash webconsole/serve.sh`.
-
-### A plain VPS ($5 box)
+### A plain VPS ($4–5 box: Hetzner / DigitalOcean)
 
 ```bash
 git clone <repo> && cd <repo>

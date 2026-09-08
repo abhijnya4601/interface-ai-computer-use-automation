@@ -56,6 +56,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 from artifact.schema import Capability, ExpectedOutcome, ExtractContract, Result, Step
+from common.browser import LAUNCH_ARGS
 from common.logging import get_logger
 from escalation import policy as esc_policy
 from escalation.controller import trigger_escalation
@@ -707,7 +708,7 @@ def replay(
         return short
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
+        browser = p.chromium.launch(headless=headless, args=LAUNCH_ARGS)
         page = browser.new_page()
         try:
             return _run_on_page(capability, params, page, run_id=run_id, ledgered=ledgered,
@@ -740,7 +741,7 @@ class BrowserPool:
 
     def __enter__(self) -> BrowserPool:
         self._pw = sync_playwright().start()
-        self._browser = self._pw.chromium.launch(headless=self._headless)
+        self._browser = self._pw.chromium.launch(headless=self._headless, args=LAUNCH_ARGS)
         return self
 
     def __exit__(self, *exc) -> None:

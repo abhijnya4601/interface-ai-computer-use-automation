@@ -1,17 +1,3 @@
----
-title: Live Console
-emoji: "\U0001F39B"
-colorFrom: gray
-colorTo: yellow
-sdk: docker
-app_port: 7860
-pinned: false
-short_description: Watch an LLM drive a legacy web app, then replay it deterministically.
----
-
-<!-- The YAML block above is Hugging Face Spaces config (harmless on GitHub). It lets this repo
-     deploy as a Docker Space with no manual settings — see "Deploy" below and DEPLOY.md. -->
-
 # Computer-Use Automation System
 
 A small, real end-to-end "hands for AI agents" system: an LLM drives a
@@ -249,29 +235,25 @@ make console    # terminal 2 — prints  http://localhost:5055/?key=<token>
 - Access is the `?key=` token (a cookie carries it after the first hit); set `CONSOLE_ACCESS_KEY`
   to keep the link stable. One run at a time. Targets are limited to the approved non-prod app
   in `guardrails/allowlist.yaml`.
-### Deploy (free, always-on, no card)
+### Deploy the live console
 
-The repo is deploy-ready as a **Hugging Face Space** — the `Dockerfile`, `webconsole/serve.sh`
-(runs the bank + console in one container), the HF config block at the top of this README, and
-the UID/port defaults are all set. Full walkthrough + Render / Fly / VPS alternatives in
-[DEPLOY.md](DEPLOY.md); the short version:
+The repo is deploy-ready — `Dockerfile` (default command = `webconsole/serve.sh`, which starts
+the mock bank + the console in one container), container-safe Chromium flags, `/data` for
+discovered capabilities. It needs a host that runs a **Docker container with ~1 GB RAM**
+(Playwright + Chromium). Full walkthrough — Render, Cloudflare tunnel, Fly, VPS — in
+[DEPLOY.md](DEPLOY.md).
 
-1. huggingface.co → **New Space** → SDK **Docker** → Blank (no credit card).
-2. Space **Settings → Variables and secrets** → add secret **`CONSOLE_ACCESS_KEY`** = any random
-   string (this is your link token — without it the console makes a new one on every restart).
-   Optionally add secret `ANTHROPIC_API_KEY`, or leave it and let viewers paste their own.
-3. Push this repo to the Space:
-   ```bash
-   git remote add space https://huggingface.co/spaces/<you>/<space-name>
-   git push space <branch>:main        # first push: HF token as the password
-   ```
-4. It builds (~5–10 min: Chromium + deps), then your link is
-   `https://<you>-<space-name>.hf.space/?key=<CONSOLE_ACCESS_KEY>`.
+The free options at a glance:
 
-Free Spaces sleep after ~48h idle and wake on the next request; capabilities discovered through
-the console reset on a rebuild (the 5 curated ones always reseed). A `cloudflared tunnel
---url http://localhost:5055` gives a link from your own machine with no account, but only while
-that machine and the tunnel stay up.
+| option | always-on | free / no card | notes |
+|---|---|---|---|
+| **Render** free web service (Docker) | sleeps after ~15 min idle, ~1 min cold start | free tier, no card to start | 512 MB is tight for Chromium but works for replay; try this first |
+| **Cloudflare named tunnel** from a machine you keep on | while that machine + the tunnel run | free account, no card | stable `https://` URL, full RAM, but not truly off-machine |
+| **GitHub Pages** hosting `docs/live-demo.html` | yes, zero maintenance | free | this is the *simulation* (replays captured runs), not the live agent |
+| Fly.io 1 GB / a $4 VPS | yes, reliable | **needs a card** | see DEPLOY.md |
+
+Wherever you host it, set one secret — **`CONSOLE_ACCESS_KEY`** (any random string) — or the
+console generates a new link token on every restart.
 
 **Terminal 1 — start the mock bank app:**
 

@@ -22,6 +22,7 @@ from agent.compiler import CAPABILITIES_DIR as CAPS_DIR
 from agent.compiler import compile_capability, save_capability
 from agent.discovery import run_discovery
 from artifact.schema import Capability, Checkpoint
+from common.browser import LAUNCH_ARGS
 from guardrails.policy import redact
 from replay.engine import _precheck, _run_on_page
 
@@ -94,7 +95,7 @@ class LiveRun:
     def run_replay(self, capability_path: str, params: dict, confirm: bool,
                    overrides: dict | None = None):
         with sync_playwright() as p:
-            browser = p.chromium.launch()
+            browser = p.chromium.launch(args=LAUNCH_ARGS)
             page = browser.new_page()
             try:
                 cap = Capability.model_validate_json(Path(capability_path).read_text())
@@ -131,7 +132,7 @@ class LiveRun:
                       api_key: str | None):
         capability_id = _unique_capability_id(capability_id)
         with sync_playwright() as p:
-            browser = p.chromium.launch()
+            browser = p.chromium.launch(args=LAUNCH_ARGS)
             page = browser.new_page()
             try:
                 self._emit({"type": "meta", "mode": "discovery", "goal": goal,
