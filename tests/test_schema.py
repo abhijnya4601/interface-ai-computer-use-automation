@@ -5,6 +5,7 @@ from artifact.schema import (
     Capability,
     Checkpoint,
     ExpectedOutcome,
+    ExtractContract,
     LocatorTarget,
     Result,
     Step,
@@ -100,6 +101,41 @@ def test_wait_policy_defaults():
 def test_result_status_enum_rejects_unknown_value():
     with pytest.raises(ValidationError):
         Result(status="something_else")
+
+
+def test_result_status_accepts_data_unavailable():
+    result = Result(status="data_unavailable", failure_detail={"reason": "empty cell"})
+    assert result.status == "data_unavailable"
+
+
+def test_expected_outcome_accepts_data_unavailable_classification():
+    outcome = ExpectedOutcome(
+        condition="page contains 'Balance service temporarily unavailable'",
+        classification="data_unavailable",
+        code="LEDGER_DOWN",
+    )
+    assert outcome.classification == "data_unavailable"
+
+
+def test_step_defaults_have_no_readiness_gate_or_extract_contract():
+    step = Step(step_id="s1", action_type="extract", extract_as="savings_balance")
+    assert step.ready_when is None
+    assert step.extract_contract is None
+
+
+def test_step_with_extract_contract_round_trips():
+    step = Step(
+        step_id="s5",
+        action_type="extract",
+        extract_as="savings_balance",
+        ready_when="page contains 'Savings Balance'",
+        extract_contract=ExtractContract(
+            pattern=r"\$[\d,]+\.\d{2}", placeholders=["--"], reason="currency shape"
+        ),
+    )
+    reloaded = Step.model_validate_json(step.model_dump_json())
+    assert reloaded == step
+    assert reloaded.extract_contract.pattern == r"\$[\d,]+\.\d{2}"
 
 
 def test_result_defaults_are_empty():

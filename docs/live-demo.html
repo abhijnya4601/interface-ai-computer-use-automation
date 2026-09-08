@@ -1,0 +1,1329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Capability Foundry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  /* ============ Capability Foundry — a committed single-world "operator's terminal" ============ */
+  :root{
+    --ground:#0e1418;        /* near-black, faint blue-green bias — the instrument ground */
+    --ground-2:#131c22;      /* raised instrument surface */
+    --ground-3:#1a262d;      /* inset well (console, code) */
+    --hair:#26343d;          /* hairline dividers */
+    --hair-bright:#33454f;
+    --ink-1:#e8eef0;         /* primary text on ground */
+    --ink-2:#9fb2ba;         /* secondary */
+    --ink-3:#6c828c;         /* faint / captions */
+    --signal:#e8b23a;        /* brass amber — the one accent: current marker, the seam, key figures */
+    --signal-dim:#7a6224;
+    --wire:#5fb3a3;          /* deterministic / verified / success semantic */
+    --wire-dim:#2f5e57;
+    --alarm:#d9694e;         /* hard failure / escalation pending */
+    --alarm-dim:#6b3a30;
+
+    --paper:#f4f1e9;         /* the bank's document surface — a warm world inside the dark frame */
+    --paper-line:#d9d2c2;
+    --paper-ink:#1f2f3d;
+    --paper-navy:#1b3a5c;
+    --paper-muted:#5c6b7a;
+    --paper-ok-bg:#e6f4ea; --paper-ok-tx:#1e7e34; --paper-ok-bd:#b7dfc2;
+    --paper-no-bg:#fdecea; --paper-no-tx:#b3261e; --paper-no-bd:#f3c2be;
+    --paper-warn-bg:#fdf3e0; --paper-warn-tx:#9a6700; --paper-warn-bd:#f0dba8;
+
+    --serif:"Spectral",Georgia,"Times New Roman",serif;
+    --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --maxw:1280px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--ground);color:var(--ink-1);
+    font-family:var(--sans);font-size:15px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--signal);text-decoration:none}
+  a:hover{text-decoration:underline}
+  h1,h2,h3{font-family:var(--serif);font-weight:500;text-wrap:balance;margin:0}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3)}
+
+  /* ---------- masthead ---------- */
+  .masthead{border-bottom:1px solid var(--hair);background:linear-gradient(180deg,var(--ground-2),var(--ground))}
+  .masthead .wrap{display:flex;align-items:baseline;gap:18px;padding-top:20px;padding-bottom:20px;flex-wrap:wrap}
+  .mark{font-family:var(--serif);font-size:23px;letter-spacing:.01em;color:var(--ink-1)}
+  .mark b{color:var(--signal);font-weight:600}
+  .tagline{font-family:var(--mono);font-size:12px;color:var(--ink-3);letter-spacing:.04em}
+  .masthead .tagline .live{color:var(--wire)}
+
+  /* ---------- task bar ---------- */
+  .taskbar{border-bottom:1px solid var(--hair);background:var(--ground-2);padding:22px 0 24px}
+  .taskbar .lead{display:flex;align-items:baseline;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+  .taskbar .lead h2{font-size:19px}
+  .taskbar .lead .hint{font-size:13px;color:var(--ink-3)}
+  .chips{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:14px}
+  .chip{
+    font-family:var(--sans);font-size:13px;font-weight:500;
+    background:var(--ground-3);color:var(--ink-2);
+    border:1px solid var(--hair-bright);border-radius:999px;padding:7px 15px;cursor:pointer;
+    transition:border-color .15s,color .15s,background .15s;
+  }
+  .chip:hover{color:var(--ink-1);border-color:var(--ink-3)}
+  .chip[aria-pressed="true"]{background:var(--signal);color:#241c07;border-color:var(--signal);font-weight:600}
+  .chip .kind{font-family:var(--mono);font-size:10px;letter-spacing:.1em;opacity:.7;margin-left:7px;text-transform:uppercase}
+  .freeform{display:flex;gap:9px;max-width:640px}
+  .freeform input{
+    flex:1;font-family:var(--sans);font-size:14px;background:var(--ground-3);color:var(--ink-1);
+    border:1px solid var(--hair-bright);border-radius:7px;padding:10px 13px;
+  }
+  .freeform input::placeholder{color:var(--ink-3)}
+  .freeform input:focus{outline:none;border-color:var(--signal);box-shadow:0 0 0 3px rgba(232,178,58,.14)}
+  .freeform input:disabled{opacity:.55;cursor:not-allowed}
+  .freeform button{
+    font-family:var(--sans);font-size:13px;font-weight:600;white-space:nowrap;
+    background:var(--ground-3);color:var(--ink-1);border:1px solid var(--hair-bright);border-radius:7px;padding:10px 16px;cursor:pointer;
+  }
+  .freeform button:hover:not(:disabled){border-color:var(--signal);color:var(--signal)}
+  .freeform button:disabled{opacity:.5;cursor:not-allowed}
+  .route-note{font-family:var(--mono);font-size:12px;color:var(--wire);margin-top:9px;min-height:1.2em}
+
+  /* ---------- the stage ---------- */
+  .stage{padding:26px 0 8px}
+  .grid{display:grid;grid-template-columns:minmax(0,0.92fr) minmax(0,1.16fr) minmax(0,0.92fr);gap:16px}
+  .panel{background:var(--ground-2);border:1px solid var(--hair);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;min-height:430px;max-height:600px}
+  .panel-head{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:10px 14px;border-bottom:1px solid var(--hair);background:var(--ground-3);
+    font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)
+  }
+  .panel-head .dot{width:7px;height:7px;border-radius:50%;background:var(--hair-bright);flex:none}
+  .panel-head.is-live .dot{background:var(--wire);box-shadow:0 0 0 3px rgba(95,179,163,.18)}
+
+  /* console */
+  .console-body{flex:1;overflow-y:auto;padding:12px 14px;font-family:var(--mono);font-size:12.5px;line-height:1.65;background:var(--ground-3)}
+  .cl{display:flex;gap:10px;padding:1px 0;white-space:pre-wrap;word-break:break-word}
+  .cl .t{color:var(--ink-3);flex:none;font-size:11px;padding-top:1px}
+  .cl.obs .m{color:var(--ink-3)}
+  .cl.think .m{color:var(--wire);font-style:italic}
+  .cl.act .m{color:var(--ink-1)}
+  .cl.act .m b{color:var(--signal);font-weight:600}
+  .cl.ok .m{color:var(--wire)}
+  .cl.rec .m{color:var(--signal)}
+  .cl.warn .m{color:var(--alarm)}
+  .cl.done .m{color:var(--signal);font-weight:600}
+  .caret{display:inline-block;width:8px;height:14px;background:var(--signal);vertical-align:-2px;animation:blink 1.05s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  /* target (bank) */
+  .urlbar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--hair);background:var(--ground-3);font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+  .urlbar .lock{color:var(--wire)}
+  .urlbar .ctrl-badge{margin-left:auto;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--signal);border:1px solid var(--signal-dim);border-radius:4px;padding:2px 7px}
+  .bankframe{flex:1;overflow-y:auto;background:#20323f;padding:18px}
+  .bank{
+    max-width:520px;margin:0 auto;background:var(--paper);color:var(--paper-ink);
+    border:1px solid var(--paper-line);border-radius:5px;padding:22px 24px;
+    box-shadow:0 2px 10px rgba(0,0,0,.28);font-size:13.5px;line-height:1.5;
+  }
+  .bank h4{font-family:var(--serif);font-size:16px;font-weight:600;color:var(--paper-navy);margin:0 0 14px;padding-bottom:9px;border-bottom:2px solid var(--paper-navy)}
+  .bank .field{display:flex;gap:10px;align-items:center;margin:10px 0}
+  .bank .field label{font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;font-weight:600;color:var(--paper-muted);width:120px;flex:none}
+  .bank .inp{flex:1;max-width:200px;background:#fff;border:1px solid var(--paper-line);border-radius:3px;padding:6px 8px;font-family:var(--mono);font-size:12px;min-height:29px}
+  .bank .inp.focused{border-color:var(--paper-navy);box-shadow:0 0 0 3px rgba(27,58,92,.14)}
+  .bank .btn{display:inline-block;background:var(--paper-navy);color:#fff;border-radius:3px;padding:7px 15px;font-size:12px;font-weight:600;cursor:default;border:none}
+  .bank .btn.ghost{background:#e8edf3;color:var(--paper-navy);border:1px solid var(--paper-line)}
+  .bank .btn.clicked{outline:3px solid var(--signal);outline-offset:1px}
+  .bank .lnk{background:#e8edf3;color:var(--paper-navy);border-radius:999px;padding:2px 11px;font-size:11.5px;font-weight:600}
+  .bank .lnk.clicked{outline:3px solid var(--signal);outline-offset:1px}
+  .bank table{width:100%;border-collapse:collapse;margin:12px 0}
+  .bank th,.bank td{border:1px solid var(--paper-line);padding:7px 10px;text-align:left;font-size:12px}
+  .bank thead th{background:var(--paper-navy);color:#fff;font-size:10px;letter-spacing:.05em;text-transform:uppercase}
+  .bank th[scope=row]{background:#f4f0e6;color:var(--paper-muted);width:150px;font-weight:600}
+  .bank .bal{font-size:15px;font-weight:700;color:var(--paper-navy);font-variant-numeric:tabular-nums}
+  .bank .bal.empty::after{content:"— not returned —";font-size:11px;font-weight:500;color:var(--paper-muted)}
+  .bank .msg{padding:9px 12px;border-radius:4px;border:1px solid;font-size:12.5px;margin:8px 0}
+  .bank .msg.ok{background:var(--paper-ok-bg);color:var(--paper-ok-tx);border-color:var(--paper-ok-bd)}
+  .bank .msg.no{background:var(--paper-no-bg);color:var(--paper-no-tx);border-color:var(--paper-no-bd)}
+  .bank .msg.warn{background:var(--paper-warn-bg);color:var(--paper-warn-tx);border-color:var(--paper-warn-bd)}
+  .bank .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px}
+  .bank .rowlink td a, .bank .kv{font-family:var(--mono)}
+  .bank .backlink{display:inline-block;margin-top:10px;font-size:11.5px;color:var(--paper-muted)}
+  .bank-swap{animation:bankin .32s ease}
+  @keyframes bankin{from{opacity:.15;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  /* artifacts */
+  .tabs{display:flex;border-bottom:1px solid var(--hair);background:var(--ground-3)}
+  .tabs button{
+    flex:1;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+    background:none;border:none;border-bottom:2px solid transparent;color:var(--ink-3);padding:9px 6px;cursor:pointer
+  }
+  .tabs button[aria-selected="true"]{color:var(--signal);border-bottom-color:var(--signal)}
+  .tabpane{flex:1;overflow-y:auto;padding:12px 14px;display:none}
+  .tabpane.on{display:block}
+
+  .tree{font-family:var(--mono);font-size:12px;line-height:1.7;white-space:pre}
+  .tree .node{color:var(--ink-2)}
+  .tree .node .role{color:var(--wire)}
+  .tree .node .name{color:var(--ink-1)}
+  .tree .node .val{color:var(--signal)}
+  .tree .node.hot{background:rgba(232,178,58,.12);border-left:2px solid var(--signal);margin-left:-14px;padding-left:12px;display:block}
+
+  .cap-head{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+  .pill{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:2px 7px;border:1px solid}
+  .pill.safe{color:var(--wire);border-color:var(--wire-dim)}
+  .pill.risky{color:var(--alarm);border-color:var(--alarm-dim)}
+  .pill.draft{color:var(--ink-2);border-color:var(--hair-bright)}
+  .pill.verified{color:var(--wire);border-color:var(--wire-dim);background:rgba(95,179,163,.08)}
+  .pill.proposed{color:var(--signal);border-color:var(--signal-dim)}
+  .stepcard{border:1px solid var(--hair);border-radius:7px;padding:9px 11px;margin-bottom:8px;background:var(--ground-3);font-family:var(--mono);font-size:11.5px}
+  .stepcard .sid{color:var(--signal);font-weight:600}
+  .stepcard .act{color:var(--ink-1)}
+  .stepcard .meta{color:var(--ink-3);margin-top:3px;line-height:1.5}
+  .stepcard .meta .k{color:var(--wire)}
+  .stepcard.slidein{animation:slidein .3s ease}
+  @keyframes slidein{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
+  .proprow{font-family:var(--mono);font-size:11px;color:var(--ink-2);border:1px dashed var(--signal-dim);border-radius:6px;padding:7px 10px;margin-bottom:7px;background:rgba(232,178,58,.05)}
+  .proprow .tag{color:var(--signal);font-weight:600}
+
+  .result-empty{font-family:var(--mono);font-size:12px;color:var(--ink-3);line-height:1.7}
+  .replay-row{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11.5px;border:1px solid var(--hair);border-radius:7px;padding:8px 10px;margin-bottom:7px;cursor:pointer;background:var(--ground-3);transition:border-color .15s}
+  .replay-row:hover{border-color:var(--ink-3)}
+  .replay-row[aria-current="true"]{border-color:var(--signal)}
+  .replay-row .p{color:var(--ink-2);flex:1}
+  .status{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;border-radius:4px;padding:2px 7px;border:1px solid;flex:none}
+  .status.success{color:var(--wire);border-color:var(--wire-dim)}
+  .status.business_outcome{color:var(--signal);border-color:var(--signal-dim)}
+  .status.data_unavailable{color:#c99bd6;border-color:#5a3f63}
+  .status.hard_failure{color:var(--alarm);border-color:var(--alarm-dim)}
+  .status.escalated{color:var(--alarm);border-color:var(--alarm-dim)}
+  pre.json{font-family:var(--mono);font-size:11px;line-height:1.6;background:var(--ground-3);border:1px solid var(--hair);border-radius:7px;padding:10px 12px;overflow-x:auto;color:var(--ink-2);margin:8px 0 0;white-space:pre}
+  pre.json .s{color:var(--wire)} pre.json .k{color:var(--ink-1)} pre.json .n{color:var(--signal)}
+
+  /* operator card (escalation) */
+  .operator{border:1px solid var(--alarm-dim);border-radius:8px;background:rgba(217,105,78,.06);padding:11px 13px;margin-top:9px;font-family:var(--mono);font-size:11.5px}
+  .operator h5{font-family:var(--sans);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--alarm);margin:0 0 7px}
+  .operator p{margin:5px 0;color:var(--ink-2);line-height:1.5}
+  .operator .ops{display:flex;gap:8px;margin-top:9px}
+  .operator button{font-family:var(--sans);font-size:12px;font-weight:600;border-radius:5px;padding:6px 13px;cursor:pointer;border:1px solid}
+  .operator .approve{background:var(--wire-dim);color:#dff3ef;border-color:var(--wire)}
+  .operator .decline{background:var(--ground-3);color:var(--ink-2);border-color:var(--hair-bright)}
+
+  /* ---------- transport ---------- */
+  .transport{padding:16px 0 34px}
+  .rail{display:flex;align-items:stretch;gap:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;border:1px solid var(--hair);border-radius:8px;overflow:hidden}
+  .rail .ph{flex:1;padding:11px 14px;color:var(--ink-3);border-right:1px solid var(--hair);position:relative;background:var(--ground-2)}
+  .rail .ph:last-child{border-right:none}
+  .rail .ph.done{color:var(--wire)}
+  .rail .ph.active{color:#241c07;background:var(--signal);font-weight:600}
+  .rail .ph .n{opacity:.5;margin-right:8px}
+  .rail .ph.branch{flex:0 0 auto;color:var(--alarm);background:rgba(217,105,78,.08)}
+  .controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .controls button{
+    font-family:var(--mono);font-size:12px;background:var(--ground-2);color:var(--ink-1);
+    border:1px solid var(--hair-bright);border-radius:6px;padding:8px 13px;cursor:pointer
+  }
+  .controls button:hover{border-color:var(--signal);color:var(--signal)}
+  .controls button.primary{background:var(--signal);color:#241c07;border-color:var(--signal);font-weight:600}
+  .controls .sep{width:1px;height:22px;background:var(--hair);margin:0 4px}
+  .controls .speed{display:flex;gap:2px}
+  .controls .speed button[aria-pressed="true"]{background:var(--ground-3);color:var(--signal);border-color:var(--signal-dim)}
+
+  /* ---------- explore ---------- */
+  .explore{border-top:1px solid var(--hair);background:var(--ground-2);padding:44px 0 8px}
+  .explore-intro{max-width:60ch;margin-bottom:30px}
+  .explore-intro h2{font-size:24px;margin-bottom:8px}
+  .explore-intro p{color:var(--ink-2);font-size:15px}
+  .xgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+  .card{background:var(--ground);border:1px solid var(--hair);border-radius:10px;padding:20px 22px}
+  .card h3{font-size:18px;margin-bottom:4px}
+  .card .sub{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:14px}
+  .card p{color:var(--ink-2);font-size:13.5px;margin:0 0 12px}
+
+  .sinktabs{display:flex;gap:6px;margin-bottom:10px}
+  .sinktabs button{font-family:var(--mono);font-size:11px;background:var(--ground-3);color:var(--ink-2);border:1px solid var(--hair-bright);border-radius:5px;padding:5px 10px;cursor:pointer}
+  .sinktabs button[aria-pressed="true"]{color:var(--signal);border-color:var(--signal-dim)}
+  .obsview{font-family:var(--mono);font-size:11.5px;line-height:1.75;background:var(--ground-3);border:1px solid var(--hair);border-radius:7px;padding:11px 13px;white-space:pre-wrap}
+  .obsview .red{color:var(--alarm)}
+  .obsview .tok{color:#c99bd6}
+  .obsview .keep{color:var(--wire)}
+  .sink-note{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:8px}
+
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+  .cmp .box{border:1px solid var(--hair);border-radius:7px;padding:10px 12px;font-family:var(--mono);font-size:11.5px;background:var(--ground-3)}
+  .cmp .box .lbl{color:var(--ink-3);font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+
+  table.metrics{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;margin-bottom:12px}
+  table.metrics th,table.metrics td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--hair)}
+  table.metrics th{color:var(--ink-3);font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+  table.metrics td{color:var(--ink-1);font-variant-numeric:tabular-nums}
+  .bars{display:flex;height:26px;border-radius:5px;overflow:hidden;border:1px solid var(--hair)}
+  .bars span{display:block;font-size:0}
+  .bars .b-ok{background:var(--wire-dim)}
+  .bars .b-biz{background:var(--signal-dim)}
+  .bars .b-dat{background:#5a3f63}
+  .bars .b-hf{background:var(--alarm-dim)}
+  .barkey{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:8px}
+  .barkey i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+  .seam-band{display:grid;grid-template-columns:1fr auto 1fr;gap:0;align-items:stretch;border:1px solid var(--hair);border-radius:10px;overflow:hidden;margin-top:14px}
+  .seam-band .side{padding:16px 18px;background:var(--ground)}
+  .seam-band .side h4{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:0 0 8px}
+  .seam-band .side ul{margin:0;padding-left:16px;color:var(--ink-2);font-size:12.5px;line-height:1.7}
+  .seam-band .seam-col{background:var(--signal);color:#241c07;display:flex;align-items:center;justify-content:center;padding:0 14px;writing-mode:vertical-rl;font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:600}
+  .seam-band .side.left{border-right:1px solid var(--hair)}
+  .seam-band .side.right{border-left:1px solid var(--hair)}
+
+  footer{border-top:1px solid var(--hair);padding:26px 0 40px;color:var(--ink-3);font-size:12.5px;font-family:var(--mono)}
+  footer b{color:var(--ink-2);font-weight:500}
+
+  @media (max-width:1080px){
+    .grid{grid-template-columns:1fr;gap:14px}
+    .panel{min-height:320px;max-height:500px}
+    .xgrid{grid-template-columns:1fr}
+    .seam-band{grid-template-columns:1fr;}
+    .seam-band .seam-col{writing-mode:horizontal-tb;padding:9px}
+    .seam-band .side.left,.seam-band .side.right{border:none;border-bottom:1px solid var(--hair)}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001s!important;transition-duration:.001s!important}
+    .caret{display:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <span class="mark">Capability <b>Foundry</b></span>
+    <span class="tagline">discover once with a model &nbsp;·&nbsp; <span class="live">replay forever</span> without one</span>
+  </div>
+</header>
+
+<section class="taskbar">
+  <div class="wrap">
+    <div class="lead">
+      <span class="eyebrow">Give the agent a task</span>
+      <span class="hint">Pick one, or type your own — the agent explores a real (mock) core-banking app and casts a reusable capability.</span>
+    </div>
+    <div class="chips" id="chips"></div>
+    <form class="freeform" id="freeform" autocomplete="off">
+      <input id="freetext" type="text" placeholder="e.g. “what is member 34567’s balance?” or “start a vacation-club account for Dana”">
+      <button type="submit" id="routebtn">Route with Claude</button>
+    </form>
+    <div class="route-note" id="routenote"></div>
+  </div>
+</section>
+
+<section class="stage">
+  <div class="wrap">
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-head" id="consoleHead"><span>Agent console</span><span class="dot"></span></div>
+        <div class="console-body" id="console"></div>
+      </div>
+
+      <div class="panel">
+        <div class="urlbar"><span class="lock">▲</span><span id="urltext">localhost:5050/search</span><span class="ctrl-badge">agent&nbsp;driving</span></div>
+        <div class="bankframe"><div class="bank" id="bank"></div></div>
+      </div>
+
+      <div class="panel artifacts">
+        <div class="tabs" role="tablist">
+          <button role="tab" data-tab="perception" aria-selected="true">Perception</button>
+          <button role="tab" data-tab="capability" aria-selected="false">Capability</button>
+          <button role="tab" data-tab="result" aria-selected="false">Result</button>
+        </div>
+        <div class="tabpane on" id="pane-perception"></div>
+        <div class="tabpane" id="pane-capability"></div>
+        <div class="tabpane" id="pane-result"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="transport">
+  <div class="wrap">
+    <div class="rail" id="rail"></div>
+    <div class="controls">
+      <button class="primary" id="btnRun">▶ Run</button>
+      <button id="btnStep">⏭ Step</button>
+      <button id="btnRestart">↻ Restart</button>
+      <span class="sep"></span>
+      <span class="eyebrow" style="align-self:center">speed</span>
+      <span class="speed" id="speed">
+        <button data-mult="2" aria-pressed="false">0.5×</button>
+        <button data-mult="1" aria-pressed="true">1×</button>
+        <button data-mult="0.45" aria-pressed="false">2×</button>
+      </span>
+    </div>
+  </div>
+</section>
+
+<section class="explore">
+  <div class="wrap">
+    <div class="explore-intro">
+      <span class="eyebrow">Everything else it produces</span>
+      <h2>The parts you don't see in one run</h2>
+      <p>Every panel above is driven by real captured output from the repo. These are the other things the system does with a capability once it exists — safety, reuse, and the numbers a team watches in production.</p>
+    </div>
+
+    <div class="seam-band">
+      <div class="side left">
+        <h4>Left of the seam — runs once</h4>
+        <ul>
+          <li>An LLM drives an observe → decide → act loop over the live page</li>
+          <li>Every accepted action becomes a typed <code>Step</code> as it happens</li>
+          <li>The model proposes the branches &amp; value shapes it can see</li>
+          <li>Non-deterministic. Reviewed by a human before it ships.</li>
+        </ul>
+      </div>
+      <div class="seam-col">the Capability artifact</div>
+      <div class="side right">
+        <h4>Right of the seam — runs every time</h4>
+        <ul>
+          <li>A deterministic engine walks the recorded <code>Step</code>s</li>
+          <li>No model call — branches are decided by literal page checks</li>
+          <li>Outcomes: success · business outcome · data unavailable · hard failure</li>
+          <li>Same allowlist &amp; redaction as discovery; a lease can pause it for a human</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="xgrid" style="margin-top:20px">
+      <div class="card">
+        <h3>Redaction knows where the data is going</h3>
+        <div class="sub">guardrails/pii.py · sink-aware</div>
+        <p>“Redact names: yes/no” is the wrong question — a customer name in a capability's declared output is the point; the same name in a prompt sent to a third-party model is a leak. So the same observation is redacted differently per destination.</p>
+        <div class="sinktabs" id="sinktabs">
+          <button data-sink="artifact" aria-pressed="true">artifact</button>
+          <button data-sink="evidence" aria-pressed="false">evidence</button>
+          <button data-sink="llm_prompt" aria-pressed="false">llm_prompt</button>
+        </div>
+        <div class="obsview" id="obsview"></div>
+        <div class="sink-note" id="sinknote"></div>
+      </div>
+
+      <div class="card">
+        <h3>One capability, many tenants</h3>
+        <div class="sub">artifact/patch.py · base + per-tenant patch</div>
+        <p>Most tenants running the same product replay the base capability unchanged. A tenant whose UI differs gets a small patch applied over the base — not a separate artifact. Verified live against a variant that relabels one row header.</p>
+        <div class="cmp">
+          <div class="box"><div class="lbl">base capability</div><span class="status hard_failure">hard_failure</span><div style="color:var(--ink-3);margin-top:6px">s5 · locator “Savings Balance” — <span style="color:var(--alarm)">no element resolved</span></div></div>
+          <div class="box"><div class="lbl">base + acme.patch.json</div><span class="status success">success</span><div style="color:var(--ink-3);margin-top:6px">savings_balance = <span style="color:var(--signal)">$5.02</span></div></div>
+        </div>
+        <pre class="json" id="patchjson"></pre>
+      </div>
+
+      <div class="card">
+        <h3>What replay measured</h3>
+        <div class="sub">replay/metrics.py · from the trace files</div>
+        <p>Every replay writes a per-step trace. Aggregated: outcome mix, p50/p95 latency, and the locator-fallback rate — the “free drift signal”, the fraction of steps that needed a weaker locator tier than <code>role+name</code>.</p>
+        <table class="metrics">
+          <thead><tr><th>capability</th><th>runs</th><th>healthy</th><th>hard&nbsp;fail</th><th>p50</th><th>p95</th><th>fallback</th></tr></thead>
+          <tbody><tr><td>lookup_member_balance</td><td>10</td><td>70%</td><td>10%</td><td>1661&nbsp;ms</td><td>1773&nbsp;ms</td><td>14%</td></tr></tbody>
+        </table>
+        <div class="bars">
+          <span class="b-ok" style="flex:7">.</span><span class="b-hf" style="flex:1">.</span><span class="b-dat" style="flex:2">.</span>
+        </div>
+        <div class="barkey">
+          <span><i style="background:var(--wire-dim)"></i>7 success</span>
+          <span><i style="background:var(--alarm-dim)"></i>1 hard failure</span>
+          <span><i style="background:#5a3f63"></i>2 data unavailable</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>When it stops for a human</h3>
+        <div class="sub">escalation/ · a file-backed lease</div>
+        <p>A state-changing final step (open an account, file a dispute) is never taken by the agent. It fills and reviews the form, then flips a lease to <code>human</code> and blocks — the same live browser session a person takes over — until a real HTTP approve/decline comes back. Try the open-sub-account task above to see it in the run.</p>
+        <div class="operator" style="margin-top:0">
+          <h5>Operator console — waiting</h5>
+          <p><b>Reason:</b> Christmas Club sub-account for member 12345 (Dana Whitfield), $50.00 opening deposit is filled and reviewed. “Confirm and Open Account” creates a record, so per policy I'm escalating for confirmation.</p>
+          <p><b>At:</b> localhost:5050/member/12345/new-subaccount</p>
+          <div class="ops"><button class="approve" disabled>Approve &amp; resume</button><button class="decline" disabled>Decline</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <b>Capability Foundry</b> — an interactive view of the discover-once / replay-forever pipeline.
+    The console, the target app, the perception tree, the compiled artifacts and the replay outcomes are all
+    played back from <b>real captured runs in the repository</b>. There is no backend here and nothing to install;
+    the free-text box, when your viewer allows it, asks Claude to route your phrasing to one of the scenarios.
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  var rm = window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+  /* -------------------------------------------------------------------------------------------
+     REAL DATA — members, perception snippets, discovery timelines, compiled capabilities and
+     replay results, transcribed from evidence/*.jsonl, capabilities/*.json and evidence/*.json.
+  ------------------------------------------------------------------------------------------- */
+  var M = {
+    "12345":{id:"12345",name:"Dana Whitfield",status:"active",balance:"$1,842.30"},
+    "23456":{id:"23456",name:"Marcus Oyelaran",status:"active",balance:"$5.02"},
+    "34567":{id:"34567",name:"Priya Ramaswamy",status:"active",balance:"$9,901.00"},
+    "77777":{id:"77777",name:"Nadia Farouk",status:"active",balance:null},   /* ledger returned NULL */
+    "99999":{id:"99999",name:"Restricted Account",status:"locked",balance:null}
+  };
+
+  var TREE = {
+    search:[
+      ['document','',''],
+      ['  heading','Member Search',''],
+      ['  textbox','Search (ID / name)',''],
+      ['  button','Go','']
+    ],
+    searchTyped:function(q){return [
+      ['document','',''],
+      ['  heading','Member Search',''],
+      ['  textbox','Search (ID / name)',q],
+      ['  button','Go','']
+    ];},
+    results:function(m){return [
+      ['document','',''],
+      ['  table','',''],
+      ['    row','Member ID Name Actions',''],
+      ['    row',m.id+' '+m.name.split(' ').reverse().join(', '),''],
+      ['      link','View','']
+    ];},
+    noResults:[
+      ['document','',''],
+      ['  table','',''],
+      ['    row','Member ID Name Actions',''],
+      ['    cell','No results.','']
+    ],
+    member:function(m){return [
+      ['document','',''],
+      ['  heading','Member '+m.id,''],
+      ['  rowheader','Member ID',''], ['    cell','',m.id],
+      ['  rowheader','Name',''], ['    cell','',m.name],
+      ['  rowheader','Status',''], ['    cell','',m.status],
+      ['  rowheader','Savings Balance',''], ['    cell','',m.balance||'(empty)'],
+      ['  link','Open sub-account',''],
+      ['  link','View Transactions',''],
+      ['  link','Update Mailing Address','']
+    ];},
+    denied:function(m){return [
+      ['document','',''],
+      ['  heading','Member '+m.id,''],
+      ['  text','Access denied. This account is restricted and its details cannot be viewed.','']
+    ];},
+    newsub:function(m){return [
+      ['document','',''],
+      ['  heading','Open New Sub-Account — Member '+m.id,''],
+      ['  combobox','Account Type','christmas_club'],
+      ['  textbox','Nickname',''],
+      ['  textbox','Opening Deposit ($)','0'],
+      ['  button','Continue','']
+    ];},
+    review:function(m){return [
+      ['document','',''],
+      ['  heading','Review New Sub-Account',''],
+      ['  rowheader','Account Type',''], ['    cell','','Christmas Club'],
+      ['  rowheader','Opening Deposit',''], ['    cell','','$50.00'],
+      ['  button','Confirm and Open Account','']
+    ];}
+  };
+
+  /* helper to build a discovery timeline event */
+  function ev(k,o){o=o||{};o.k=k;return o;}
+
+  /* --- lookup_member_balance : the flagship discovery run (evidence/discovery_run_150cea0c47) --- */
+  var TL_BALANCE = function(){
+    var m = M["12345"];
+    return [
+      ev('nav',{url:'localhost:5050/search', screen:{s:'search'}, line:'navigate  → localhost:5050/search'}),
+      ev('observe',{tree:TREE.search, screen:{s:'search'}, hot:null}),
+      ev('think',{text:'goal wants a balance for member 12345 — search by that id first'}),
+      ev('act',{tool:'type', label:'type  <b>Search (ID / name)</b> ← "12345"  ·  param_name=member_id',
+                anim:{type:'type', el:'textbox|Search (ID / name)', text:'12345'}, screen:{s:'searchTyped',q:'12345'}}),
+      ev('ok',{text:'typed "12345"'}),
+      ev('rec',{step:{sid:'s2',act:'type',role:'textbox',name:'Search (ID / name)',value:'{param_ref: member_id}'}, text:'recorded step s2'}),
+      ev('act',{tool:'click', label:'click  <b>button</b> "Go"',
+                anim:{type:'click', el:'button|Go'}, screen:{s:'results',m:m}, url:'localhost:5050/search'}),
+      ev('ok',{text:'clicked "Go" — 1 result'}),
+      ev('rec',{step:{sid:'s3',act:'click',role:'button',name:'Go',value:'—'}}),
+      ev('observe',{tree:TREE.results(m), screen:{s:'results',m:m}, hot:'link|View'}),
+      ev('think',{text:'one matching row — follow its View link to the member page'}),
+      ev('act',{tool:'click', label:'click  <b>link</b> "View"',
+                anim:{type:'click', el:'link|View'}, screen:{s:'member',m:m}, url:'localhost:5050/member/12345'}),
+      ev('ok',{text:'clicked "View" → /member/12345'}),
+      ev('rec',{step:{sid:'s4',act:'click',role:'link',name:'View',value:'—'}}),
+      ev('observe',{tree:TREE.member(m), screen:{s:'member',m:m}, hot:'rowheader|Savings Balance'}),
+      ev('think',{text:'balance is a labelled row — extract it by its row header'}),
+      ev('act',{tool:'extract', label:'extract  <b>rowheader</b> "Savings Balance" → savings_balance',
+                anim:{type:'read', el:'rowheader|Savings Balance'}, screen:{s:'member',m:m}}),
+      ev('ok',{text:'extracted savings_balance = "$1,842.30"'}),
+      ev('rec',{step:{sid:'s5',act:'extract',role:'rowheader',name:'Savings Balance',value:'→ savings_balance'}}),
+      ev('note',{tag:'note_data_shape', text:'savings_balance looks like a currency amount  \\$[\\d,]+\\.\\d{2}'}),
+      ev('note',{tag:'note_branch', text:'if the id is unknown the results table shows "No results." → MEMBER_NOT_FOUND'}),
+      ev('note',{tag:'note_branch', text:'a locked account shows "Access denied…" instead of the balance → PERMISSION_DENIED'}),
+      ev('done',{text:'finish  ·  success  ·  {name: Dana Whitfield, status: active, savings_balance: $1,842.30}'}),
+      ev('compile',{cap:{
+        capability_id:'lookup_member_balance', version:'1.0.0', risk:'safe', lifecycle:'draft',
+        note:'2 proposed rules — need review before this leaves draft'
+      }}),
+      ev('replaySweep',{})
+    ];
+  };
+
+  /* --- open_subaccount : discovery that hits an escalation (evidence/discovery_run_094a855f92) --- */
+  var TL_SUBACCT = function(){
+    var m = M["12345"];
+    return [
+      ev('nav',{url:'localhost:5050/search', screen:{s:'search'}, line:'navigate  → localhost:5050/search'}),
+      ev('observe',{tree:TREE.search, screen:{s:'search'}}),
+      ev('think',{text:'need to open a Christmas Club sub-account for member 12345 — find the member first'}),
+      ev('act',{tool:'type', label:'type  <b>Search (ID / name)</b> ← "12345"  ·  param_name=member_id',
+                anim:{type:'type', el:'textbox|Search (ID / name)', text:'12345'}, screen:{s:'searchTyped',q:'12345'}}),
+      ev('ok',{text:'typed "12345"'}),
+      ev('rec',{step:{sid:'s2',act:'type',role:'textbox',name:'Search (ID / name)',value:'{param_ref: member_id}'}}),
+      ev('act',{tool:'click', label:'click  <b>button</b> "Go"', anim:{type:'click', el:'button|Go'}, screen:{s:'results',m:m}}),
+      ev('ok',{text:'1 result'}),
+      ev('rec',{step:{sid:'s3',act:'click',role:'button',name:'Go',value:'—'}}),
+      ev('act',{tool:'click', label:'click  <b>link</b> "View"', anim:{type:'click', el:'link|View'}, screen:{s:'member',m:m}, url:'localhost:5050/member/12345'}),
+      ev('ok',{text:'→ /member/12345'}),
+      ev('rec',{step:{sid:'s4',act:'click',role:'link',name:'View',value:'—'}}),
+      ev('act',{tool:'click', label:'click  <b>link</b> "Open sub-account"', anim:{type:'click', el:'link|Open sub-account'},
+                screen:{s:'newsub',m:m}, url:'localhost:5050/member/12345/new-subaccount'}),
+      ev('ok',{text:'→ new sub-account form'}),
+      ev('rec',{step:{sid:'s5',act:'click',role:'link',name:'Open sub-account',value:'—'}}),
+      ev('act',{tool:'type', label:'type  <b>Opening Deposit ($)</b> ← "50"',
+                anim:{type:'type', el:'textbox|Opening Deposit ($)', text:'50'}, screen:{s:'newsub',m:m,deposit:'50'}}),
+      ev('ok',{text:'deposit set'}),
+      ev('rec',{step:{sid:'s6',act:'type',role:'textbox',name:'Opening Deposit ($)',value:'"50"'}}),
+      ev('act',{tool:'click', label:'click  <b>button</b> "Continue"', anim:{type:'click', el:'button|Continue'}, screen:{s:'review',m:m}}),
+      ev('ok',{text:'review page ready'}),
+      ev('rec',{step:{sid:'s7',act:'click',role:'button',name:'Continue',value:'—'}}),
+      ev('escalate',{reason:'Review page is ready: Christmas Club sub-account for member 12345 (Dana Whitfield), $50.00 opening deposit. "Confirm and Open Account" is state-changing and hard to reverse, so per policy I am escalating for human confirmation before submitting.'}),
+      ev('resumed',{decision:'approved', note:'operator approved via the console'}),
+      ev('act',{tool:'click', label:'click  <b>button</b> "Confirm and Open Account"', anim:{type:'click', el:'button|Confirm and Open Account'},
+                screen:{s:'subok',m:m}, url:'localhost:5050/member/12345/new-subaccount/submit'}),
+      ev('ok',{text:'Sub-account #4 (christmas_club) created for Dana Whitfield'}),
+      ev('rec',{step:{sid:'s8',act:'click',role:'button',name:'Confirm and Open Account',value:'—  (risky · needs confirm=true on replay)'}}),
+      ev('done',{text:'finish  ·  success  ·  a new Christmas Club sub-account, created after escalation approval'}),
+      ev('compile',{cap:{capability_id:'open_subaccount', version:'1.0.0', risk:'risky', lifecycle:'draft',
+        note:'risky — replay refuses to execute past the confirm step without confirm=true'}}),
+      ev('replaySweep',{sub:true})
+    ];
+  };
+
+  /* --- replay-only scenarios: no LLM, deterministic walk of an existing capability --- */
+  function replayOnly(caption, params, resultObj, walk){
+    return {
+      replayOnly:true, caption:caption, params:params, result:resultObj, walk:walk
+    };
+  }
+
+  var SCN = {
+    balance:{ chip:'Look up a savings balance', kind:'discover', build:TL_BALANCE,
+      capId:'lookup_member_balance' },
+    subacct:{ chip:'Open a sub-account', kind:'discover · risky', build:TL_SUBACCT,
+      capId:'open_subaccount' },
+    replay_locked:{ chip:'Replay: a locked account', kind:'replay', ...replayOnly(
+      'replay  lookup_member_balance  { member_id: "99999" }',
+      {member_id:'99999'},
+      {status:'business_outcome', outputs:{}, business_outcome_code:'PERMISSION_DENIED', failure_detail:null},
+      [
+        {url:'localhost:5050/search', screen:{s:'search'}, note:'navigate → /search'},
+        {screen:{s:'searchTyped',q:'99999'}, anim:{type:'type', el:'textbox|Search (ID / name)', text:'99999'}, note:'s2 type · role+name (tier 1)'},
+        {screen:{s:'results',m:M["99999"]}, anim:{type:'click', el:'button|Go'}, note:'s3 click Go'},
+        {screen:{s:'member',m:M["99999"]}, anim:{type:'click', el:'link|View'}, url:'localhost:5050/member/99999', note:'s4 click View'},
+        {screen:{s:'denied',m:M["99999"]}, note:'s5 extract — locator unresolved; page contains "Access denied…" → declared PERMISSION_DENIED', denied:true}
+      ]
+    )},
+    replay_missing:{ chip:'Replay: an unknown member', kind:'replay', ...replayOnly(
+      'replay  lookup_member_balance  { member_id: "88888" }',
+      {member_id:'88888'},
+      {status:'business_outcome', outputs:{}, business_outcome_code:'MEMBER_NOT_FOUND', failure_detail:null},
+      [
+        {url:'localhost:5050/search', screen:{s:'search'}, note:'navigate → /search'},
+        {screen:{s:'searchTyped',q:'88888'}, anim:{type:'type', el:'textbox|Search (ID / name)', text:'88888'}, note:'s2 type member_id'},
+        {screen:{s:'noResults'}, anim:{type:'click', el:'button|Go'}, note:'s3 click Go — no rows'},
+        {screen:{s:'noResults'}, note:'s4 click "View" — locator unresolved; page contains "No results." → declared MEMBER_NOT_FOUND', noresults:true}
+      ]
+    )},
+    replay_nodata:{ chip:'Replay: page loads, data missing', kind:'replay', ...replayOnly(
+      'replay  lookup_member_balance  { member_id: "77777" }',
+      {member_id:'77777'},
+      {status:'data_unavailable', outputs:{}, business_outcome_code:null,
+       failure_detail:{step_id:'s5', extract_as:'savings_balance', observed:'', reason:'extracted value is empty — the element rendered but carried no data behind it'}},
+      [
+        {url:'localhost:5050/search', screen:{s:'search'}, note:'navigate → /search'},
+        {screen:{s:'searchTyped',q:'77777'}, anim:{type:'type', el:'textbox|Search (ID / name)', text:'77777'}, note:'s2 type member_id'},
+        {screen:{s:'results',m:M["77777"]}, anim:{type:'click', el:'button|Go'}, note:'s3 click Go'},
+        {screen:{s:'member',m:M["77777"]}, anim:{type:'click', el:'link|View'}, url:'localhost:5050/member/77777', note:'s4 click View'},
+        {screen:{s:'member',m:M["77777"]}, anim:{type:'read', el:'rowheader|Savings Balance'}, note:'s5 extract — element resolves, cell is empty → extract_contract fails → data_unavailable', empty:true}
+      ]
+    )}
+  };
+  var SCN_ORDER = ['balance','subacct','replay_locked','replay_missing','replay_nodata'];
+
+  /* replay sweep shown in the Result panel once a discovery run compiles */
+  var SWEEP = [
+    {p:'{ member_id: "23456" }',  status:'success',          code:null,               out:{savings_balance:'$5.02'}},
+    {p:'{ member_id: "88888" }',  status:'business_outcome',  code:'MEMBER_NOT_FOUND', out:{}},
+    {p:'{ member_id: "99999" }',  status:'business_outcome',  code:'PERMISSION_DENIED',out:{}},
+    {p:'{ member_id: "77777" }',  status:'data_unavailable',  code:null,               out:{}}
+  ];
+  var SWEEP_SUB = [
+    {p:'{ member_id: "88888" }  confirm=true', status:'business_outcome', code:'MEMBER_NOT_FOUND', out:{}},
+    {p:'{ member_id: "99999" }  confirm=true', status:'business_outcome', code:'PERMISSION_DENIED', out:{}},
+    {p:'{ member_id: "23456" }  confirm=false', status:'hard_failure', code:null, out:{}, note:'refused: risky capability needs confirm=true'}
+  ];
+
+  /* -------------------------------------------------------------------------------------------
+     BANK PANEL — faithful mini-renders of the mock core-banking screens
+  ------------------------------------------------------------------------------------------- */
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function bankHTML(st){
+    var m = st.m;
+    if(st.s==='search' || st.s==='searchTyped'){
+      var q = st.s==='searchTyped'? st.q : '';
+      return '<h4>Member Search</h4>'+
+        '<div class="field"><label>Search (ID / name)</label>'+
+        '<div class="inp" data-el="textbox|Search (ID / name)">'+esc(q)+'</div></div>'+
+        '<button class="btn" data-el="button|Go">Go</button>';
+    }
+    if(st.s==='results'){
+      return '<h4>Member Search</h4>'+
+        '<table><thead><tr><th>Member ID</th><th>Name</th><th>Actions</th></tr></thead><tbody>'+
+        '<tr><td>'+esc(m.id)+'</td><td>'+esc(m.name.split(' ').reverse().join(', '))+'</td>'+
+        '<td><span class="lnk" data-el="link|View">View</span></td></tr></tbody></table>';
+    }
+    if(st.s==='noResults'){
+      return '<h4>Member Search</h4>'+
+        '<table><thead><tr><th>Member ID</th><th>Name</th><th>Actions</th></tr></thead><tbody>'+
+        '<tr><td colspan="3" style="text-align:center;color:var(--paper-muted);font-style:italic">No results.</td></tr></tbody></table>';
+    }
+    if(st.s==='member'){
+      var balCell = m.balance==null
+        ? '<td><span class="bal empty"></span></td>'
+        : '<td><span class="bal">'+esc(m.balance)+'</span></td>';
+      return '<h4>Member '+esc(m.id)+'</h4>'+
+        '<table>'+
+        '<tr><th scope="row">Member ID</th><td>'+esc(m.id)+'</td></tr>'+
+        '<tr><th scope="row">Name</th><td>'+esc(m.name)+'</td></tr>'+
+        '<tr><th scope="row">Status</th><td>'+esc(m.status)+'</td></tr>'+
+        '<tr><th scope="row" data-el="rowheader|Savings Balance">Savings Balance</th>'+balCell+'</tr>'+
+        '</table>'+
+        '<div class="btnrow">'+
+        '<span class="btn ghost" data-el="link|Open sub-account">Open sub-account</span>'+
+        '<span class="btn ghost" data-el="link|View Transactions">View Transactions</span>'+
+        '<span class="btn ghost" data-el="link|Update Mailing Address">Update Mailing Address</span>'+
+        '</div><span class="backlink">← Back to search</span>';
+    }
+    if(st.s==='denied'){
+      return '<h4>Member '+esc(m.id)+'</h4>'+
+        '<div class="msg no" data-el="rowheader|Savings Balance">Access denied. This account is restricted and its details cannot be viewed.</div>'+
+        '<span class="backlink">← Back to search</span>';
+    }
+    if(st.s==='newsub'){
+      var dep = st.deposit || '0';
+      return '<h4>Open New Sub-Account — Member '+esc(m.id)+'</h4>'+
+        '<div class="field"><label>Account Type</label><div class="inp" style="max-width:150px">Christmas Club</div></div>'+
+        '<div class="field"><label>Nickname</label><div class="inp"></div></div>'+
+        '<div class="field"><label>Opening Deposit ($)</label><div class="inp" data-el="textbox|Opening Deposit ($)">'+esc(dep)+'</div></div>'+
+        '<button class="btn" data-el="button|Continue">Continue</button>';
+    }
+    if(st.s==='review'){
+      return '<h4>Review New Sub-Account — Member '+esc(m.id)+'</h4>'+
+        '<table>'+
+        '<tr><th scope="row">Member</th><td>'+esc(m.name)+'</td></tr>'+
+        '<tr><th scope="row">Account Type</th><td>Christmas Club</td></tr>'+
+        '<tr><th scope="row">Opening Deposit</th><td>$50.00</td></tr>'+
+        '</table>'+
+        '<div class="msg warn">This creates a new account record and moves funds. It cannot be undone from here.</div>'+
+        '<button class="btn" data-el="button|Confirm and Open Account">Confirm and Open Account</button>';
+    }
+    if(st.s==='subok'){
+      return '<h4>Sub-Account Opened</h4>'+
+        '<div class="msg ok">Sub-account #4 (christmas_club) created for '+esc(m.name)+'.</div>'+
+        '<table><tr><th scope="row">Member</th><td>'+esc(m.name)+'</td></tr>'+
+        '<tr><th scope="row">Opening Deposit</th><td>$50.00</td></tr></table>'+
+        '<span class="backlink">← Back to member</span>';
+    }
+    return '<h4>…</h4>';
+  }
+
+  /* -------------------------------------------------------------------------------------------
+     ENGINE
+  ------------------------------------------------------------------------------------------- */
+  var $ = function(s,r){return (r||document).querySelector(s);};
+  var el = {
+    console:$('#console'), bank:$('#bank'), url:$('#urltext'),
+    paneP:$('#pane-perception'), paneC:$('#pane-capability'), paneR:$('#pane-result'),
+    rail:$('#rail'), consoleHead:$('#consoleHead'),
+    btnRun:$('#btnRun'), btnStep:$('#btnStep'), btnRestart:$('#btnRestart'),
+    chips:$('#chips'), freetext:$('#freetext'), routebtn:$('#routebtn'), routenote:$('#routenote')
+  };
+  var state = {
+    key:'balance', tl:[], idx:0, steps:[], props:[], playing:false, mult:1,
+    lastScreen:{s:'search'}, cap:null, sweepShown:false, escalated:false, resolvedEsc:false,
+    token:0
+  };
+  var INSTANT = false;   /* fast-forward: no waits, no typewriter — used to build the resting state */
+  var sleep = function(ms){return new Promise(function(r){setTimeout(r, rm?0:Math.max(0,ms));});};
+  var wait = function(base){return sleep(INSTANT ? 0 : base * state.mult);};
+
+  /* ---- console ---- */
+  function nowT(){var d=new Date();return ('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);}
+  function cline(cls, html){
+    var row = document.createElement('div');
+    row.className = 'cl '+cls;
+    row.innerHTML = '<span class="t">'+nowT()+'</span><span class="m">'+html+'</span>';
+    el.console.appendChild(row);
+    el.console.scrollTop = el.console.scrollHeight;
+    return row;
+  }
+  function setCaret(on){
+    var old = $('.caret', el.console); if(old) old.remove();
+    if(on){
+      var last = el.console.lastElementChild;
+      if(last){ var c=document.createElement('span'); c.className='caret'; last.querySelector('.m').appendChild(c); }
+    }
+  }
+
+  /* ---- bank ---- */
+  function renderBank(st, swap){
+    state.lastScreen = st;
+    el.bank.innerHTML = bankHTML(st);
+    if(swap && !rm && !INSTANT){ el.bank.classList.remove('bank-swap'); void el.bank.offsetWidth; el.bank.classList.add('bank-swap'); }
+  }
+  function findEl(sel){ return el.bank.querySelector('[data-el="'+sel.replace(/"/g,'\\"')+'"]'); }
+  async function animType(sel, text){
+    var node = findEl(sel); if(!node) return;
+    node.classList.add('focused'); node.textContent='';
+    for(var i=0;i<text.length;i++){ node.textContent += text[i]; await wait(48); }
+    await wait(160); node.classList.remove('focused');
+  }
+  async function animClick(sel){
+    var node = findEl(sel); if(!node) return;
+    node.classList.add('clicked'); await wait(260); node.classList.remove('clicked');
+  }
+  async function animRead(sel){
+    var node = findEl(sel); if(!node) return;
+    node.classList.add('clicked'); await wait(200);
+    var sib = node.parentElement && node.parentElement.querySelector('.bal, td');
+    if(node.tagName==='TH' && node.nextElementSibling){ sib = node.nextElementSibling; }
+    if(sib){ sib.classList.add('clicked'); }
+    await wait(260); node.classList.remove('clicked'); if(sib) sib.classList.remove('clicked');
+  }
+
+  /* ---- perception ---- */
+  function renderTree(rows, hot){
+    var html = rows.map(function(r){
+      var indent = r[0].match(/^\s*/)[0];
+      var role = r[0].trim();
+      var isHot = hot && (role+'|'+r[1])===hot;
+      var line = indent + '<span class="role">'+esc(role)+'</span>'
+        + (r[1]? '  <span class="name">"'+esc(r[1])+'"</span>':'')
+        + (r[2]? '  = <span class="val">"'+esc(r[2])+'"</span>':'');
+      return '<span class="node'+(isHot?' hot':'')+'">'+line+'</span>';
+    }).join('\n');
+    el.paneP.innerHTML = '<div class="tree">'+html+'</div>';
+  }
+  function perceptionResting(){
+    el.paneP.innerHTML = '<div class="result-empty">The accessibility tree the agent reasons over — role, accessible name and value for every element, iframe content merged in. Run a task to watch it update each turn; the element the agent is about to touch is highlighted.</div>';
+  }
+
+  /* ---- capability ---- */
+  function renderCap(){
+    var c = state.cap;
+    var head;
+    if(!c){
+      head = '<div class="cap-head">no capability yet — a discovery run compiles one from the recorded steps</div>';
+    } else {
+      head = '<div class="cap-head"><b style="color:var(--ink-1)">'+esc(c.capability_id)+'</b> v'+esc(c.version)
+        + ' <span class="pill '+c.risk+'">'+c.risk+'</span>'
+        + ' <span class="pill '+(c.lifecycle||'draft')+'">'+esc(c.lifecycle||'draft')+'</span>'
+        + (c.note? '<span style="color:var(--ink-3);flex-basis:100%;margin-top:4px">'+esc(c.note)+'</span>':'')
+        + '</div>';
+    }
+    var body = state.steps.map(function(s, i){
+      return '<div class="stepcard'+(i===state.steps.length-1?' slidein':'')+'">'
+        + '<span class="sid">'+esc(s.sid)+'</span> · <span class="act">'+esc(s.act)+'</span>'
+        + '<div class="meta"><span class="k">target</span> '+esc(s.role)+' "'+esc(s.name)+'"'
+        + '<br><span class="k">value</span> '+esc(s.value)+'</div></div>';
+    }).join('');
+    var props = state.props.map(function(p){
+      return '<div class="proprow"><span class="tag">'+esc(p.tag)+' · proposed</span><br>'+esc(p.text)+'</div>';
+    }).join('');
+    el.paneC.innerHTML = head + body + props;
+    el.paneC.scrollTop = el.paneC.scrollHeight;
+  }
+
+  /* ---- result ---- */
+  function jhl(obj){
+    var s = JSON.stringify(obj, null, 2);
+    return s.replace(/("(\\.|[^"])*")(\s*:)?/g, function(m, str, x, colon){
+      return colon ? '<span class="k">'+esc(str)+'</span>'+colon : '<span class="s">'+esc(str)+'</span>';
+    }).replace(/\b(-?\d+\.?\d*|true|false|null)\b/g, '<span class="n">$1</span>');
+  }
+  function resultResting(){
+    el.paneR.innerHTML = '<div class="result-empty">Replay runs <b style="color:var(--ink-2)">after</b> discovery compiles the capability — a deterministic walk of the recorded steps, no model call. It resolves to one of four outcomes: <span style="color:var(--wire)">success</span>, <span style="color:var(--signal)">business_outcome</span>, <span style="color:#c99bd6">data_unavailable</span>, or <span style="color:var(--alarm)">hard_failure</span>.</div>';
+  }
+  function renderSweep(sub){
+    var rows = sub ? SWEEP_SUB : SWEEP;
+    var html = '<div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-bottom:9px">deterministic replay · same capability · no LLM · pick a row</div>';
+    html += rows.map(function(r,i){
+      return '<div class="replay-row" data-i="'+i+'"'+(i===0?' aria-current="true"':'')+'>'
+        + '<span class="p">'+esc(r.p)+'</span>'
+        + '<span class="status '+r.status+'">'+r.status.replace('_',' ')+'</span></div>';
+    }).join('');
+    html += '<pre class="json" id="sweepjson"></pre>';
+    el.paneR.innerHTML = html;
+    var showRow = function(i){
+      var r = rows[i];
+      [].forEach.call(el.paneR.querySelectorAll('.replay-row'), function(n){ n.setAttribute('aria-current', n.dataset.i===String(i)?'true':'false'); });
+      var res = {status:r.status, outputs:r.out, business_outcome_code:r.code, failure_detail:null};
+      if(r.note) res.note = r.note;
+      $('#sweepjson', el.paneR).innerHTML = jhl(res);
+    };
+    [].forEach.call(el.paneR.querySelectorAll('.replay-row'), function(n){
+      n.addEventListener('click', function(){ showRow(+n.dataset.i); });
+    });
+    showRow(0);
+  }
+  function renderReplayResult(res, params){
+    el.paneR.innerHTML = '<div style="font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-bottom:9px">deterministic replay · no LLM · params '+esc(JSON.stringify(params))+'</div>'
+      + '<div style="margin-bottom:9px"><span class="status '+res.status+'">'+res.status.replace('_',' ')+'</span>'
+      + (res.business_outcome_code? ' <span style="font-family:var(--mono);font-size:11px;color:var(--signal)">'+esc(res.business_outcome_code)+'</span>':'') + '</div>'
+      + '<pre class="json">'+jhl(res)+'</pre>';
+  }
+
+  /* ---- phase rail ---- */
+  function renderRail(phase){
+    var scn = SCN[state.key];
+    var phases = scn.replayOnly
+      ? [{n:'01',t:'Load capability'},{n:'02',t:'Replay — deterministic'},{n:'03',t:'Outcome'}]
+      : [{n:'01',t:'Discovery — LLM loop'},{n:'02',t:'Compile → Capability'},{n:'03',t:'Replay — every time'}];
+    var cell = function(p, cls){ return '<div class="ph '+cls+'"><span class="n">'+p.n+'</span>'+p.t+'</div>'; };
+    var html;
+    if(state.escalated){
+      // phase: 1 = mid-discovery/escalating · 2 = escalation resolved, still discovering
+      //        3 = compiled · 4 = replay ready
+      html = cell(phases[0], phase>=3 ? 'done' : 'active')
+        + '<div class="ph branch '+(state.resolvedEsc?'done':'')+'">↯ Escalation '+(state.resolvedEsc?'· approved':'· waiting')+'</div>'
+        + cell(phases[1], phase>=4 ? 'done' : (phase===3 ? 'active' : ''))
+        + cell(phases[2], phase>=4 ? 'active' : '');
+    } else {
+      html = phases.map(function(p,i){ return cell(p, i<phase ? 'done' : (i===phase ? 'active' : '')); }).join('');
+    }
+    el.rail.innerHTML = html;
+  }
+
+  /* ---- operator card (escalation) ---- */
+  function showOperator(reason, onResolve){
+    var card = document.createElement('div');
+    card.className = 'operator';
+    card.innerHTML = '<h5>Operator console — action needs confirmation</h5>'
+      + '<p><b>Reason:</b> '+esc(reason)+'</p>'
+      + '<p><b>Lease:</b> automation → <span style="color:var(--alarm)">human</span> · the run is blocked</p>'
+      + '<div class="ops"><button class="approve">Approve &amp; resume</button><button class="decline">Decline</button></div>';
+    el.paneC.appendChild(card);
+    $('#pane-capability').scrollTop = el.paneC.scrollHeight;
+    switchTab('capability');
+    return new Promise(function(resolve){
+      card.querySelector('.approve').addEventListener('click', function(){
+        card.querySelector('.ops').innerHTML = '<span style="color:var(--wire)">✓ approved — resuming the same live session</span>';
+        resolve('approved');
+      });
+      card.querySelector('.decline').addEventListener('click', function(){
+        card.querySelector('.ops').innerHTML = '<span style="color:var(--alarm)">✕ declined — the agent will finish without the action</span>';
+        resolve('declined');
+      });
+    });
+  }
+
+  /* ---- tabs ---- */
+  function switchTab(name){
+    [].forEach.call(document.querySelectorAll('.tabs [role=tab]'), function(b){
+      b.setAttribute('aria-selected', b.dataset.tab===name ? 'true':'false');
+    });
+    ['perception','capability','result'].forEach(function(n){
+      $('#pane-'+n).classList.toggle('on', n===name);
+    });
+  }
+  [].forEach.call(document.querySelectorAll('.tabs [role=tab]'), function(b){
+    b.addEventListener('click', function(){ switchTab(b.dataset.tab); });
+  });
+
+  /* ---- run one timeline event ---- */
+  async function runEvent(e){
+    if(e.k==='nav'){
+      el.url.textContent = e.url;
+      renderBank(e.screen, true);
+      cline('obs', esc(e.line));
+      await wait(420);
+    } else if(e.k==='observe'){
+      renderBank(e.screen, false);
+      renderTree(e.tree, e.hot);
+      switchTab('perception');
+      cline('obs', 'observe  ·  '+ (e.hot? 'target → '+esc(e.hot.split('|')[0])+' "'+esc(e.hot.split('|')[1])+'"' : 'reading page'));
+      await wait(560);
+    } else if(e.k==='think'){
+      cline('think', '› '+esc(e.text));
+      await wait(520);
+    } else if(e.k==='act'){
+      cline('act', '→ '+e.label);
+      setCaret(true);
+      if(e.anim){
+        if(e.anim.type==='type') await animType(e.anim.el, e.anim.text);
+        else if(e.anim.type==='click') await animClick(e.anim.el);
+        else if(e.anim.type==='read') await animRead(e.anim.el);
+      }
+      if(e.screen){ if(e.url) el.url.textContent = e.url; renderBank(e.screen, !!e.url); }
+      setCaret(false);
+      await wait(240);
+    } else if(e.k==='ok'){
+      cline('ok', '✓ '+esc(e.text));
+      await wait(300);
+    } else if(e.k==='rec'){
+      state.steps.push(e.step);
+      renderCap();
+      switchTab('capability');
+      cline('rec', '● recorded step '+esc(e.step.sid));
+      await wait(360);
+    } else if(e.k==='note'){
+      state.props.push({tag:e.tag, text:e.text});
+      renderCap();
+      cline('rec', '● '+esc(e.tag)+' — proposal noted for review');
+      await wait(420);
+    } else if(e.k==='escalate'){
+      state.escalated = true;
+      renderRail(1);
+      cline('warn', '↯ escalate — '+esc(e.reason.slice(0,120))+'…');
+      var decision = await showOperator(e.reason);
+      state.resolvedEsc = true;
+      renderRail(1);
+      cline(decision==='approved'?'ok':'warn', (decision==='approved'?'✓':'✕')+' human '+decision.toUpperCase()+' — lease → automation');
+      await wait(360);
+    } else if(e.k==='resumed'){
+      /* handled inline by escalate */
+      await wait(50);
+    } else if(e.k==='done'){
+      cline('done', '■ '+esc(e.text));
+      renderRail(state.escalated?2:1);
+      await wait(520);
+    } else if(e.k==='compile'){
+      state.cap = e.cap;
+      renderCap();
+      switchTab('capability');
+      cline('rec', '⟳ compiled  ·  '+esc(e.cap.capability_id)+' v'+esc(e.cap.version)+'  ·  lifecycle=draft');
+      renderRail(state.escalated?3:2);
+      await wait(620);
+    } else if(e.k==='replaySweep'){
+      state.sweepShown = true;
+      renderSweep(!!e.sub);
+      switchTab('result');
+      cline('done', '▸ capability ready — replay resolves it deterministically for any member_id');
+      renderRail(state.escalated?4:2);
+      await wait(300);
+    }
+  }
+
+  /* ---- replay-only walk ---- */
+  async function runReplayWalk(scn){
+    renderRail(1);
+    switchTab('result');
+    cline('obs', 'replay  '+esc(scn.caption));
+    cline('think', '› deterministic — no model call; walking recorded steps, resolving each locator by role+name');
+    await wait(500);
+    for(var i=0;i<scn.walk.length;i++){
+      if(state.token!==thisToken) return;
+      var w = scn.walk[i];
+      if(w.url) el.url.textContent = w.url;
+      renderBank(w.screen, !!w.url || i===0);
+      if(w.anim){
+        cline('act','→ '+esc(w.note));
+        setCaret(true);
+        if(w.anim.type==='type') await animType(w.anim.el, w.anim.text);
+        else if(w.anim.type==='click') await animClick(w.anim.el);
+        else if(w.anim.type==='read') await animRead(w.anim.el);
+        setCaret(false);
+      } else {
+        cline('obs','· '+esc(w.note));
+      }
+      await wait(430);
+    }
+    renderRail(2);
+    var res = scn.result;
+    cline(res.status==='success'?'done':(res.status==='hard_failure'?'warn':'rec'),
+          '■ '+res.status.replace('_',' ').toUpperCase()+(res.business_outcome_code?' · '+res.business_outcome_code:''));
+    renderReplayResult(res, scn.params);
+    renderRail(2);
+  }
+
+  /* ---- player ---- */
+  var thisToken = 0;
+  function loadScenario(key, resting){
+    state.key = key;
+    state.token++;
+    thisToken = state.token;
+    state.playing = false;
+    state.idx = 0; state.steps = []; state.props = [];
+    state.cap = null; state.sweepShown=false; state.escalated=false; state.resolvedEsc=false;
+    el.console.innerHTML = '';
+    var scn = SCN[key];
+    // chips
+    [].forEach.call(el.chips.children, function(c){ c.setAttribute('aria-pressed', c.dataset.key===key?'true':'false'); });
+    if(scn.replayOnly){
+      renderRail(0);
+      renderBank({s:'search'}, false);
+      el.url.textContent = 'localhost:5050/search';
+      perceptionResting();
+      renderCap();
+      el.paneC.innerHTML = '<div class="cap-head" style="color:var(--ink-2)"><b style="color:var(--ink-1)">lookup_member_balance</b> v1.0.0 <span class="pill safe">safe</span> <span class="pill verified">verified</span><span style="color:var(--ink-3);flex-basis:100%;margin-top:4px">an already-compiled capability — this scenario only replays it</span></div>';
+      resultResting();
+      el.btnRun.textContent = '▶ Replay';
+      if(resting){
+        el.paneR.innerHTML = '<div class="result-empty">Press <b style="color:var(--ink-2)">▶ Replay</b> to walk this capability against <b style="color:var(--ink-2)">'+esc(JSON.stringify(scn.params))+'</b> — deterministic, no model, resolves to <span class="status '+scn.result.status+'">'+scn.result.status.replace('_',' ')+'</span>.</div>';
+      }
+      return;
+    }
+    state.tl = scn.build();
+    renderRail(0);
+    perceptionResting(); renderCap(); resultResting();
+    renderBank({s:'search'}, false);
+    el.url.textContent = 'localhost:5050/search';
+    if(resting){
+      // Build the state a completed run leaves behind, instantly — so the page opens full, not
+      // as an empty shell. `subacct` stops at the escalation (that pause IS the point).
+      var stopAt = (key==='subacct') ? 'escalate' : null;
+      var myTok = state.token;
+      fastForward(stopAt).then(function(){
+        if(myTok !== state.token) return;
+        if(key==='subacct'){
+          cline('obs','■ paused at the escalation — the run is blocked until a human decides. Press ▶ Run.');
+          el.btnRun.textContent = '▶ Run';
+        } else {
+          cline('obs','■ this is the state a full discovery run leaves behind. Press ▶ Run to watch it happen, or ⏭ Step.');
+          el.btnRun.textContent = '▶ Replay from start';
+        }
+      });
+    } else {
+      el.btnRun.textContent = '▶ Run';
+    }
+  }
+
+  async function fastForward(stopAtKind){
+    INSTANT = true;
+    el.console.innerHTML = '';
+    var myTok = state.token;
+    while(state.idx < state.tl.length){
+      if(myTok !== state.token){ INSTANT = false; return; }
+      if(stopAtKind && state.tl[state.idx].k === stopAtKind) break;
+      await runEvent(state.tl[state.idx]);
+      state.idx++;
+    }
+    INSTANT = false;
+    setCaret(false);
+  }
+
+  function restartRun(){
+    state.token++; thisToken = state.token;
+    state.playing = false;
+    state.idx = 0; state.steps = []; state.props = [];
+    state.cap = null; state.sweepShown = false; state.escalated = false; state.resolvedEsc = false;
+    el.console.innerHTML = '';
+    perceptionResting(); renderCap(); resultResting();
+    renderRail(0);
+    renderBank({s:'search'}, false);
+    el.url.textContent = 'localhost:5050/search';
+  }
+
+  function setPlayBtn(playing){
+    state.playing = playing;
+    if(playing){ el.btnRun.textContent = '⏸ Pause'; return; }
+    var scn = SCN[state.key];
+    if(scn.replayOnly){ el.btnRun.textContent = '▶ Replay'; return; }
+    el.btnRun.textContent = (state.idx>0 && state.idx<state.tl.length) ? '▶ Resume'
+      : (state.idx>=state.tl.length ? '▶ Replay from start' : '▶ Run');
+  }
+
+  async function play(){
+    var scn = SCN[state.key];
+    if(scn.replayOnly){
+      setPlayBtn(true);
+      el.console.innerHTML='';
+      await runReplayWalk(scn);
+      if(state.token===thisToken) setPlayBtn(false);
+      return;
+    }
+    setPlayBtn(true);
+    if(state.idx===0) el.console.innerHTML='';
+    var myToken = state.token;
+    while(state.idx < state.tl.length){
+      if(!state.playing || state.token!==myToken) return;
+      await runEvent(state.tl[state.idx]);
+      if(state.token!==myToken) return;
+      state.idx++;
+    }
+    setPlayBtn(false);
+    setCaret(false);
+  }
+
+  async function step(){
+    var scn = SCN[state.key];
+    if(scn.replayOnly){ if(state.idx===0){ el.console.innerHTML=''; await runReplayWalk(scn);} return; }
+    if(state.playing) return;
+    if(state.idx===0) el.console.innerHTML='';
+    if(state.idx < state.tl.length){
+      await runEvent(state.tl[state.idx]);
+      state.idx++;
+      setPlayBtn(false);
+    }
+  }
+
+  el.btnRun.addEventListener('click', function(){
+    if(state.playing){ state.playing=false; setPlayBtn(false); return; }
+    var scn = SCN[state.key];
+    if(!scn.replayOnly && state.idx >= state.tl.length) restartRun();  // completed → replay from top
+    play();
+  });
+  el.btnStep.addEventListener('click', function(){
+    state.playing=false;
+    var scn = SCN[state.key];
+    if(!scn.replayOnly && state.idx >= state.tl.length) restartRun();
+    step();
+  });
+  el.btnRestart.addEventListener('click', function(){ restartRun(); setPlayBtn(false); });
+
+  /* speed */
+  [].forEach.call(document.querySelectorAll('#speed button'), function(b){
+    b.addEventListener('click', function(){
+      [].forEach.call(document.querySelectorAll('#speed button'), function(x){x.setAttribute('aria-pressed','false');});
+      b.setAttribute('aria-pressed','true');
+      state.mult = parseFloat(b.dataset.mult);
+    });
+  });
+
+  /* chips */
+  SCN_ORDER.forEach(function(key){
+    var scn = SCN[key];
+    var c = document.createElement('button');
+    c.className='chip'; c.dataset.key=key;
+    c.setAttribute('aria-pressed', key==='balance'?'true':'false');
+    c.innerHTML = esc(scn.chip)+'<span class="kind">'+esc(scn.kind)+'</span>';
+    c.addEventListener('click', function(){ loadScenario(key, true); });
+    el.chips.appendChild(c);
+  });
+
+  /* -------------------------------------------------------------------------------------------
+     FREE-TEXT ROUTING via the `sample` capability (viewer opt-in). Presets always work.
+  ------------------------------------------------------------------------------------------- */
+  var sampleFn = null;
+  el.freetext.disabled = true; el.routebtn.disabled = true;
+  el.routenote.textContent = 'checking whether this viewer can ask Claude to route free-text…';
+
+  (function initSample(){
+    if(!(window.claude && window.claude.use)){ el.routenote.textContent = 'free-text routing is off in this view — the preset tasks above run the same system.'; return; }
+    window.claude.use('sample').then(function(s){
+      if(!s){ el.routenote.textContent = 'free-text routing is off in this view — the preset tasks above run the same system.'; return; }
+      sampleFn = s;
+      el.freetext.disabled = false; el.routebtn.disabled = false;
+      el.routenote.textContent = 'ready — type a task and Claude will route it to the closest scenario.';
+    }).catch(function(){ el.routenote.textContent = 'free-text routing is unavailable — use the preset tasks.'; });
+  })();
+
+  $('#freeform').addEventListener('submit', function(ev2){
+    ev2.preventDefault();
+    var q = el.freetext.value.trim();
+    if(!q || !sampleFn) return;
+    el.routebtn.disabled = true; el.routenote.textContent = 'asking Claude…';
+    var menu = SCN_ORDER.map(function(k){return '- '+k+': '+SCN[k].chip+' ('+SCN[k].kind+')';}).join('\n');
+    var prompt = 'You route a user request to one demo scenario. Scenarios:\n'+menu+
+      '\n\nRules: a "look up / what is / check a balance" request for a normal member id -> balance. '+
+      'A locked/restricted account -> replay_locked. An unknown/nonexistent id -> replay_missing. '+
+      'An id whose data is missing/unavailable -> replay_nodata. '+
+      'Anything about opening/creating an account or a state-changing action -> subacct.\n\n'+
+      'User request: "'+q+'"\n\nReturn JSON only: {"scenario":"<key>","why":"<one short clause>"}';
+    sampleFn.json([{role:'user', content:prompt}], {modelTier:'quick', cache:false}).then(function(out){
+      var key = out && out.scenario;
+      if(!SCN[key]) key = 'balance';
+      el.routenote.textContent = 'routed → ' + SCN[key].chip + (out && out.why ? '  ·  '+out.why : '');
+      loadScenario(key, true);
+      el.routebtn.disabled = false;
+      setTimeout(play, 200);
+    }).catch(function(err){
+      el.routenote.textContent = (err && err.code==='not_granted')
+        ? 'Claude routing was declined — the preset tasks run the same system.'
+        : 'could not route that — try a preset above.';
+      el.routebtn.disabled = false;
+    });
+  });
+
+  /* -------------------------------------------------------------------------------------------
+     EXPLORE — redaction sinks
+  ------------------------------------------------------------------------------------------- */
+  var OBS_ROWS = [
+    {l:'heading', v:'Member 12345', keep:'Member 12345'},
+    {l:'row Name', a:'Dana Whitfield', person:true},
+    {l:'row Email', a:'dana.whitfield@example.com', email:true},
+    {l:'row Phone', a:'(415) 555-0132', phone:true},
+    {l:'row Mailing address', a:'412 Birchwood Lane, Madison WI 53703', addr:true},
+    {l:'row Savings Balance', a:'$1,842.30', keep:true}
+  ];
+  var SINK_NOTE = {
+    artifact:'the compiled capability on disk — gray-area PII passes through, because a declared output is the point. Byte-for-byte the original behaviour.',
+    evidence:'transcripts on disk — gray-area entities are tokenised (reversible under audit), so a reviewer can still follow the flow.',
+    llm_prompt:'anything sent to a third-party model — hard-masked. The one-way door. Bare numeric ids (member 12345) are flagged, not masked, so discovery still works.'
+  };
+  function renderSink(sink){
+    var out = OBS_ROWS.map(function(r){
+      var val = r.a || r.v;
+      if(!val) return '';
+      var shown;
+      if(sink!=='artifact' && (r.person||r.email||r.phone||r.addr)){
+        var t = r.person?'PERSON':r.email?'EMAIL_ADDRESS':r.phone?'PHONE_NUMBER':'STREET_ADDRESS';
+        shown = sink==='evidence'
+          ? '<span class="tok">&lt;'+t+'_1&gt;</span>'
+          : '<span class="red">&lt;'+t+':REDACTED&gt;</span>';
+        if(r.person && sink==='llm_prompt') shown = '<span class="keep">Dana Whitfield</span>  <span style="color:var(--ink-3)">(regex fallback can’t find names — needs Presidio)</span>';
+      } else if(r.keep){
+        shown = '<span class="keep">'+esc(val)+'</span>';
+      } else {
+        shown = esc(val);
+      }
+      return '<span style="color:var(--ink-3)">'+esc(r.l)+'</span>  '+shown;
+    }).filter(Boolean).join('\n');
+    $('#obsview').innerHTML = out;
+    $('#sinknote').textContent = 'sink = "'+sink+'"  —  '+SINK_NOTE[sink];
+  }
+  [].forEach.call(document.querySelectorAll('#sinktabs button'), function(b){
+    b.addEventListener('click', function(){
+      [].forEach.call(document.querySelectorAll('#sinktabs button'), function(x){x.setAttribute('aria-pressed','false');});
+      b.setAttribute('aria-pressed','true');
+      renderSink(b.dataset.sink);
+    });
+  });
+  renderSink('artifact');
+
+  /* patch json */
+  $('#patchjson').innerHTML = jhl({
+    tenant:"acme",
+    checkpoint:{locator:{role:"rowheader",name:"Ledger Balance"}},
+    steps:{s5:{target:{primary:{role:"rowheader",name:"Ledger Balance"},
+      reasoning:"ACME renamed this row header from 'Savings Balance'"}}}
+  });
+
+  /* -------------------------------------------------------------------------------------------
+     BOOT — resting state: the flagship scenario, ready to run, everything visible.
+  ------------------------------------------------------------------------------------------- */
+  loadScenario('balance', true);
+
+})();
+</script>
+</body>
+</html>

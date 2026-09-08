@@ -1,17 +1,20 @@
 from agent.compiler import (
     _attach_expected_outcomes,
+    _attach_extract_contracts,
     compile_capability,
     infer_input_schema,
     infer_output_schema,
     save_capability,
 )
-from artifact.schema import Capability, Checkpoint, LocatorTarget, Step
+from artifact.schema import Capability, Checkpoint, ExtractContract, LocatorTarget, Step
 
 
 class FakeRecorder:
-    def __init__(self, steps):
+    def __init__(self, steps, proposed_outcomes=None, proposed_contracts=None):
         self.steps = steps
         self.tier_log = []
+        self.proposed_outcomes = proposed_outcomes or []
+        self.proposed_contracts = proposed_contracts or []
 
 
 def _lt(role, name, strategy="role_name"):
@@ -31,10 +34,80 @@ def _lookup_steps():
     ]
 
 
+def test_curated_outcomes_are_tagged_curated_and_capability_is_draft():
+    recorder = FakeRecorder(_lookup_steps())
+    checkpoint = Checkpoint(type="element_present", locator={"role": "rowheader", "name": "Savings Balance"},
+                             expected="present")
+    cap = compile_capability(
+        capability_id="lookup_member_balance", version="1.0.0", run_id="run_test",
+        target_url="http://localhost:5050/search", risk_level="safe",
+        recorder=recorder, outputs={"savings_balance": "$1,842.30"}, checkpoint=checkpoint,
+    )
+    s4 = next(s for s in cap.steps if s.step_id == "s4")
+    assert all(o.provenance == "curated" for o in s4.expected_outcomes)
+    assert cap.lifecycle == "draft"
+    assert cap.schema_version == "1.1"
+    assert cap.unratified_rules() == []  # nothing proposed -> nothing to review
+
+
+def test_agent_proposed_outcome_is_attached_as_proposed_and_flagged_for_review():
+    recorder = FakeRecorder(
+        _lookup_steps(),
+        proposed_outcomes=[{
+            "condition": "page contains 'Account frozen pending review'",
+            "classification": "business_outcome", "code": "ACCOUNT_FROZEN",
+            "handling": "compliance hold; balance withheld", "action_type": "extract",
+        }],
+    )
+    checkpoint = Checkpoint(type="element_present", locator={"role": "rowheader", "name": "Savings Balance"},
+                             expected="present")
+    cap = compile_capability(
+        capability_id="lookup_member_balance", version="1.0.0", run_id="run_test",
+        target_url="http://localhost:5050/search", risk_level="safe",
+        recorder=recorder, outputs={"savings_balance": "$1,842.30"}, checkpoint=checkpoint,
+    )
+    s5 = next(s for s in cap.steps if s.step_id == "s5")
+    frozen = next(o for o in s5.expected_outcomes if o.code == "ACCOUNT_FROZEN")
+    assert frozen.provenance == "proposed"
+    # curated rules on the same step are still curated
+    assert any(o.provenance == "curated" for o in s5.expected_outcomes)
+    assert any("ACCOUNT_FROZEN" in u for u in cap.unratified_rules())
+
+
+def test_agent_proposed_data_shape_attaches_as_proposed_contract():
+    recorder = FakeRecorder(
+        [Step(step_id="s1", action_type="extract", target=_lt("cell", "x"), extract_as="routing_no")],
+        proposed_contracts=[{"extract_as": "routing_no", "pattern": r"\d{9}", "reason": "9-digit ABA"}],
+    )
+    cap = compile_capability(
+        capability_id="some_new_capability", version="1.0.0", run_id="r",
+        target_url="http://x/", risk_level="safe", recorder=recorder,
+        outputs={"routing_no": "123456789"},
+        checkpoint=Checkpoint(type="url_match", expected="done"),
+    )
+    s1 = cap.steps[0]
+    assert s1.extract_contract is not None
+    assert s1.extract_contract.provenance == "proposed"
+    assert cap.lifecycle == "draft"
+
+
 def test_infer_input_schema_finds_param_refs():
     schema = infer_input_schema(_lookup_steps())
     assert "member_id" in schema
     assert schema["member_id"]["type"] == "string"
+
+
+def test_infer_input_schema_picks_up_arbitrary_agent_named_params_incl_url_templates():
+    steps = [
+        Step(step_id="s1", action_type="navigate",
+             value={"param_ref": "member_id", "url_template": "http://h/member/{member_id}"}),
+        Step(step_id="s2", action_type="type", target=_lt("textbox", "Account"),
+             value={"param_ref": "account_number"}),
+        Step(step_id="s3", action_type="type", target=_lt("textbox", "As of"),
+             value={"param_ref": "as_of_date"}),
+    ]
+    schema = infer_input_schema(steps)
+    assert set(schema) == {"member_id", "account_number", "as_of_date"}
 
 
 def test_infer_output_schema_from_outputs_dict():
@@ -237,6 +310,53 @@ def test_update_member_address_declares_permission_denied_on_its_own_link():
     )
     update_link_step = next(s for s in cap.steps if s.step_id == "s5")
     assert {o.code for o in update_link_step.expected_outcomes} == {"PERMISSION_DENIED"}
+
+
+def test_compile_attaches_extract_contract_to_the_balance_extract_step():
+    """The 'page rendered, data didn't' guard: the extract step that reads savings_balance gets
+    a declared shape (a currency amount) so replay can tell a real value from an empty cell,
+    instead of needing a per-capability patch each time an empty render slips through."""
+    recorder = FakeRecorder(_lookup_steps())
+    checkpoint = Checkpoint(type="element_present", locator={"role": "rowheader", "name": "Savings Balance"},
+                             expected="present")
+    cap = compile_capability(
+        capability_id="lookup_member_balance", version="1.0.0", run_id="run_test",
+        target_url="http://localhost:5050/search", risk_level="safe",
+        recorder=recorder, outputs={"savings_balance": "$1,842.30"}, checkpoint=checkpoint,
+    )
+    import re
+
+    s5 = next(s for s in cap.steps if s.step_id == "s5")
+    assert s5.extract_contract is not None
+    assert s5.extract_contract.nonempty is True
+    assert re.fullmatch(s5.extract_contract.pattern, "$1,842.30")
+    assert not re.fullmatch(s5.extract_contract.pattern, "")
+
+    # steps that don't extract a contracted key are left alone
+    for s in cap.steps:
+        if s.step_id != "s5":
+            assert s.extract_contract is None
+
+
+def test_attach_extract_contracts_is_idempotent_and_wont_clobber_an_existing_one():
+    steps = [
+        Step(step_id="s5", action_type="extract", target=_lt("rowheader", "Savings Balance"),
+             extract_as="savings_balance"),
+    ]
+    once = _attach_extract_contracts("lookup_member_balance", steps)
+    twice = _attach_extract_contracts("lookup_member_balance", once)
+    assert twice[0].extract_contract == once[0].extract_contract
+
+    # a step that already carries a hand-authored contract is not overwritten
+    custom = ExtractContract(pattern=r"CUSTOM", reason="set by a human reviewer")
+    pre = [steps[0].model_copy(update={"extract_contract": custom})]
+    after = _attach_extract_contracts("lookup_member_balance", pre)
+    assert after[0].extract_contract == custom
+
+
+def test_attach_extract_contracts_noop_for_capability_without_a_table_entry():
+    steps = [Step(step_id="s1", action_type="extract", extract_as="whatever")]
+    assert _attach_extract_contracts("open_subaccount", steps) == steps
 
 
 def test_attach_expected_outcomes_is_idempotent():

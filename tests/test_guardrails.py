@@ -1,6 +1,12 @@
 import pytest
 
-from guardrails.policy import GuardrailViolation, check_risk_confirmation, guardrail_check, redact
+from guardrails.policy import (
+    GuardrailViolation,
+    check_risk_confirmation,
+    guardrail_check,
+    redact,
+    redact_with_report,
+)
 
 
 def test_allowed_action_on_allowed_domain_passes():
@@ -128,8 +134,45 @@ def test_redact_does_not_flag_a_currency_formatted_balance():
 
 def test_redact_does_not_flag_a_customer_name():
     """Names aren't secret-shaped and legitimately belong in a capability's declared outputs
-    (see guardrails/policy.py's module docstring) — full PII-name detection is an explicit,
-    documented cut, not something value-shape redaction attempts."""
+    (see guardrails/policy.py's module docstring). The DEFAULT sink ("artifact") still passes
+    them through untouched — the gray-area handling is opt-in per destination, below."""
     raw = {"member_name": "Dana Whitfield"}
     out = redact(raw)
     assert out["member_name"] == "Dana Whitfield"
+
+
+# ---- sink-aware gray-area redaction ---------------------------------------------------------
+
+def test_default_sink_is_byte_for_byte_the_old_behavior():
+    raw = {"member_name": "Dana Whitfield", "email": "dana@example.com",
+           "SSN": "123-45-6789", "balance": "$1,842.30"}
+    out = redact(raw)  # sink defaults to "artifact"
+    assert out["member_name"] == "Dana Whitfield"   # gray area: untouched
+    assert out["email"] == "dana@example.com"       # gray area: untouched
+    assert out["balance"] == "$1,842.30"            # not secret-shaped: untouched
+    assert out["SSN"] == "***REDACTED***"           # hard pass still fires
+
+
+def test_llm_prompt_sink_masks_gray_area_pii_that_artifact_sink_keeps():
+    raw = {"note": "contact dana@example.com", "SSN": "123-45-6789"}
+    out = redact(raw, sink="llm_prompt")
+    assert "dana@example.com" not in out["note"]
+    assert out["SSN"] == "***REDACTED***"           # hard pass unaffected by sink
+
+
+def test_evidence_sink_tokenizes_gray_area_pii():
+    out = redact({"note": "reach dana@example.com"}, sink="evidence")
+    assert out["note"] == "reach <EMAIL_ADDRESS_1>"
+
+
+def test_redact_with_report_returns_report_and_token_map():
+    _out, report, token_map = redact_with_report({"note": "dana@example.com"}, sink="evidence")
+    assert report.by_type.get("EMAIL_ADDRESS") == 1
+    assert token_map == {"dana@example.com": "<EMAIL_ADDRESS_1>"}
+    assert report.as_dict()["sink"] == "evidence"
+
+
+def test_redact_with_report_artifact_sink_has_empty_report():
+    _, report, token_map = redact_with_report({"member_name": "Dana Whitfield"})
+    assert report.total == 0
+    assert token_map == {}

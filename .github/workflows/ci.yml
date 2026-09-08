@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt ruff
+          playwright install --with-deps chromium
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Unit + integration tests
+        run: python -m pytest -q
+
+      - name: Capability artifacts are up to date with the compiler
+        # _KNOWN_OUTCOMES / _EXTRACT_CONTRACTS changed without re-running
+        # scripts/patch_capabilities.py would drift the committed artifacts. Fail loudly.
+        run: python scripts/patch_capabilities.py --check
+
+  smoke:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Seed and start the mock bank
+        working-directory: app
+        run: |
+          python -c "import models; models.init_db(); models.seed()"
+          nohup python app.py > "$GITHUB_WORKSPACE/flask.log" 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:5050/search > /dev/null && break
+            sleep 1
+          done
+          curl -sf http://localhost:5050/search > /dev/null
+
+      - name: Replay engine live smoke (incl. the data_unavailable path)
+        run: python scripts/smoke_test_replay.py
+
+      - name: Verify a capability's full outcome matrix live
+        run: python scripts/verify_capability.py capabilities/lookup_member_balance.v1.json
+
+      - name: Base + per-tenant patch live smoke
+        run: |
+          pkill -f "app.py" || true
+          sleep 1
+          cd app
+          BANK_VARIANT=acme python -c "import models; models.init_db(); models.seed()"
+          nohup env BANK_VARIANT=acme python app.py > "$GITHUB_WORKSPACE/flask-acme.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:5050/search > /dev/null && break; sleep 1; done
+          cd "$GITHUB_WORKSPACE"
+          BANK_VARIANT=acme python scripts/smoke_test_tenant_patch.py
+
+      - name: Upload evidence + app log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-evidence
+          path: |
+            evidence/
+            flask.log
+          if-no-files-found: ignore

@@ -123,6 +123,50 @@ def test_typed_value_not_in_goal_stays_a_literal():
     assert step.value == "Holiday"
 
 
+# ---- agent-named parameters (the general slot-filler) --------------------------------------
+
+def test_agent_named_param_wins_over_the_regex_fallback():
+    rec = Recorder(goal="Do a thing with account 998877 for the quarter.")
+    page = FakePage({("textbox", "Account"): 1})
+    step = rec.record_type("textbox", "Account", "998877", page, param_name="account_number")
+    assert step.value == {"param_ref": "account_number"}
+
+
+def test_agent_named_param_works_when_the_value_is_nowhere_in_the_goal():
+    rec = Recorder(goal="Look something up.")
+    page = FakePage({("textbox", "Ref"): 1})
+    step = rec.record_type("textbox", "Ref", "XJ-4410", page, param_name="reference_code")
+    assert step.value == {"param_ref": "reference_code"}
+
+
+def test_regex_fallback_still_fires_when_agent_does_not_name_the_param():
+    rec = _recorder()  # goal mentions "member 12345"
+    page = FakePage({("textbox", "Search (ID / name)"): 1})
+    step = rec.record_type("textbox", "Search (ID / name)", "12345", page)  # no param_name
+    assert step.value == {"param_ref": "member_id"}
+
+
+def test_record_navigate_with_a_full_url_param():
+    rec = _recorder()
+    step = rec.record_navigate("http://h/member/12345", param_name="member_id")
+    assert step.value == {"param_ref": "member_id"}
+
+
+def test_record_navigate_with_a_url_template_for_a_partly_parameterized_path():
+    rec = _recorder()
+    step = rec.record_navigate(
+        "http://h/member/12345/txns", param_name="member_id",
+        url_template="http://h/member/{member_id}/txns",
+    )
+    assert step.value == {"param_ref": "member_id", "url_template": "http://h/member/{member_id}/txns"}
+
+
+def test_record_navigate_without_a_param_is_a_plain_string():
+    rec = _recorder()
+    step = rec.record_navigate("http://h/search")
+    assert step.value == "http://h/search"
+
+
 def test_record_extract_sets_extract_as():
     rec = _recorder()
     page = FakePage({("rowheader", "Savings Balance"): 1})

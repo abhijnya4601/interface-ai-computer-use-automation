@@ -8,10 +8,17 @@ an iframe. The accessibility tree (role + accessible name) is still clean
 because we use proper semantic HTML elements (real <button>, <label for=...>,
 <table><th>) - ugly CSS/class names, not ugly accessibility.
 """
-from flask import Flask, render_template, request, redirect, url_for
+import os
+
 import models
+from flask import Flask, redirect, render_template, request, url_for
 
 app = Flask(__name__)
+
+# BANK_VARIANT simulates a second tenant running the same product with a small UI difference
+# (here: the balance row header is relabelled). Used to demonstrate base + per-tenant patch
+# capability reuse — see artifact/patch.py and scripts/smoke_test_tenant_patch.py.
+app.jinja_env.globals["BANK_VARIANT"] = os.environ.get("BANK_VARIANT", "default")
 
 
 @app.route("/")

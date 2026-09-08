@@ -9,3 +9,19 @@ app/bank.db-journal
 escalation/state/
 .playwright-profile*/
 DECISIONS.md
+
+# per-run replay traces (new in the partial-observability work) are pure smoke/CI churn -
+# timestamped run ids, regenerated every run; curated evidence is committed under stable names
+evidence/replay_*_trace.jsonl
+evidence/_encryption_demo/
+# runtime queues/ledgers written by the running system, not deliverable evidence
+evidence/redaction_review.jsonl
+evidence/replay_ledger.jsonl
+
+# capabilities discovered through the live web console (webconsole/) — the 5 curated ones have
+# no "__" and don't match; a local console run shouldn't clutter git status
+capabilities/discovered*.json
+capabilities/*__*.json
+
+# ruff / tooling
+.ruff_cache/

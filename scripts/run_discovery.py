@@ -44,6 +44,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from playwright.sync_api import sync_playwright
 
+import app_knowledge
 from agent.compiler import compile_capability, save_capability
 from agent.discovery import run_discovery
 from artifact.schema import Checkpoint
@@ -54,27 +55,24 @@ EVIDENCE_DIR = Path(__file__).parent.parent / "evidence"
 USER_DATA_DIR = Path(__file__).parent.parent / ".playwright-profile"
 OPERATOR_BASE = "http://localhost:5001"
 
-CHECKPOINTS = {
-    "lookup_member_balance": Checkpoint(
-        type="element_present",
-        locator={"role": "rowheader", "name": "Savings Balance"},
-        expected="present",
-    ),
-    "open_subaccount": Checkpoint(
-        type="text_match", locator=None, expected="created for"
-    ),
-}
-RISK_LEVELS = {"lookup_member_balance": "safe", "open_subaccount": "risky"}
+
+def _resolve_checkpoint(app_name: str, capability_id: str, final_url: str, target_url: str) -> Checkpoint:
+    """Curated checkpoint from app_knowledge/<app>.yaml if this capability has one; otherwise
+    infer one from where the run ended up (below). Onboarding a new capability no longer needs a
+    Python dict entry — the reviewer adds it to the YAML."""
+    curated = app_knowledge.load(app_name).capability_config(capability_id).checkpoint
+    if curated is not None:
+        return curated
+    return _inferred_checkpoint(final_url, target_url)
 
 
-def _default_checkpoint(final_url: str, target_url: str) -> Checkpoint:
+def _inferred_checkpoint(final_url: str, target_url: str) -> Checkpoint:
     """
-    Fallback checkpoint for any capability_id not in CHECKPOINTS above (the earlier
-    fallback, `Checkpoint(type="url_match", expected=target_url)`, checked whether the FINAL
-    page was still the STARTING page, which is wrong for virtually every real capability, since
-    the whole point of running one is to navigate somewhere else). Uses the final URL's last
-    non-empty path segment instead of the full URL, since `url_match` is a substring check and
-    the full path usually contains a per-run ID (e.g. `/member/12345/transactions`) that
+    Fallback checkpoint for a capability with no curated entry (the earlier fallback,
+    `Checkpoint(type="url_match", expected=target_url)`, checked whether the FINAL page was still
+    the STARTING page, which is wrong for virtually every real capability). Uses the final URL's
+    last non-empty path segment instead of the full URL, since `url_match` is a substring check
+    and the full path usually contains a per-run ID (e.g. `/member/12345/transactions`) that
     wouldn't match a differently-parameterized replay — the trailing route segment
     (`transactions`) is what's actually stable across runs.
     """
@@ -86,17 +84,17 @@ def _default_checkpoint(final_url: str, target_url: str) -> Checkpoint:
     return Checkpoint(type="url_match", expected=final_url)
 
 
-def _infer_risk_level(capability_id: str, transcript: list[dict]) -> str:
+def _infer_risk_level(capability_id: str, transcript: list[dict], app_name: str = "mock-core-banking") -> str:
     """
-    risk_level for any capability_id not in the RISK_LEVELS table above. A capability whose own
-    discovery run needed a human to approve a state-changing step has no business defaulting to
-    "safe" -- that default is exactly what would let replay execute it later with zero confirm
-    gate. Found live: discovering `update_member_address` (never added to RISK_LEVELS) escalated
-    mid-run for exactly this reason, and the unconditional `"safe"` default would have compiled
-    it as risk_level=safe anyway.
+    risk_level: the curated value from app_knowledge/<app>.yaml if present, else inferred. A
+    capability whose own discovery run needed a human to approve a state-changing step has no
+    business defaulting to "safe" -- that default is exactly what would let replay execute it
+    later with zero confirm gate. Found live: discovering `update_member_address` escalated
+    mid-run for exactly this reason.
     """
-    if capability_id in RISK_LEVELS:
-        return RISK_LEVELS[capability_id]
+    curated = app_knowledge.load(app_name).capability_config(capability_id).risk_level
+    if curated is not None:
+        return curated
     escalated_mid_run = any(e.get("type") == "escalate_requested" for e in transcript)
     return "risky" if escalated_mid_run else "safe"
 
@@ -170,6 +168,9 @@ def main():
     parser.add_argument("--goal", required=True)
     parser.add_argument("--target", required=True)
     parser.add_argument("--capability-id", default="lookup_member_balance")
+    parser.add_argument("--app-name", default="mock-core-banking",
+                        help="target app id; selects app_knowledge/<app-name>.yaml for curated "
+                             "checkpoint / risk / outcome rules")
     parser.add_argument("--version", default="1.0.0")
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--max-steps", type=int, default=20)
@@ -249,18 +250,28 @@ def main():
         print(f"outputs: {result.outputs}")
         print(f"business_outcome_code: {result.business_outcome_code}")
         print(f"tier log: {result.recorder.tier_log}")
+        tu = result.token_usage
+        # discovery is the ONLY LLM cost in the system (replay never calls a model). Rates are
+        # indicative — set them for your contract; the point is the number is visible per run.
+        _in_rate, _out_rate = 3.0, 15.0  # $/Mtok, claude-sonnet ballpark
+        est = tu["input"] / 1e6 * _in_rate + tu["output"] / 1e6 * _out_rate
+        print(f"tokens: {tu['input']} in / {tu['output']} out  (~${est:.3f} at "
+              f"${_in_rate}/${_out_rate} per Mtok)")
 
         transcript_path = EVIDENCE_DIR / f"discovery_{result.run_id}.jsonl"
         with open(transcript_path, "w") as f:
             for entry in result.transcript:
-                f.write(json.dumps(redact(entry), default=str) + "\n")
+                # sink="evidence": gray-area PII (names/addresses/emails the model echoed back,
+                # anything that slipped past the llm_prompt pass) is tokenized rather than
+                # hard-masked, so the saved transcript stays followable for review.
+                f.write(json.dumps(redact(entry, sink="evidence"), default=str) + "\n")
         print(f"transcript saved to {transcript_path}")
 
         if result.status in ("success", "business_outcome"):
-            checkpoint = CHECKPOINTS.get(
-                args.capability_id, _default_checkpoint(page.url, args.target)
+            checkpoint = _resolve_checkpoint(
+                args.app_name, args.capability_id, page.url, args.target
             )
-            risk_level = _infer_risk_level(args.capability_id, result.transcript)
+            risk_level = _infer_risk_level(args.capability_id, result.transcript, args.app_name)
             capability = compile_capability(
                 capability_id=args.capability_id,
                 version=args.version,
@@ -271,9 +282,16 @@ def main():
                 outputs=result.outputs,
                 checkpoint=checkpoint,
                 description=args.goal,
+                app_name=args.app_name,
             )
             saved_path = save_capability(capability)
             print(f"capability saved to {saved_path}")
+            unratified = capability.unratified_rules()
+            if unratified:
+                print(f"NOTE: {len(unratified)} agent-proposed rule(s) need review before this "
+                      f"leaves 'draft' — run: python scripts/review_capability.py {saved_path}")
+                for u in unratified:
+                    print(f"  - {u}")
         else:
             print("run did not reach success/business_outcome; no capability compiled")
 

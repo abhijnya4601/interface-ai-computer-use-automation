@@ -26,7 +26,10 @@ def init_db():
             member_id TEXT PRIMARY KEY,
             first_name TEXT NOT NULL,
             last_name TEXT NOT NULL,
-            savings_balance_cents INTEGER NOT NULL,
+            -- nullable on purpose: a member whose page renders fine but whose balance the
+            -- ledger service didn't return (NULL) is the "page access, no data access" fixture
+            -- -- replay must surface that as data_unavailable, not success with a blank value.
+            savings_balance_cents INTEGER,
             status TEXT NOT NULL DEFAULT 'active',  -- active | locked
             address_line1 TEXT NOT NULL DEFAULT '',
             city TEXT NOT NULL DEFAULT '',
@@ -66,6 +69,11 @@ def seed():
         ("45678", "Wei", "Chen", 0, "active", "77 Harbor View Rd", "Seattle", "WA", "98101"),
         ("56789", "Sofia", "Alvarez", 12750, "active", "930 Palmetto Ct", "Tampa", "FL", "33602"),
         ("99999", "Restricted", "Account", 0, "locked", "1 Vault Way", "Wilmington", "DE", "19801"),
+        # member 77777: active and fully viewable, but savings_balance_cents is NULL -- the
+        # ledger service didn't return a figure. The member page renders; the balance datum
+        # isn't there. Replaying lookup_member_balance against this id must return
+        # data_unavailable (empty cell fails the extract_contract), not success.
+        ("77777", "Nadia", "Farouk", None, "active", "5 Ledger Row", "Columbus", "OH", "43004"),
         # NOTE: member_id "88888" intentionally NOT seeded -> not-found test case
     ]
     conn.executemany(

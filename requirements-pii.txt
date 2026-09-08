@@ -1,0 +1,8 @@
+# Optional: upgrades gray-area redaction (guardrails/pii.py) from the regex fallback to real
+# NER — PERSON and LOCATION detection with confidence scores. Everything works without this;
+# `guardrails/pii.py` auto-detects whether it's installed and reports which backend it used.
+#
+#   pip install -r requirements-pii.txt
+#   python -m spacy download en_core_web_lg
+presidio-analyzer>=2.2
+spacy>=3.7

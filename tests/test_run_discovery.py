@@ -1,5 +1,5 @@
 """
-Offline tests for scripts/run_discovery.py's pure helper logic — _default_checkpoint,
+Offline tests for scripts/run_discovery.py's pure helper logic — _inferred_checkpoint,
 _infer_risk_level, and _console_watcher_step — none need a browser or API key.
 """
 import socket
@@ -8,11 +8,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from scripts.run_discovery import _console_watcher_step, _default_checkpoint, _infer_risk_level, _port_is_open
+from scripts.run_discovery import (
+    _console_watcher_step,
+    _infer_risk_level,
+    _inferred_checkpoint,
+    _port_is_open,
+    _resolve_checkpoint,
+)
 
 
-def test_default_checkpoint_uses_final_path_segment_when_url_changed():
-    cp = _default_checkpoint(
+def test_inferred_checkpoint_uses_final_path_segment_when_url_changed():
+    cp = _inferred_checkpoint(
         final_url="http://localhost:5050/member/12345/transactions",
         target_url="http://localhost:5050/search",
     )
@@ -20,10 +26,10 @@ def test_default_checkpoint_uses_final_path_segment_when_url_changed():
     assert cp.expected == "transactions"
 
 
-def test_default_checkpoint_final_segment_matches_a_differently_parameterized_url():
+def test_inferred_checkpoint_final_segment_matches_a_differently_parameterized_url():
     """The whole point: the checkpoint built from one member_id's final URL must still
     correctly match a replay against a different member_id."""
-    cp = _default_checkpoint(
+    cp = _inferred_checkpoint(
         final_url="http://localhost:5050/member/12345/transactions",
         target_url="http://localhost:5050/search",
     )
@@ -31,15 +37,35 @@ def test_default_checkpoint_final_segment_matches_a_differently_parameterized_ur
     assert cp.expected in replay_final_url
 
 
-def test_default_checkpoint_falls_back_to_full_url_if_page_never_navigated():
-    cp = _default_checkpoint(
+def test_inferred_checkpoint_falls_back_to_full_url_if_page_never_navigated():
+    cp = _inferred_checkpoint(
         final_url="http://localhost:5050/search",
         target_url="http://localhost:5050/search",
     )
     assert cp.expected == "http://localhost:5050/search"
 
 
-def test_infer_risk_level_uses_explicit_table_entry_regardless_of_transcript():
+def test_resolve_checkpoint_prefers_the_curated_yaml_entry_over_inference():
+    # lookup_member_balance has a curated element_present checkpoint in
+    # app_knowledge/mock-core-banking.yaml; that must win over the url-segment inference.
+    cp = _resolve_checkpoint(
+        "mock-core-banking", "lookup_member_balance",
+        final_url="http://localhost:5050/member/12345", target_url="http://localhost:5050/search",
+    )
+    assert cp.type == "element_present"
+    assert cp.provenance == "curated"
+
+
+def test_resolve_checkpoint_falls_back_to_inference_for_an_unknown_capability():
+    cp = _resolve_checkpoint(
+        "mock-core-banking", "brand_new_capability",
+        final_url="http://localhost:5050/x/y/results", target_url="http://localhost:5050/search",
+    )
+    assert cp.type == "url_match"
+    assert cp.expected == "results"
+
+
+def test_infer_risk_level_uses_the_curated_yaml_value_regardless_of_transcript():
     assert _infer_risk_level("open_subaccount", []) == "risky"
     assert _infer_risk_level("lookup_member_balance", [{"type": "escalate_requested"}]) == "safe"
 
@@ -49,19 +75,17 @@ def test_infer_risk_level_defaults_to_safe_when_no_escalation_occurred():
     assert _infer_risk_level("some_new_capability", transcript) == "safe"
 
 
-def test_infer_risk_level_defaults_to_risky_when_capability_id_is_unknown_but_it_escalated():
-    """Found live discovering update_member_address (never added to RISK_LEVELS) -- the
-    model escalated mid-run to confirm a state-changing address update, but the unconditional
-    "safe" default would have compiled it as risk_level=safe, letting replay execute it later
-    with zero --confirm gate. A capability whose own discovery needed a human sign-off has no
-    business defaulting to safe."""
+def test_infer_risk_level_defaults_to_risky_when_capability_is_uncurated_but_it_escalated():
+    """A capability with no curated risk_level whose own discovery run needed a human sign-off
+    has no business defaulting to safe — that default is what would let replay execute it later
+    with zero --confirm gate."""
     transcript = [
         {"type": "navigate"},
         {"type": "escalate_requested", "reason": "state-changing action"},
         {"type": "escalation_resumed", "decision": "approved"},
         {"type": "finish", "input": {"success": True}},
     ]
-    assert _infer_risk_level("update_member_address", transcript) == "risky"
+    assert _infer_risk_level("an_uncurated_capability", transcript) == "risky"
 
 
 def test_port_is_open_true_for_a_socket_actually_listening():

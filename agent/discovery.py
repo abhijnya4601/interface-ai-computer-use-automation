@@ -28,9 +28,19 @@ import anthropic
 
 from agent.perception import build_observation
 from agent.recorder import Recorder
-from agent.tools import TOOLS, ToolExecutionError, execute_click, execute_extract, execute_navigate, execute_type
+from agent.tools import (
+    TOOLS,
+    ToolExecutionError,
+    execute_click,
+    execute_extract,
+    execute_navigate,
+    execute_type,
+)
+from common.retry import retry_call
+from escalation import policy as esc_policy
 from escalation.controller import trigger_escalation
-from guardrails.policy import ALLOWLIST, GuardrailViolation, guardrail_check
+from guardrails import pii
+from guardrails.policy import ALLOWLIST, GuardrailViolation, guardrail_check, redact_with_report
 
 DEFAULT_MODEL = "claude-sonnet-5"
 MAX_STEPS = 20
@@ -48,6 +58,7 @@ class DiscoveryResult:
     run_id: str = ""
     recorder: Recorder | None = None
     transcript: list[dict] = field(default_factory=list)
+    token_usage: dict = field(default_factory=lambda: {"input": 0, "output": 0})
 
 
 def _system_prompt(goal: str, target_url: str) -> str:
@@ -84,6 +95,12 @@ Rules:
   front of you, call `escalate` with a clear reason rather than repeating actions blindly.
 - Extract every value the goal asks you to read using the `extract` tool before calling finish,
   and include them in finish's `outputs`.
+- When you type or navigate with a value the caller supplied that would change between runs (a
+  member id, an account number, a date), set `param_name` on that tool call so the recorded
+  capability treats it as a named input, not a fixed literal.
+- If you can already see what an alternate outcome would be (a not-found page, a locked account,
+  an empty data region), call `note_branch` to record it, and `note_data_shape` to record what a
+  real value for a field you extracted looks like.
 """
 
 
@@ -109,15 +126,27 @@ def run_discovery(
     model: str = DEFAULT_MODEL,
     max_steps: int = MAX_STEPS,
     timeout_s: float = WALL_CLOCK_TIMEOUT_S,
+    on_event=None,
+    capability_id: str | None = None,
 ) -> DiscoveryResult:
+    """`on_event(entry)` — if given, called with every transcript entry as it happens (the same
+    dicts that end up in `DiscoveryResult.transcript`). Used by webconsole/ to stream the run
+    live; never raises out of the loop. `capability_id` is only used to match escalation-policy
+    rules (escalation/policy.py) — the agent's own `escalate` tool still works independently."""
     client = anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
     run_id = f"run_{uuid.uuid4().hex[:10]}"
     recorder = Recorder(goal=goal)
     transcript: list[dict] = []
+    token_usage = {"input": 0, "output": 0}  # discovery is the only LLM cost in the system
 
     def _log(entry: dict):
         entry["ts"] = time.time()
         transcript.append(entry)
+        if on_event is not None:
+            try:
+                on_event(entry)
+            except Exception:
+                pass
 
     # The entry point itself is user input, not a discovered path — establishing it deterministically
     # doesn't hardcode any part of *how the goal gets accomplished*, which is what must come from the
@@ -137,12 +166,14 @@ def run_discovery(
         if step_count >= max_steps:
             _log({"type": "stop", "reason": "max_steps"})
             return DiscoveryResult(status="max_steps", run_id=run_id, recorder=recorder,
-                                    transcript=transcript, summary=f"stopped after {max_steps} steps")
+                                    transcript=transcript, token_usage=token_usage,
+                                    summary=f"stopped after {max_steps} steps")
 
         if time.monotonic() - start_time > timeout_s:
             _log({"type": "stop", "reason": "timeout"})
             return DiscoveryResult(status="timeout", run_id=run_id, recorder=recorder,
-                                    transcript=transcript, summary=f"stopped after {timeout_s}s wall clock")
+                                    transcript=transcript, token_usage=token_usage,
+                                    summary=f"stopped after {timeout_s}s wall clock")
 
         observation = build_observation(page, last_action_result)
         tree_hash = _tree_hash(observation["accessibility_tree"])
@@ -178,17 +209,40 @@ def run_discovery(
             )
             continue
 
-        messages.append({"role": "user", "content": json.dumps(observation)})
+        # Every discovery turn ships page content to a third-party model — the one-way door.
+        # `guardrail_check(phase="discovery")` already keeps this to approved non-prod targets;
+        # this is defense in depth on the content itself: names / addresses / emails / phones in
+        # the observation are masked before they leave, and the per-turn RedactionReport
+        # (counts + anything low-confidence) goes into the transcript so a reviewer can see
+        # exactly what was sent.
+        safe_observation, redaction_report, _ = redact_with_report(observation, sink="llm_prompt")
+        _log({"type": "redaction", "phase": "llm_prompt", **redaction_report.as_dict()})
+        pii.append_review(redaction_report, {"run_id": run_id, "step": step_count, "url": observation["url"]})
+        messages.append({"role": "user", "content": json.dumps(safe_observation)})
 
-        response = client.messages.create(
-            model=model,
-            max_tokens=MAX_TOKENS,
-            system=system_prompt,
-            tools=TOOLS,
-            tool_choice={"type": "any"},
-            messages=messages,
+        # A flaky network or a transient 5xx on the model call is exactly a retryable error;
+        # a bad request / auth error is not, so only connection + 5xx-class errors are retried.
+        response = retry_call(
+            lambda: client.messages.create(
+                model=model,
+                max_tokens=MAX_TOKENS,
+                system=system_prompt,
+                tools=TOOLS,
+                tool_choice={"type": "any"},
+                messages=messages,
+            ),
+            attempts=3, base_delay=1.0,
+            retry_on=(anthropic.APIConnectionError, anthropic.InternalServerError,
+                      anthropic.RateLimitError),
+            on_retry=lambda a, exc, delay: _log(
+                {"type": "llm_retry", "attempt": a, "error": str(exc), "delay_s": round(delay, 2)}
+            ),
         )
         messages.append({"role": "assistant", "content": response.content})
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            token_usage["input"] += getattr(usage, "input_tokens", 0)
+            token_usage["output"] += getattr(usage, "output_tokens", 0)
         _log({"type": "llm_response", "stop_reason": response.stop_reason,
               "content": _to_jsonable(response.content)})
 
@@ -197,7 +251,8 @@ def run_discovery(
             # tool_choice="any" should make this unreachable, but never loop silently if it happens.
             _log({"type": "stop", "reason": "no_tool_use_in_response"})
             return DiscoveryResult(status="max_steps", run_id=run_id, recorder=recorder,
-                                    transcript=transcript, summary="model returned no tool call")
+                                    transcript=transcript, token_usage=token_usage,
+                                    summary="model returned no tool call")
 
         primary = tool_use_blocks[0]
         tool_results = []
@@ -210,16 +265,40 @@ def run_discovery(
         name, tool_input = primary.name, primary.input
         _log({"type": "tool_call", "name": name, "input": tool_input, "step": step_count})
 
-        # finish/escalate are loop-control signals, not actions on the page — they carry no URL
-        # or page-interaction semantics, so they're exempt from the page-action allowlist check.
-        if name not in ("finish", "escalate"):
+        # Escalation policy (escalation/rules.yaml) — the deterministic floor under the model's
+        # own judgment. If a rule matches this action, force a human pause (or a hard stop),
+        # even if the model did not choose to escalate itself.
+        if name in ("click", "type", "select"):
+            _d = esc_policy.evaluate({
+                "capability_id": capability_id, "risk_level": None, "target_app": None,
+                "step": {"action_type": name, "name": tool_input.get("name")},
+                "params": {},
+            })
+            if _d.action != "allow":
+                _log({"type": "policy_check", "decision": _d.action, "rule": _d.rule_id,
+                      "reason": _d.reason})
+            if _d.action == "block":
+                return DiscoveryResult(status="guardrail_violation", run_id=run_id,
+                                        recorder=recorder, transcript=transcript,
+                                        token_usage=token_usage,
+                                        summary=f"escalation policy blocked this step: {_d.reason}")
+            if _d.action == "escalate":
+                step_count -= 1  # the pause itself is not a page step
+                name, tool_input = "escalate", {"reason": f"[policy:{_d.rule_id}] {_d.reason}"}
+
+        # finish/escalate/note_* are loop-control or metadata signals, not actions on the page —
+        # they carry no URL or page-interaction semantics, so they're exempt from the
+        # page-action allowlist check.
+        _META_TOOLS = ("finish", "escalate", "note_branch", "note_data_shape")
+        if name not in _META_TOOLS:
             action_url = tool_input.get("url") if name == "navigate" else None
             try:
                 guardrail_check({"type": name, "url": action_url}, current_url=page.url, phase="discovery")
             except GuardrailViolation as exc:
                 _log({"type": "guardrail_violation", "detail": str(exc)})
                 return DiscoveryResult(status="guardrail_violation", run_id=run_id, recorder=recorder,
-                                        transcript=transcript, summary=str(exc))
+                                        transcript=transcript, token_usage=token_usage,
+                                        summary=str(exc))
 
         try:
             # Record BEFORE executing in every branch below: build_locator must count matches
@@ -236,7 +315,8 @@ def run_discovery(
                 tool_result_content = last_action_result
 
             elif name == "type":
-                recorder.record_type(tool_input["role"], tool_input["name"], tool_input["text"], page)
+                recorder.record_type(tool_input["role"], tool_input["name"], tool_input["text"],
+                                     page, param_name=tool_input.get("param_name"))
                 try:
                     last_action_result = execute_type(
                         page, tool_input["role"], tool_input["name"], tool_input["text"]
@@ -247,7 +327,9 @@ def run_discovery(
                 tool_result_content = last_action_result
 
             elif name == "navigate":
-                recorder.record_navigate(tool_input["url"])
+                recorder.record_navigate(tool_input["url"],
+                                         param_name=tool_input.get("param_name"),
+                                         url_template=tool_input.get("url_template"))
                 try:
                     last_action_result = execute_navigate(page, tool_input["url"])
                 except ToolExecutionError:
@@ -265,17 +347,51 @@ def run_discovery(
                 last_action_result = f"extracted {tool_input['as_var']} = {value!r}"
                 tool_result_content = value
 
+            elif name == "note_branch":
+                recorder.note_branch(
+                    condition=tool_input["condition"],
+                    classification=tool_input.get("classification", "business_outcome"),
+                    code=tool_input.get("code"),
+                    handling=tool_input.get("handling"),
+                    on_role=tool_input.get("on_role"),
+                    on_name=tool_input.get("on_name"),
+                )
+                # a note isn't a page action: don't spend a step on it, and don't let it feed
+                # the dead-end detector (the page hash hasn't moved).
+                step_count -= 1
+                if recent_hashes:
+                    recent_hashes.pop()
+                _log({"type": "note_branch", "input": tool_input})
+                last_action_result = f"noted branch: {tool_input['condition']!r}"
+                tool_result_content = "branch proposal recorded for review"
+
+            elif name == "note_data_shape":
+                recorder.note_data_shape(
+                    extract_as=tool_input["extract_as"],
+                    pattern=tool_input.get("pattern"),
+                    placeholders=tool_input.get("placeholders") or [],
+                    reason=tool_input.get("reason", ""),
+                )
+                step_count -= 1
+                if recent_hashes:
+                    recent_hashes.pop()
+                _log({"type": "note_data_shape", "input": tool_input})
+                last_action_result = f"noted data shape for {tool_input['extract_as']!r}"
+                tool_result_content = "data-shape proposal recorded for review"
+
             elif name == "finish":
                 _log({"type": "finish", "input": tool_input})
                 status = "success" if tool_input.get("success") else "max_steps"
                 if tool_input.get("business_outcome_code"):
                     status = "business_outcome"
+                _log({"type": "token_usage", **token_usage})
                 return DiscoveryResult(
                     status=status,
                     outputs=tool_input.get("outputs") or {},
                     business_outcome_code=tool_input.get("business_outcome_code"),
                     summary=tool_input.get("summary", ""),
                     run_id=run_id, recorder=recorder, transcript=transcript,
+                    token_usage=token_usage,
                 )
 
             elif name == "escalate":

@@ -1,9 +1,14 @@
 """
-The 6 tools the discovery LLM can call, in Anthropic tool-use schema form, plus the Python
+The tools the discovery LLM can call, in Anthropic tool-use schema form, plus the Python
 functions that execute each one against a live Playwright page. These are deliberately a
 *different* surface from what gets replayed (artifact/schema.py's Step/LocatorTarget) — the
 Recorder (agent/recorder.py) translates an accepted tool call into a Step, tool execution here
 is just "make the browser do the thing right now."
+
+Two of them — `note_branch` and `note_data_shape` — don't touch the page at all: they're how
+the agent proposes the domain knowledge (alternate outcome branches, what a real value looks
+like) that a single happy-path run never observes. Those proposals land on the compiled
+artifact as `provenance="proposed"` for a human to review, instead of being hardcoded per app.
 
 Locating elements: every tool that acts on the page (click, type, extract) resolves role+name
 against the main frame first, then falls back to searching every child frame — this is what
@@ -13,7 +18,8 @@ frame boundaries (it only ever sees the merged accessibility tree from perceptio
 """
 from __future__ import annotations
 
-from playwright.sync_api import Error as PlaywrightError, Page
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import Page
 
 TOOLS = [
     {
@@ -35,7 +41,11 @@ TOOLS = [
         "name": "type",
         "description": (
             "Type text into a form field (textbox, etc.) identified by its accessibility role "
-            "and accessible name — for a labelled field, the name is the label text."
+            "and accessible name — for a labelled field, the name is the label text. If the "
+            "text you are typing is a value the CALLER supplies and that would differ between "
+            "runs (a member id, an account number, a date, a search term from the goal), set "
+            "`param_name` to a short snake_case name for it — that makes it an input of the "
+            "compiled capability instead of a hardcoded literal."
         ),
         "input_schema": {
             "type": "object",
@@ -43,6 +53,10 @@ TOOLS = [
                 "role": {"type": "string"},
                 "name": {"type": "string"},
                 "text": {"type": "string"},
+                "param_name": {
+                    "type": ["string", "null"],
+                    "description": "e.g. 'member_id', 'account_number' — omit for a fixed literal",
+                },
             },
             "required": ["role", "name", "text"],
         },
@@ -51,11 +65,19 @@ TOOLS = [
         "name": "navigate",
         "description": (
             "Navigate the browser directly to a URL. Prefer clicking through the UI when "
-            "possible; use this mainly for the initial entry point."
+            "possible; use this mainly for the initial entry point. If part of the URL is a "
+            "caller-supplied value that varies between runs, set `param_name` and pass "
+            "`url_template` with that part written as `{param_name}` "
+            "(e.g. url='http://h/member/12345/txns', param_name='member_id', "
+            "url_template='http://h/member/{member_id}/txns')."
         ),
         "input_schema": {
             "type": "object",
-            "properties": {"url": {"type": "string"}},
+            "properties": {
+                "url": {"type": "string"},
+                "param_name": {"type": ["string", "null"]},
+                "url_template": {"type": ["string", "null"]},
+            },
             "required": ["url"],
         },
     },
@@ -114,6 +136,61 @@ TOOLS = [
             "type": "object",
             "properties": {"reason": {"type": "string"}},
             "required": ["reason"],
+        },
+    },
+    {
+        "name": "note_branch",
+        "description": (
+            "Record an ALTERNATE outcome you can see this task would have on a different input "
+            "— e.g. 'if the member id doesn't exist the results table shows \"No results.\" and "
+            "there is no View link', or 'a locked account shows \"Access denied\" instead of "
+            "the balance'. You don't need to trigger it; note what the page would show and what "
+            "it means. These become reviewable proposals on the capability, not guesses replay "
+            "acts on blindly."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "condition": {
+                    "type": "string",
+                    "description": "a literal substring that would appear on the page in this branch, "
+                    "e.g. \"No results.\" or \"Access denied. This account is restricted\"",
+                },
+                "classification": {
+                    "type": "string",
+                    "enum": ["business_outcome", "recoverable", "hard_failure", "data_unavailable"],
+                    "description": "business_outcome = a real answer (not found, denied); "
+                    "data_unavailable = the page loaded but the datum isn't there; "
+                    "recoverable = a transient state safe to retry later",
+                },
+                "code": {"type": ["string", "null"], "description": "e.g. MEMBER_NOT_FOUND"},
+                "handling": {"type": ["string", "null"], "description": "one line: what this means / what a caller should do"},
+                "on_role": {"type": ["string", "null"], "description": "role of the step this applies to, if specific"},
+                "on_name": {"type": ["string", "null"], "description": "accessible name of that step, if specific"},
+            },
+            "required": ["condition", "classification"],
+        },
+    },
+    {
+        "name": "note_data_shape",
+        "description": (
+            "Record what a REAL value for something you extracted looks like, so replay can "
+            "tell a genuine datum from an empty or placeholder cell — e.g. for 'savings_balance' "
+            "the shape is a currency amount like $1,842.30; for 'most_recent_date' it's "
+            "YYYY-MM-DD. Call this right after an extract when you know the expected format."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "extract_as": {"type": "string", "description": "the variable name you extracted into"},
+                "pattern": {"type": ["string", "null"], "description": "a regex the value should fullmatch, e.g. \\$[\\d,]+\\.\\d{2}"},
+                "placeholders": {
+                    "type": "array", "items": {"type": "string"},
+                    "description": "literal strings that mean 'no data', e.g. [\"--\", \"N/A\"]",
+                },
+                "reason": {"type": "string", "description": "one line on why this is the shape"},
+            },
+            "required": ["extract_as"],
         },
     },
 ]

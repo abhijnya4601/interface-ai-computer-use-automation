@@ -1,0 +1,16 @@
+{
+  "tenant": "acme",
+  "note": "ACME runs the same core-banking product but labels the balance row header 'Ledger Balance' instead of 'Savings Balance'. Everything else is identical, so it's a 3-line patch over the base capability, not a separate artifact.",
+  "checkpoint": {
+    "locator": { "role": "rowheader", "name": "Ledger Balance" }
+  },
+  "steps": {
+    "s5": {
+      "target": {
+        "primary": { "role": "rowheader", "name": "Ledger Balance" },
+        "fallbacks": [ { "strategy": "text", "text": "Ledger Balance" } ],
+        "reasoning": "ACME renamed this row header from 'Savings Balance' to 'Ledger Balance'; role+name still resolves uniquely against the tenant's semantic HTML."
+      }
+    }
+  }
+}

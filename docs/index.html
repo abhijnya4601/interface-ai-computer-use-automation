@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Discover once, replay forever — interface.ai presentation</title>
+<title>Discover once, replay forever</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css">
 <style>
 :root{
@@ -107,7 +107,7 @@ ul.plain li{margin:.45em 0}
 
 <nav class="toc">
   <h1>Discover once, replay forever</h1>
-  <p class="sub">interface.ai — take-home core, then adapted against MERIDIAN CORE.</p>
+  <p class="sub">Take-home core, then adapted against MERIDIAN CORE.</p>
   <ol>
     <li><a href="#title">Title / pitch</a></li>
     <li class="grp">Act 1 — the take-home core</li>
@@ -142,7 +142,7 @@ ul.plain li{margin:.45em 0}
   <h1 class="title">Discover once, replay forever</h1>
   <p class="lead">An AI learns a banking task once, by actually doing it — then the system replays
   that exact recipe forever, deterministically, with zero AI involved after that first run.</p>
-  <p>Built for interface.ai — the take-home core, then adapted live against MERIDIAN CORE.</p>
+  <p>The take-home core, then adapted live against MERIDIAN CORE.</p>
 </section>
 
 <!-- ============ ACT 1 ============ -->
@@ -547,7 +547,7 @@ python3 scripts/run_replay.py \
 <section id="act2">
   <p class="act">Act 2</p>
   <h2>The MERIDIAN adaptation</h2>
-  <p>Point the same core at a real, messy legacy target — <code>web-sample.interface-hiring.com</code>
+  <p>Point the same core at a real, messy legacy target — <code>legacy-app.example.com</code>
   — cover its full function surface, and wrap it as a callable API a chatbot drives and a
   dashboard shows. The schema didn't change. Six modules, same shape as Act 1.</p>
 </section>
@@ -765,7 +765,7 @@ flowchart TD
 
 python scripts/run_discovery.py \
   --goal "Search for member 100987 by member number and click Select. Extract the first SHARES/BALANCES row." \
-  --target https://web-sample.interface-hiring.com/members \
+  --target https://legacy-app.example.com/members \
   --capability-id demo_lookup --headless
 
 python scripts/run_meridian.py \

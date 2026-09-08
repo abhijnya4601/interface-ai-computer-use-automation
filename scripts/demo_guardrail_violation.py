@@ -8,7 +8,7 @@ Run: python scripts/demo_guardrail_violation.py
 import json
 import sys
 import traceback
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -28,7 +28,7 @@ def main():
     record = {
         "scenario": "capability step targets a domain outside guardrails/allowlist.yaml",
         "attempted_action": attempted_action,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     try:

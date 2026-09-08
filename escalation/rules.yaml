@@ -1,0 +1,19 @@
+# Escalation policy — see escalation/policy.py. First matching rule wins; no match = allow.
+# Editable at runtime from the live console's "Escalation rules" panel (which rewrites this file
+# via yaml.safe_dump, so hand-edits and comments are only preserved until the next UI edit).
+rules:
+  - id: risky-confirm-step
+    description: any risky (state-changing) capability pauses for a human at its confirm/submit step
+    when:
+      risk_level: risky
+      step_action: click
+      step_name_contains: [Confirm, Submit, Open Account, Save Address, Dispute]
+    then: escalate
+
+  - id: large-opening-deposit
+    description: a sub-account opening deposit over $500 needs a human, regardless of the risk flag
+    when:
+      capability_id: open_subaccount
+      step_name_contains: [Opening Deposit]
+      param: {name: opening_deposit, op: gt, value: 500}
+    then: escalate

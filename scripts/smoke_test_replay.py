@@ -8,6 +8,7 @@ scripts/smoke_test_discovery.py did for the discovery loop.
 
 Run: python scripts/smoke_test_replay.py   (needs the Flask app running on 5050)
 """
+import os
 import sys
 from pathlib import Path
 
@@ -17,7 +18,8 @@ from agent.compiler import compile_capability
 from artifact.schema import Checkpoint
 from replay.engine import replay
 
-BASE = "http://localhost:5050"
+# BANK_BASE lets docker-compose point this at the `bank` service; defaults to a local run.
+BASE = os.environ.get("BANK_BASE", "http://localhost:5050")
 
 
 class FakeRecorder:
@@ -90,6 +92,17 @@ def main():
     check("status == hard_failure", result.status == "hard_failure")
     check("failure_detail has step_id/expected/observed", result.failure_detail and
           {"step_id", "expected", "observed"} <= set(result.failure_detail.keys()))
+
+    print("\n=== scenario 5: member page renders but the balance datum is missing (77777) ===")
+    print("    'page access, no data access' — the member detail page loads fine, the Savings")
+    print("    Balance cell is empty. Must be data_unavailable, NOT success with a blank value")
+    print("    and NOT hard_failure (nothing is broken).")
+    result = replay(cap, {"member_id": "77777"})
+    print(result.model_dump())
+    check("status == data_unavailable", result.status == "data_unavailable")
+    check("no junk value promised as output", not result.outputs.get("savings_balance"))
+    check("failure_detail explains why", result.failure_detail and
+          "reason" in result.failure_detail and "extract_as" in result.failure_detail)
 
     print("\nAll replay engine smoke checks passed.")
 

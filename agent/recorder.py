@@ -16,21 +16,17 @@ Two things worth understanding about the design:
    asks for: if a capability starts needing tier 2/3 more often across successive replays, that's
    a free signal the underlying UI has drifted, with zero extra infrastructure.
 
-2. **Parameter detection is a deliberate scope cut**, not an oversight: the member ID is
-   extracted from the goal once via a fixed pattern (`member <digits>`), and a typed/extracted
-   value is tagged `{"param_ref": "member_id"}` only if it *exactly equals* that extracted
-   value. This only works because both of this project's capabilities have exactly one varying
-   input (a member ID) — a general system would need either the LLM to name its own parameters
-   or a real slot-filling NLP step. Called out explicitly in REPORT.md's Cuts section, not
-   silently limited.
+2. **Parameter naming is the agent's job now**, not a regex: the `type` and `navigate` tools
+   take an optional `param_name`, and when the agent sets it the recorder stores
+   `{"param_ref": param_name}` (plus a `url_template` for a partly-parameterized navigation),
+   which flows straight into `Capability.input_schema` at compile time. This is the general
+   slot-filler — any number of inputs, any names, chosen by the model that just used the value.
 
-   Earlier this used a blind "does this literal appear anywhere in the goal string" substring
-   check instead of an exact match against the extracted ID — that produced a real bug: recording
-   `open_subaccount` for the goal "...member 12345 with a $50
-   opening deposit...", the deposit amount "50" is *also* a substring of the goal (inside
-   "$50"), so it got tagged `{"param_ref": "member_id"}` too. Replaying with a different
-   member_id would then have typed the member_id into the deposit field. Matching only the
-   goal's actual extracted ID, exactly, closes that hole.
+   The old fixed `member <digits>` goal-text regex (`_maybe_param_ref`) is kept as a *fallback*
+   for a model that forgets to tag a value — it still only fires on an *exact* match against
+   the ID pulled from the goal. That exactness matters: an earlier blind-substring version
+   tagged a "$50" deposit as `member_id` because "50" appeared in the goal text, and replaying
+   with a different member_id would have typed it into the deposit field.
 
 3. **`table_position` locator, for cells with no per-row label**:
    `extract`ing a labeled value (`<th scope="row">Savings Balance</th><td>$1,842.30</td>`)
@@ -57,9 +53,56 @@ class Recorder:
         self.goal = goal
         self.steps: list[Step] = []
         self.tier_log: list[dict] = []
+        # Branches / data shapes the discovery agent proposes as it explores (via the
+        # note_branch / note_data_shape tools). The compiler attaches these to the artifact as
+        # `provenance="proposed"`; a reviewer promotes the good ones into app_knowledge/*.yaml.
+        # This is what makes domain knowledge come FROM discovery instead of a hardcoded dict.
+        self.proposed_outcomes: list[dict] = []
+        self.proposed_contracts: list[dict] = []
         self._counter = 0
         match = _MEMBER_ID_RE.search(goal)
         self._member_id_value = match.group(1) if match else None
+
+    # ---- agent-proposed domain knowledge -------------------------------------------------
+
+    def note_branch(
+        self,
+        condition: str,
+        classification: str = "business_outcome",
+        code: str | None = None,
+        handling: str | None = None,
+        on_role: str | None = None,
+        on_name: str | None = None,
+        on_action_type: str | None = None,
+    ) -> None:
+        """Record a branch the agent saw or inferred (e.g. 'if the member is locked, this link
+        isn't rendered and the page shows Access denied'). `on_*` pin it to the step it applies
+        to; omitted means "any step that could land on this condition"."""
+        self.proposed_outcomes.append({
+            "condition": condition,
+            "classification": classification,
+            "code": code,
+            "handling": handling,
+            "role": on_role,
+            "name": on_name,
+            "action_type": on_action_type,
+        })
+
+    def note_data_shape(
+        self,
+        extract_as: str,
+        pattern: str | None = None,
+        placeholders: list[str] | None = None,
+        reason: str = "",
+    ) -> None:
+        """Record what a real value for an extracted field looks like, so replay can tell a
+        genuine datum from an empty / placeholder cell."""
+        self.proposed_contracts.append({
+            "extract_as": extract_as,
+            "pattern": pattern,
+            "placeholders": placeholders or [],
+            "reason": reason,
+        })
 
     def _next_step_id(self) -> str:
         self._counter += 1
@@ -192,14 +235,31 @@ class Recorder:
     # ---- parameter detection ---------------------------------------------------------------
 
     def _maybe_param_ref(self, value: str) -> dict | str:
+        """Fallback slot-filler: tag a typed value as `{"param_ref": "member_id"}` iff it
+        exactly equals the ID pulled from the goal text. Only used when the discovery agent
+        did NOT name the parameter itself (`param_name` on the `type` tool) — that explicit
+        signal always wins, so this regex is a safety net for a model that forgets to tag."""
         if self._member_id_value and str(value) == self._member_id_value:
             return {"param_ref": _PARAM_NAME}
         return value
 
+    @staticmethod
+    def _param_value(param_name: str, url_template: str | None = None) -> dict:
+        ref: dict = {"param_ref": param_name}
+        if url_template:
+            ref["url_template"] = url_template
+        return ref
+
     # ---- recording one Step per accepted tool call -----------------------------------------
 
-    def record_navigate(self, url: str) -> Step:
-        step = Step(step_id=self._next_step_id(), action_type="navigate", value=url)
+    def record_navigate(
+        self, url: str, param_name: str | None = None, url_template: str | None = None
+    ) -> Step:
+        """`param_name` (from the agent) marks this navigation as parameterized. If the whole
+        URL is the parameter, `url_template` is omitted; if only part of it varies, pass a
+        `"http://host/member/{member_id}/x"`-style template that replay fills in."""
+        value = self._param_value(param_name, url_template) if param_name else url
+        step = Step(step_id=self._next_step_id(), action_type="navigate", value=value)
         self.steps.append(step)
         return step
 
@@ -210,12 +270,17 @@ class Recorder:
         self.steps.append(step)
         return step
 
-    def record_type(self, role: str, name: str, text: str, page) -> Step:
+    def record_type(
+        self, role: str, name: str, text: str, page, param_name: str | None = None
+    ) -> Step:
+        """`param_name` (from the agent, via the `type` tool) is how a run input gets named —
+        the general slot-filler. `{"param_ref": param_name}` flows straight into
+        `Capability.input_schema` at compile time. Falls back to the goal-text ID regex only
+        when the agent didn't name it."""
         step_id = self._next_step_id()
         target = self.build_locator(role, name, page, step_id)
-        step = Step(
-            step_id=step_id, action_type="type", target=target, value=self._maybe_param_ref(text)
-        )
+        value = self._param_value(param_name) if param_name else self._maybe_param_ref(text)
+        step = Step(step_id=step_id, action_type="type", target=target, value=value)
         self.steps.append(step)
         return step
 

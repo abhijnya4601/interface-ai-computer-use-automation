@@ -1,0 +1,157 @@
+# Curated domain knowledge for the `mock-core-banking` target.
+#
+# This file is the ONLY place per-app knowledge lives — it used to be Python dicts keyed by
+# capability_id inside agent/compiler.py and scripts/run_discovery.py, which meant a new target
+# app couldn't be onboarded without a code change by whoever explored it. Now: the discovery
+# agent PROPOSES these (from what it actually explored — see agent/tools.py's note_branch /
+# note_data_shape tools), they land on the compiled artifact as `provenance: proposed`, and a
+# reviewer promotes the good ones into this file with `scripts/review_capability.py`. Everything
+# in here is `provenance: curated` — a human has signed off.
+#
+# `expected_outcomes`: branches replay must recognise deterministically. `match` selects the
+# step to attach the outcome to (by action_type / role / name). `condition` is the literal
+# "page contains '<substring>'" replay checks.
+# `extract_contracts`: what a real extracted value looks like, per output key.
+# `capabilities`: per-capability replay config (risk level, success checkpoint).
+
+app_name: mock-core-banking
+
+expected_outcomes:
+  lookup_member_balance:
+    - match: {action_type: click, role: link, name: View}
+      condition: "page contains 'No results.'"
+      classification: business_outcome
+      code: MEMBER_NOT_FOUND
+      handling: >-
+        search returned no matching row for this member_id; there is no 'View' link to click
+        through — treat as not found rather than a broken locator
+    - match: {action_type: extract}
+      condition: "page contains 'Access denied. This account is restricted'"
+      classification: business_outcome
+      code: PERMISSION_DENIED
+      handling: member exists but the account is locked; balance is not shown on this page
+    - match: {action_type: extract}
+      condition: "page contains 'No member record found'"
+      classification: business_outcome
+      code: MEMBER_NOT_FOUND
+      handling: member record does not exist at this URL
+
+  open_subaccount:
+    - match: {action_type: click, role: link, name: View}
+      condition: "page contains 'No results.'"
+      classification: business_outcome
+      code: MEMBER_NOT_FOUND
+      handling: search returned no matching row for this member_id
+    # member_detail.html never renders the "Open sub-account" link for a locked member (only the
+    # msg-denied branch), so the wall is hit on this link, one click earlier than the form.
+    - match: {action_type: click, role: link, name: Open sub-account}
+      condition: "page contains 'Access denied. This account is restricted'"
+      classification: business_outcome
+      code: PERMISSION_DENIED
+      handling: >-
+        member account is locked; there is no 'Open sub-account' link to click through on the
+        member detail page
+
+  lookup_latest_transaction:
+    - match: {action_type: click, role: link, name: View}
+      condition: "page contains 'No results.'"
+      classification: business_outcome
+      code: MEMBER_NOT_FOUND
+      handling: search returned no matching row for this member_id
+    - match: {action_type: click, role: link, name: View Transactions}
+      condition: "page contains 'Access denied. This account is restricted'"
+      classification: business_outcome
+      code: PERMISSION_DENIED
+      handling: member account is locked; transaction history is not shown
+    # a member with zero transactions renders one placeholder row; the table_position locator
+    # still resolves to a cell there, so without this it replays as success with the placeholder
+    # text as a "date".
+    - match: {action_type: extract}
+      condition: "page contains 'No transactions on file.'"
+      classification: business_outcome
+      code: NO_TRANSACTIONS
+      handling: member has no transaction history; there is no real data to extract
+
+  dispute_transaction:
+    - match: {action_type: click, role: link, name: View}
+      condition: "page contains 'No results.'"
+      classification: business_outcome
+      code: MEMBER_NOT_FOUND
+      handling: search returned no matching row for this member_id
+    - match: {action_type: click, role: link, name: View Transactions}
+      condition: "page contains 'Access denied. This account is restricted'"
+      classification: business_outcome
+      code: PERMISSION_DENIED
+      handling: >-
+        member account is locked; there is no 'View Transactions' link to click through on the
+        member detail page
+
+  update_member_address:
+    - match: {action_type: click, role: link, name: View}
+      condition: "page contains 'No results.'"
+      classification: business_outcome
+      code: MEMBER_NOT_FOUND
+      handling: search returned no matching row for this member_id
+    - match: {action_type: click, role: link, name: Update Mailing Address}
+      condition: "page contains 'Access denied. This account is restricted'"
+      classification: business_outcome
+      code: PERMISSION_DENIED
+      handling: >-
+        member account is locked; there is no 'Update Mailing Address' link to click through on
+        the member detail page
+
+extract_contracts:
+  lookup_member_balance:
+    savings_balance:
+      pattern: '\$[\d,]+\.\d{2}'
+      placeholders: ["--", "N/A", "Not available"]
+      reason: >-
+        a savings balance renders as a currency amount ($1,842.30); an empty or non-currency
+        value in this cell means the member page loaded but the balance field behind it did not
+        resolve
+  lookup_latest_transaction:
+    most_recent_date:
+      pattern: '\d{4}-\d{2}-\d{2}'
+      placeholders: ["--", "N/A"]
+      reason: >-
+        the latest transaction date renders as YYYY-MM-DD; the known zero-transactions empty
+        state is already a declared NO_TRANSACTIONS business outcome, so a value here that still
+        isn't a date means the row rendered without its data
+
+capabilities:
+  lookup_member_balance:
+    risk_level: safe
+    checkpoint: {type: element_present, locator: {role: rowheader, name: Savings Balance}, expected: present}
+    # every declared branch, replayed by replay.verify.verify_capability — a capability only
+    # reaches lifecycle="verified" when all of these land where the artifact says they will.
+    verify_scenarios:
+      - {params: {member_id: "23456"}, expect: success}
+      - {params: {member_id: "88888"}, expect: business_outcome, code: MEMBER_NOT_FOUND}
+      - {params: {member_id: "99999"}, expect: business_outcome, code: PERMISSION_DENIED}
+      - {params: {member_id: "77777"}, expect: data_unavailable}
+  open_subaccount:
+    risk_level: risky
+    checkpoint: {type: text_match, expected: "created for"}
+    verify_scenarios:
+      - {params: {member_id: "88888"}, expect: business_outcome, code: MEMBER_NOT_FOUND}
+      - {params: {member_id: "99999"}, expect: business_outcome, code: PERMISSION_DENIED}
+  lookup_latest_transaction:
+    risk_level: safe
+    checkpoint: {type: url_match, expected: transactions}
+    verify_scenarios:
+      - {params: {member_id: "23456"}, expect: success}
+      - {params: {member_id: "34567"}, expect: business_outcome, code: NO_TRANSACTIONS}
+      - {params: {member_id: "88888"}, expect: business_outcome, code: MEMBER_NOT_FOUND}
+      - {params: {member_id: "99999"}, expect: business_outcome, code: PERMISSION_DENIED}
+  dispute_transaction:
+    risk_level: risky
+    checkpoint: {type: text_match, expected: "Dispute submitted for"}
+    verify_scenarios:
+      - {params: {member_id: "88888"}, expect: business_outcome, code: MEMBER_NOT_FOUND}
+      - {params: {member_id: "99999"}, expect: business_outcome, code: PERMISSION_DENIED}
+  update_member_address:
+    risk_level: risky
+    checkpoint: {type: url_match, expected: update-address}
+    verify_scenarios:
+      - {params: {member_id: "88888"}, expect: business_outcome, code: MEMBER_NOT_FOUND}
+      - {params: {member_id: "99999"}, expect: business_outcome, code: PERMISSION_DENIED}

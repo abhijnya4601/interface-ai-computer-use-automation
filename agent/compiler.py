@@ -2,176 +2,47 @@
 Artifact compiler (Phase 4). On a successful discovery run, turns `Recorder.steps` into a
 versioned, serializable `Capability` and writes it to `capabilities/<capability_id>.v<major>.json`.
 
-One thing this module does beyond simply repackaging the recorder's steps: it declares
-`expected_outcomes` on the steps where a business outcome or a known runtime condition can
-occur, based on domain knowledge of the target app established while building it (see
-`_KNOWN_OUTCOMES` below) — not solely from what the single recorded discovery run happened to
-observe. A single happy-path discovery run only ever sees the happy path; the
-not-found and permission-denied branches (see app/templates/search.html's "No results." row and
-member_detail.html's msg-denied branch) are real behaviors of the target app that a human
-reviewer finalizing this artifact for production use would document from having explored the
-app — exactly the same spirit as `LocatorTarget.reasoning` already asking a reviewer to explain
-*why* a locator was chosen, not just recording it blindly.
+Beyond repackaging the recorder's steps, this module attaches two kinds of domain knowledge the
+single happy-path discovery run doesn't observe on its own — the not-found / permission-denied
+branches (`expected_outcomes`) and what a real extracted value looks like (`extract_contract`).
+
+That knowledge comes from two places, and every rule on the artifact is tagged with which:
+
+  - **curated** — `app_knowledge/<app_name>.yaml`, loaded by `target.app_name`. A human has
+    signed off. This used to be Python dicts keyed by capability_id right here in this file,
+    which meant onboarding a new target app required a code change; now it's data, per app.
+  - **proposed** — the discovery agent's own `note_branch` / `note_data_shape` tool calls from
+    what it explored this run (`Recorder.proposed_outcomes` / `.proposed_contracts`). Replay
+    uses these (they're a real signal), but the capability's `lifecycle` stays `"draft"` and
+    `Capability.unratified_rules()` is non-empty until a reviewer promotes them into the YAML
+    with `scripts/review_capability.py`.
 
 Replay (Phase 5) evaluates these declared conditions against the live page deterministically —
-it never guesses or calls an LLM to decide whether a business outcome occurred; it checks the
-exact condition string the artifact itself declares.
+it never guesses or calls an LLM to decide whether a business outcome occurred.
 """
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
-from artifact.schema import Capability, Checkpoint, ExpectedOutcome, Step, TargetSpec
+import app_knowledge
+from artifact.schema import (
+    Capability,
+    Checkpoint,
+    ExpectedOutcome,
+    ExtractContract,
+    Step,
+    TargetSpec,
+)
+from common.logging import get_logger
 from guardrails.policy import redact
 
-CAPABILITIES_DIR = Path(__file__).parent.parent / "capabilities"
-
-_KNOWN_OUTCOMES: dict[str, list[dict]] = {
-    "lookup_member_balance": [
-        {
-            "match": {"action_type": "click", "role": "link", "name": "View"},
-            "outcome": ExpectedOutcome(
-                condition="page contains 'No results.'",
-                classification="business_outcome",
-                code="MEMBER_NOT_FOUND",
-                handling="search returned no matching row for this member_id; there is no "
-                "'View' link to click through — treat as not found rather than a broken locator",
-            ),
-        },
-        {
-            "match": {"action_type": "extract"},
-            "outcome": ExpectedOutcome(
-                condition="page contains 'Access denied. This account is restricted'",
-                classification="business_outcome",
-                code="PERMISSION_DENIED",
-                handling="member exists but the account is locked; balance is not shown on this page",
-            ),
-        },
-        {
-            "match": {"action_type": "extract"},
-            "outcome": ExpectedOutcome(
-                condition="page contains 'No member record found'",
-                classification="business_outcome",
-                code="MEMBER_NOT_FOUND",
-                handling="member record does not exist at this URL",
-            ),
-        },
-    ],
-    "open_subaccount": [
-        {
-            "match": {"action_type": "click", "role": "link", "name": "View"},
-            "outcome": ExpectedOutcome(
-                condition="page contains 'No results.'",
-                classification="business_outcome",
-                code="MEMBER_NOT_FOUND",
-                handling="search returned no matching row for this member_id",
-            ),
-        },
-        {
-            # This used to be declared on the "Continue" click (s7), assuming the flow would
-            # reach the sub-account form and get turned away there by
-            # app.py's server-side status check. It doesn't — member_detail.html never renders
-            # the "Open sub-account" link at all for a locked member (only the msg-denied
-            # branch), so the wall is hit one click earlier, on this link, which is why this
-            # rule shares its match with the MEMBER_NOT_FOUND rule above.
-            "match": {"action_type": "click", "role": "link", "name": "Open sub-account"},
-            "outcome": ExpectedOutcome(
-                condition="page contains 'Access denied. This account is restricted'",
-                classification="business_outcome",
-                code="PERMISSION_DENIED",
-                handling="member account is locked; there is no 'Open sub-account' link to "
-                "click through on the member detail page",
-            ),
-        },
-    ],
-    "lookup_latest_transaction": [
-        {
-            "match": {"action_type": "click", "role": "link", "name": "View"},
-            "outcome": ExpectedOutcome(
-                condition="page contains 'No results.'",
-                classification="business_outcome",
-                code="MEMBER_NOT_FOUND",
-                handling="search returned no matching row for this member_id",
-            ),
-        },
-        {
-            "match": {"action_type": "click", "role": "link", "name": "View Transactions"},
-            "outcome": ExpectedOutcome(
-                condition="page contains 'Access denied. This account is restricted'",
-                classification="business_outcome",
-                code="PERMISSION_DENIED",
-                handling="member account is locked; transaction history is not shown",
-            ),
-        },
-        {
-            # Found live, not contrived — a member with zero transactions renders one row
-            # with transactions.html's msg-empty text instead of a data row. The table_position
-            # locator (row 0, column 0) still resolves to *a* cell at that position — it has no
-            # way to know the row is a placeholder rather than data — so without this declared
-            # outcome, replay would report status=success with "No transactions on file." as if
-            # it were a real transaction date. Exactly the "business outcome silently treated as
-            # success" failure mode the assignment calls out as the most common mistake here.
-            "match": {"action_type": "extract"},
-            "outcome": ExpectedOutcome(
-                condition="page contains 'No transactions on file.'",
-                classification="business_outcome",
-                code="NO_TRANSACTIONS",
-                handling="member has no transaction history; there is no real data to extract",
-            ),
-        },
-    ],
-    "dispute_transaction": [
-        {
-            "match": {"action_type": "click", "role": "link", "name": "View"},
-            "outcome": ExpectedOutcome(
-                condition="page contains 'No results.'",
-                classification="business_outcome",
-                code="MEMBER_NOT_FOUND",
-                handling="search returned no matching row for this member_id",
-            ),
-        },
-        {
-            # Found live -- same wall as open_subaccount's PERMISSION_DENIED, one hop further
-            # down the same page. member_detail.html never renders "View Transactions" for a
-            # locked member (only the msg-denied branch), so replaying against a locked
-            # member_id was reporting hard_failure instead of the real, expected business
-            # outcome -- this capability was compiled after that pattern was fixed once, but
-            # never got its own entry here, since it's outside the two capabilities the
-            # assignment requires.
-            "match": {"action_type": "click", "role": "link", "name": "View Transactions"},
-            "outcome": ExpectedOutcome(
-                condition="page contains 'Access denied. This account is restricted'",
-                classification="business_outcome",
-                code="PERMISSION_DENIED",
-                handling="member account is locked; there is no 'View Transactions' link to "
-                "click through on the member detail page",
-            ),
-        },
-    ],
-    "update_member_address": [
-        {
-            "match": {"action_type": "click", "role": "link", "name": "View"},
-            "outcome": ExpectedOutcome(
-                condition="page contains 'No results.'",
-                classification="business_outcome",
-                code="MEMBER_NOT_FOUND",
-                handling="search returned no matching row for this member_id",
-            ),
-        },
-        {
-            # Same pattern as dispute_transaction above.
-            "match": {"action_type": "click", "role": "link", "name": "Update Mailing Address"},
-            "outcome": ExpectedOutcome(
-                condition="page contains 'Access denied. This account is restricted'",
-                classification="business_outcome",
-                code="PERMISSION_DENIED",
-                handling="member account is locked; there is no 'Update Mailing Address' link "
-                "to click through on the member detail page",
-            ),
-        },
-    ],
-}
+# Overridable so a hosted deployment can point it at a persistent volume (see DEPLOY.md);
+# defaults to the repo's own capabilities/ for local use and CI.
+CAPABILITIES_DIR = Path(os.environ.get("CAPABILITIES_DIR") or (Path(__file__).parent.parent / "capabilities"))
+DEFAULT_APP_NAME = "mock-core-banking"
+_log = get_logger("compiler")
 
 
 def _step_matches(step: Step, match: dict) -> bool:
@@ -183,31 +54,103 @@ def _step_matches(step: Step, match: dict) -> bool:
     if match.get("name"):
         if not step.target or step.target.primary.get("name") != match["name"]:
             return False
-    return True
+    return not (match.get("step_id") and step.step_id != match["step_id"])
 
 
-def _attach_expected_outcomes(capability_id: str, steps: list[Step]) -> list[Step]:
+def _proposed_outcome_rules(proposed_outcomes: list[dict] | None) -> list[dict]:
+    """Turn Recorder.proposed_outcomes entries into the same {match, outcome} shape the curated
+    rules use, tagged `provenance='proposed'`."""
+    rules = []
+    for p in proposed_outcomes or []:
+        match = {k: p[k] for k in ("action_type", "role", "name", "step_id") if p.get(k)}
+        rules.append({
+            "match": match,
+            "outcome": ExpectedOutcome(
+                condition=p["condition"],
+                classification=p.get("classification", "business_outcome"),
+                code=p.get("code"),
+                handling=p.get("handling"),
+                provenance="proposed",
+            ),
+        })
+    return rules
+
+
+def _attach_expected_outcomes(
+    capability_id: str,
+    steps: list[Step],
+    *,
+    app_name: str = DEFAULT_APP_NAME,
+    proposed_outcomes: list[dict] | None = None,
+) -> list[Step]:
     """
-    Found live — re-running this against an already-compiled artifact (the established pattern
-    for patching an artifact after a _KNOWN_OUTCOMES rule changes) used to duplicate any outcome
-    the step already carried, since `outcomes` started from
-    `step.expected_outcomes` (whatever was already there) and every matching rule was appended
-    unconditionally, with no check for "is this exact rule already present." Idempotent now: a
-    rule is only appended if no existing outcome already has the same (condition, code) —
-    running this twice against the same steps produces the same result as running it once.
+    Attach curated (YAML) + proposed (this run's) expected-outcome rules to the steps they
+    match. Idempotent and dedup'd on `(condition, code)` — running twice, or re-running against
+    an already-compiled artifact, produces the same result. Curated wins a tie with proposed
+    (so promoting a proposed rule into the YAML and recompiling flips its provenance without a
+    duplicate).
     """
-    rules = _KNOWN_OUTCOMES.get(capability_id, [])
+    knowledge = app_knowledge.load(app_name)
+    curated = knowledge.outcome_rules(capability_id)
+    proposed = _proposed_outcome_rules(proposed_outcomes)
+
     enriched = []
     for step in steps:
         outcomes = list(step.expected_outcomes)
-        existing = {(o.condition, o.code) for o in outcomes}
-        for rule in rules:
-            if _step_matches(step, rule["match"]):
-                key = (rule["outcome"].condition, rule["outcome"].code)
-                if key not in existing:
-                    outcomes.append(rule["outcome"])
-                    existing.add(key)
+        seen = {(o.condition, o.code): i for i, o in enumerate(outcomes)}
+        for rule in (*curated, *proposed):
+            if not _step_matches(step, rule["match"]):
+                continue
+            key = (rule["outcome"].condition, rule["outcome"].code)
+            if key in seen:
+                existing = outcomes[seen[key]]
+                # a curated rule upgrades a matching proposed/duplicate one in place
+                if rule["outcome"].provenance == "curated" and existing.provenance != "curated":
+                    outcomes[seen[key]] = rule["outcome"]
+                continue
+            seen[key] = len(outcomes)
+            outcomes.append(rule["outcome"])
         enriched.append(step.model_copy(update={"expected_outcomes": outcomes}))
+    return enriched
+
+
+def _attach_extract_contracts(
+    capability_id: str,
+    steps: list[Step],
+    *,
+    app_name: str = DEFAULT_APP_NAME,
+    proposed_contracts: list[dict] | None = None,
+) -> list[Step]:
+    """
+    Attach a declared ExtractContract to each `extract` step whose `extract_as` has one, curated
+    (YAML) preferred over proposed (this run's). Idempotent: a step that already carries a
+    contract keeps it unless a curated contract can replace a non-curated one.
+    """
+    knowledge = app_knowledge.load(app_name)
+    contracts: dict[str, ExtractContract] = dict(knowledge.extract_contracts(capability_id))
+    for p in proposed_contracts or []:
+        key = p.get("extract_as")
+        if key and key not in contracts:  # curated already wins by being inserted first
+            contracts[key] = ExtractContract(
+                pattern=p.get("pattern"),
+                nonempty=p.get("nonempty", True),
+                placeholders=list(p.get("placeholders", [])),
+                reason=p.get("reason", ""),
+                provenance="proposed",
+            )
+    if not contracts:
+        return steps
+
+    enriched = []
+    for step in steps:
+        want = contracts.get(step.extract_as) if step.action_type == "extract" else None
+        have = step.extract_contract
+        if want is not None and (
+            have is None or (want.provenance == "curated" and have.provenance != "curated")
+        ):
+            enriched.append(step.model_copy(update={"extract_contract": want}))
+        else:
+            enriched.append(step)
     return enriched
 
 
@@ -237,10 +180,11 @@ def infer_output_schema(outputs: dict, steps: list[Step]) -> dict:
         if key in backed_keys:
             schema[key] = {"type": "string"}
         else:
-            print(
-                f"[compiler] WARNING: output {key!r} was reported by finish() but no recorded "
-                f"step extracted it — dropping it from output_schema since replay has no way to "
-                f"reproduce it. Steps actually extracted: {sorted(backed_keys) or 'none'}."
+            _log.warning(
+                "unbacked_output_dropped", output=key,
+                extracted=sorted(backed_keys) or None,
+                detail="reported by finish() but no recorded step extracted it; replay could "
+                       "not reproduce it",
             )
     return schema
 
@@ -256,20 +200,34 @@ def compile_capability(
     checkpoint: Checkpoint,
     surface_type: str = "legacy_web",
     description: str = "",
+    app_name: str = DEFAULT_APP_NAME,
 ) -> Capability:
-    steps = _attach_expected_outcomes(capability_id, recorder.steps)
-    return Capability(
+    proposed_outcomes = getattr(recorder, "proposed_outcomes", None)
+    proposed_contracts = getattr(recorder, "proposed_contracts", None)
+
+    steps = _attach_expected_outcomes(
+        capability_id, recorder.steps, app_name=app_name, proposed_outcomes=proposed_outcomes
+    )
+    steps = _attach_extract_contracts(
+        capability_id, steps, app_name=app_name, proposed_contracts=proposed_contracts
+    )
+    capability = Capability(
         capability_id=capability_id,
         version=version,
         created_from_run_id=run_id,
         description=description,
-        target=TargetSpec(app_name="mock-core-banking", entry_point=target_url, surface_type=surface_type),
+        target=TargetSpec(app_name=app_name, entry_point=target_url, surface_type=surface_type),
         risk_level=risk_level,
         input_schema=infer_input_schema(steps),
         output_schema=infer_output_schema(outputs, steps),
         checkpoint=checkpoint,
         steps=steps,
     )
+    # A fresh compile is always a draft; it only becomes `verified` after replay.verify runs
+    # every declared branch clean (scripts/verify_capability.py), and only `published` when a
+    # human clears it — see scripts/review_capability.py.
+    capability.lifecycle = "draft"
+    return capability
 
 
 def save_capability(capability: Capability, path: Path | None = None) -> Path:
@@ -280,8 +238,7 @@ def save_capability(capability: Capability, path: Path | None = None) -> Path:
     `model_dump()` corrupted a real artifact once: a field legitimately named
     `sub_account_number` matched the `account_number` secret-key marker, and redact() replaced
     its entire schema-type dict with the string "***REDACTED***" — silently breaking the
-    artifact's structural validity, not protecting any actual secret (there was never a real
-    account number value anywhere near it, just a type declaration). `steps` is the one place a
+    artifact's structural validity, not protecting any actual secret. `steps` is the one place a
     literal, potentially-sensitive value could actually appear (a `Step.value` the LLM typed),
     so that's the only part that goes through redact().
     """
@@ -291,5 +248,5 @@ def save_capability(capability: Capability, path: Path | None = None) -> Path:
     path.parent.mkdir(exist_ok=True)
     dumped = capability.model_dump()
     dumped["steps"] = redact(dumped["steps"])
-    path.write_text(json.dumps(dumped, indent=2, default=str))
+    path.write_text(json.dumps(dumped, indent=2, default=str) + "\n")
     return path

@@ -19,7 +19,12 @@
       <tr><th scope="row" class="fld-lbl">Member ID</th><td class="tbl-c2">{{ member.member_id }}</td></tr>
       <tr><th scope="row" class="fld-lbl">Name</th><td class="tbl-c2">{{ member.first_name }} {{ member.last_name }}</td></tr>
       <tr><th scope="row" class="fld-lbl">Status</th><td class="tbl-c2">{{ member.status }}</td></tr>
-      <tr><th scope="row" class="fld-lbl">Savings Balance</th><td class="tbl-c2" data-role="balance">${{ "%.2f"|format(member.savings_balance_cents / 100) }}</td></tr>
+      {% set balance_label = "Ledger Balance" if BANK_VARIANT == "acme" else "Savings Balance" %}
+      {% if member.savings_balance_cents is none %}
+      <tr><th scope="row" class="fld-lbl">{{ balance_label }}</th><td class="tbl-c2" data-role="balance"></td></tr>
+      {% else %}
+      <tr><th scope="row" class="fld-lbl">{{ balance_label }}</th><td class="tbl-c2" data-role="balance">${{ "%.2f"|format(member.savings_balance_cents / 100) }}</td></tr>
+      {% endif %}
     </tbody>
   </table>
   <div class="btn-row">

@@ -68,4 +68,4 @@ def decrypt_at_rest(token: bytes) -> bytes:
     return Fernet(_load_key()).decrypt(token)
 
 
-__all__ = ["EncryptionKeyMissing", "InvalidToken", "generate_key", "encrypt_at_rest", "decrypt_at_rest"]
+__all__ = ["EncryptionKeyMissing", "InvalidToken", "decrypt_at_rest", "encrypt_at_rest", "generate_key"]

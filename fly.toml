@@ -1,0 +1,34 @@
+# Fly.io config for the live console. `fly launch --no-deploy` will offer to overwrite this —
+# keep it. Then:  fly secrets set CONSOLE_ACCESS_KEY=<pick-one>   (and optionally ANTHROPIC_API_KEY)
+# then:  fly volumes create console_data --size 1   &&   fly deploy
+# See DEPLOY.md.
+
+app = "live-console"          # rename to your app
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "5055"
+  TARGET_BASE = "http://localhost:5050"
+  CAPABILITIES_DIR = "/data/capabilities"   # persisted on the volume below
+  CONSOLE_ALLOW_BYO_KEY = "1"                # viewers can paste their own Anthropic key
+
+[processes]
+  app = "bash webconsole/serve.sh"
+
+[[mounts]]
+  source = "console_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 5055
+  force_https = true
+  auto_stop_machines = "stop"     # scale to zero when idle; a request cold-starts it in ~seconds
+  auto_start_machines = true
+  min_machines_running = 0        # set to 1 to keep it always warm (costs more)
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"                  # Chromium + Flask + the mock bank

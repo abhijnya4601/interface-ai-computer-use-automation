@@ -14,7 +14,6 @@ from tests.fixtures.accessibility_trees import (
     TREE_WITH_DECORATIVE_WRAPPERS,
 )
 
-
 # ---- _parse_aria_snapshot -------------------------------------------------------------------
 
 def test_parse_search_page_finds_button_and_textbox():
@@ -34,7 +33,7 @@ def test_parse_textbox_with_value_captures_value():
 def test_parse_search_results_finds_table_rows_and_links():
     tree = _parse_aria_snapshot(SEARCH_RESULTS_ARIA_YAML)
     links = _find_nodes_by_role(tree, "link")
-    assert {l.get("name") for l in links} == {"View", "View"} or "View" in {l.get("name") for l in links}
+    assert {l.get("name") for l in links} == {"View"} or "View" in {l.get("name") for l in links}
     rowgroups = _find_nodes_by_role(tree, "rowgroup")
     assert len(rowgroups) >= 2  # header rowgroup + data rowgroup, nested-table layout preserved
 

@@ -1,6 +1,20 @@
+---
+title: Live Console
+emoji: "\U0001F39B"
+colorFrom: gray
+colorTo: yellow
+sdk: docker
+app_port: 7860
+pinned: false
+short_description: Watch an LLM drive a legacy web app, then replay it deterministically.
+---
+
+<!-- The YAML block above is Hugging Face Spaces config (harmless on GitHub). It lets this repo
+     deploy as a Docker Space with no manual settings — see "Deploy" below and DEPLOY.md. -->
+
 # Computer-Use Automation System
 
-A small, real end-to-end version of interface.ai's "hands for AI agents" system: an LLM drives a
+A small, real end-to-end "hands for AI agents" system: an LLM drives a
 live legacy banking web app to accomplish a goal, the successful run is compiled into a typed,
 versioned, reusable **capability** artifact, and that artifact is replayed **deterministically**
 — no LLM in the loop — with real runtime-error and business-outcome handling, safety guardrails,
@@ -38,8 +52,8 @@ expand instead of translating bash yourself.
 Requires Python 3.11+ (built and run on 3.14) and a real Anthropic API key.
 
 ```bash
-git clone https://github.com/abhijnya4601/interface-ai-computer-use-automation.git
-cd interface-ai-computer-use-automation
+git clone <your-repo-url>
+cd <repo>
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -53,8 +67,8 @@ echo "ANTHROPIC_API_KEY=sk-ant-..." > .env   # gitignored, never committed
 <summary>Windows (PowerShell)</summary>
 
 ```powershell
-git clone https://github.com/abhijnya4601/interface-ai-computer-use-automation.git
-cd interface-ai-computer-use-automation
+git clone <your-repo-url>
+cd <repo>
 
 python -m venv .venv
 .venv\Scripts\Activate.ps1
@@ -171,8 +185,93 @@ it — every example below uses one of these IDs, and you can swap in any other 
 | `34567` | Priya Ramaswamy | active | $9,901.00 | 0 — triggers `NO_TRANSACTIONS` |
 | `45678` | Wei Chen | active | $0.00 | 2 |
 | `56789` | Sofia Alvarez | active | $127.50 | 3 |
+| `77777` | Nadia Farouk | active | *(none — ledger returned nothing)* | — page renders, balance datum is missing → triggers `data_unavailable` |
 | `99999` | Restricted Account | **locked** | — | any action here triggers `PERMISSION_DENIED` |
 | `88888` (or any ID not above) | — not a real member — | — | — | triggers `MEMBER_NOT_FOUND` |
+
+### Run it with Docker (no local Python/Playwright)
+
+```bash
+docker compose up --build bank operator     # mock bank :5050 + operator console :5001
+docker compose run --rm tests               # the full test suite
+docker compose run --rm tests python scripts/smoke_test_replay.py   # live replay smoke
+```
+
+The image is plain `python:3.12-slim` + `playwright install chromium`, so the browser always
+matches `requirements.txt`. `make setup && make test` is the equivalent without Docker; CI
+(`.github/workflows/ci.yml`) runs ruff, the suite, the artifact-drift check, and the live smoke
+on every push.
+
+### Development
+
+| Command | What it does |
+|---|---|
+| `make test` / `make lint` | `pytest -q` / `ruff check .` (config in `ruff.toml`) |
+| `make patch-check` | fails if `capabilities/*.json` drifted from `app_knowledge/<app>.yaml` — run `python scripts/patch_capabilities.py` to fix |
+| `python scripts/verify_capability.py <artifact> --write` | replays every declared branch (`verify_scenarios` in the app YAML); on a clean sweep, promotes the artifact `draft → verified` and stamps a `VerificationRecord` |
+| `python scripts/review_capability.py <artifact> [--promote-all] [--publish]` | lists the discovery agent's un-ratified proposed rules; `--promote-all` moves them into the app YAML as curated; `--publish` flips `verified → published` |
+| `python scripts/replay_metrics.py` | per-capability outcome mix, p50/p95 latency, and locator-fallback (drift) rate from `evidence/replay_*_trace.jsonl` |
+| `python scripts/demo_gray_area_redaction.py` | one observation through all three redaction sinks (`artifact` / `evidence` / `llm_prompt`) |
+| `python scripts/smoke_test_tenant_patch.py` | live proof of base + per-tenant patch (needs the app running with `BANK_VARIANT=acme`) |
+| `pip install -r requirements-pii.txt` | optional: upgrades gray-area redaction to Presidio NER (PERSON/LOCATION) from the regex fallback |
+
+**Onboarding a new target app** (no code change): point `scripts/run_discovery.py --app-name <x>`
+at it; the agent proposes outcome branches and value shapes via its `note_branch` / `note_data_shape`
+tools; the compiled artifact carries them as `provenance: proposed` and stays `lifecycle: draft`;
+`scripts/review_capability.py --promote-all` writes the good ones into `app_knowledge/<x>.yaml`;
+`scripts/verify_capability.py --write` replays every branch and promotes to `verified`.
+
+### Live console (share a link, no install)
+
+`webconsole/` is a link-gated web app: choose a target + parameters, hit **Run**, and watch the
+agent console **and** a live view of the browser side by side, streamed from the real run.
+
+```bash
+make app        # terminal 1 — the mock bank on :5050
+make console    # terminal 2 — prints  http://localhost:5055/?key=<token>
+#   or: docker compose up --build bank console
+```
+
+- **Replay mode** works with no API key — pick a compiled capability, set `member_id`
+  (`12345` ok · `88888` not found · `99999` locked · `77777` data missing), Run.
+- **Discover mode** — type a goal, watch the LLM loop. The key comes from `ANTHROPIC_API_KEY`
+  on the server, or each viewer **pastes their own** in the UI (`CONSOLE_ALLOW_BYO_KEY=1`, the
+  default) — passed straight to Anthropic for that run, never written to disk or logged.
+- **Escalation works in both modes.** Before every state-changing step an editable policy
+  (`escalation/rules.yaml`, or the **Escalation rules** panel in the console) decides
+  allow / escalate / block. On `escalate` the run pauses and an **Approve / Decline** panel
+  appears on the page; Approve continues the same live browser, Decline ends the run as
+  `OPERATOR_DECLINED`. In replay this is the only gate; in discovery it's the floor under the
+  model's own `escalate` judgment.
+- **Discovered capabilities persist as replays.** A successful discovery compiles a new
+  `capabilities/<name>__<hash>.v1.json` and drops into the Replay list without a page reload,
+  marked `lifecycle: draft` with the agent's proposed rules unratified.
+- Access is the `?key=` token (a cookie carries it after the first hit); set `CONSOLE_ACCESS_KEY`
+  to keep the link stable. One run at a time. Targets are limited to the approved non-prod app
+  in `guardrails/allowlist.yaml`.
+### Deploy (free, always-on, no card)
+
+The repo is deploy-ready as a **Hugging Face Space** — the `Dockerfile`, `webconsole/serve.sh`
+(runs the bank + console in one container), the HF config block at the top of this README, and
+the UID/port defaults are all set. Full walkthrough + Render / Fly / VPS alternatives in
+[DEPLOY.md](DEPLOY.md); the short version:
+
+1. huggingface.co → **New Space** → SDK **Docker** → Blank (no credit card).
+2. Space **Settings → Variables and secrets** → add secret **`CONSOLE_ACCESS_KEY`** = any random
+   string (this is your link token — without it the console makes a new one on every restart).
+   Optionally add secret `ANTHROPIC_API_KEY`, or leave it and let viewers paste their own.
+3. Push this repo to the Space:
+   ```bash
+   git remote add space https://huggingface.co/spaces/<you>/<space-name>
+   git push space <branch>:main        # first push: HF token as the password
+   ```
+4. It builds (~5–10 min: Chromium + deps), then your link is
+   `https://<you>-<space-name>.hf.space/?key=<CONSOLE_ACCESS_KEY>`.
+
+Free Spaces sleep after ~48h idle and wake on the next request; capabilities discovered through
+the console reset on a rebuild (the 5 curated ones always reseed). A `cloudflared tunnel
+--url http://localhost:5055` gives a link from your own machine with no account, but only while
+that machine and the tunnel stay up.
 
 **Terminal 1 — start the mock bank app:**
 
@@ -586,7 +685,7 @@ Every goal type demonstrated above, gathered into one table — `--capability-id
 
 | What it does | `--capability-id` | Risk | Member IDs worth trying | What you'll see |
 |---|---|---|---|---|
-| Look up a savings balance | `lookup_member_balance` | safe | `12345`/`23456`/`34567`/`56789` (success), `99999` (locked), `00000` (not seeded) | `success`, `PERMISSION_DENIED`, `MEMBER_NOT_FOUND` |
+| Look up a savings balance | `lookup_member_balance` | safe | `12345`/`23456`/`34567`/`56789` (success), `99999` (locked), `00000` (not seeded), `77777` (page renders, balance missing) | `success`, `PERMISSION_DENIED`, `MEMBER_NOT_FOUND`, `data_unavailable` |
 | Open a new sub-account | `open_subaccount` | risky | any active member; try a non-default account type (Vacation Club, General Savings) | escalates before the final submit; `--confirm` required to replay |
 | Find the most recent transaction | `lookup_latest_transaction` | safe | `12345`/`23456` (have history), `34567`/`45678`/`56789` (empty) | `success`, `NO_TRANSACTIONS` |
 | File a transaction dispute | `dispute_transaction` | risky | any member with transaction history | escalates on its own; `rm` the `.json` first for a genuinely blank-slate test |

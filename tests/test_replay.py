@@ -1,14 +1,15 @@
 import pytest
 
-from artifact.schema import ExpectedOutcome
+from artifact.schema import ExpectedOutcome, ExtractContract, Step, WaitPolicy
 from replay.engine import (
+    _await_ready,
     _extract_quoted_substring,
     _locate_table_position,
     _outcome_to_result,
     _resolve_value,
+    _validate_extracted,
     _verify_checkpoint,
 )
-
 
 # ---- _resolve_value ---------------------------------------------------------------------------
 
@@ -23,6 +24,24 @@ def test_resolve_value_resolves_param_ref():
 def test_resolve_value_missing_param_raises_keyerror():
     with pytest.raises(KeyError):
         _resolve_value({"param_ref": "member_id"}, {})
+
+
+def test_slug_turns_a_field_name_into_a_param_key():
+    from replay.engine import _slug
+    assert _slug("Opening Deposit ($)") == "opening_deposit"
+    assert _slug("Reason for dispute") == "reason_for_dispute"
+    assert _slug("ZIP Code") == "zip_code"
+    assert _slug("") == ""
+
+
+def test_resolve_value_fills_a_url_template():
+    value = {"param_ref": "member_id", "url_template": "http://h/member/{member_id}/txns"}
+    assert _resolve_value(value, {"member_id": "999"}) == "http://h/member/999/txns"
+
+
+def test_resolve_value_url_template_still_needs_the_param():
+    with pytest.raises(KeyError):
+        _resolve_value({"param_ref": "member_id", "url_template": "http://h/{member_id}"}, {})
 
 
 # ---- _extract_quoted_substring --------------------------------------------------------------
@@ -56,6 +75,90 @@ def test_outcome_to_result_hard_failure_from_declared_condition():
     result = _outcome_to_result(outcome, {})
     assert result.status == "hard_failure"
     assert result.failure_detail["observed"] == outcome.condition
+
+
+def test_outcome_to_result_data_unavailable_from_declared_condition():
+    outcome = ExpectedOutcome(
+        condition="page contains 'Balance service temporarily unavailable'",
+        classification="data_unavailable",
+        code="LEDGER_DOWN",
+    )
+    result = _outcome_to_result(outcome, {"other": "kept"})
+    assert result.status == "data_unavailable"
+    assert result.business_outcome_code == "LEDGER_DOWN"
+    assert result.outputs == {"other": "kept"}
+
+
+# ---- _validate_extracted -------------------------------------------------------------------
+
+def test_validate_extracted_passes_a_well_shaped_value():
+    contract = ExtractContract(pattern=r"\$[\d,]+\.\d{2}")
+    assert _validate_extracted("$1,842.30", contract) is None
+
+
+def test_validate_extracted_flags_empty_value():
+    contract = ExtractContract(pattern=r"\$[\d,]+\.\d{2}")
+    reason = _validate_extracted("   ", contract)
+    assert reason and "empty" in reason
+
+
+def test_validate_extracted_flags_placeholder():
+    contract = ExtractContract(nonempty=True, placeholders=["--", "N/A"])
+    reason = _validate_extracted("--", contract)
+    assert reason and "placeholder" in reason
+
+
+def test_validate_extracted_flags_wrong_shape():
+    contract = ExtractContract(pattern=r"\d{4}-\d{2}-\d{2}")
+    reason = _validate_extracted("No transactions on file.", contract)
+    assert reason and "shape" in reason
+
+
+def test_validate_extracted_treats_a_broken_pattern_as_unchecked_not_a_crash():
+    contract = ExtractContract(pattern=r"([unclosed")
+    assert _validate_extracted("anything", contract) is None
+
+
+def test_validate_extracted_allows_empty_when_nonempty_is_false():
+    contract = ExtractContract(nonempty=False)
+    assert _validate_extracted("", contract) is None
+
+
+# ---- _await_ready ------------------------------------------------------------------------------
+
+class _ContentPage:
+    def __init__(self, content):
+        self._content = content
+
+    def content(self):
+        return self._content
+
+
+def _step_with_ready(ready_when, timeout_ms=20):
+    return Step(
+        step_id="s1", action_type="click", ready_when=ready_when,
+        wait_policy=WaitPolicy(timeout_ms=timeout_ms),
+    )
+
+
+def test_await_ready_true_when_no_gate_declared():
+    assert _await_ready(_step_with_ready(None), _ContentPage("")) is True
+
+
+def test_await_ready_true_when_marker_already_present():
+    step = _step_with_ready("page contains 'Savings Balance'")
+    assert _await_ready(step, _ContentPage("<td>Savings Balance</td>")) is True
+
+
+def test_await_ready_false_when_marker_never_appears():
+    step = _step_with_ready("page contains 'Savings Balance'", timeout_ms=20)
+    assert _await_ready(step, _ContentPage("<td>still loading…</td>")) is False
+
+
+def test_await_ready_true_when_gate_string_has_no_quoted_marker():
+    # malformed ready_when -> can't extract a marker -> don't block the run on it
+    step = _step_with_ready("page is ready")
+    assert _await_ready(step, _ContentPage("")) is True
 
 
 # ---- _verify_checkpoint -----------------------------------------------------------------------

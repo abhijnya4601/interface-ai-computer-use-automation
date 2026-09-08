@@ -102,7 +102,7 @@ def main():
         check("lease is human (escalation is active)", controller.read_lease().state == "human")
 
         # 4. THE critical case: unauthenticated /resume must NOT be able to approve anything
-        resume_data = "decision=approved&summary=unauthenticated+attempt".encode()
+        resume_data = b"decision=approved&summary=unauthenticated+attempt"
         try:
             urllib.request.urlopen(
                 urllib.request.Request(f"{OPERATOR_BASE}/resume", data=resume_data, method="POST")
@@ -115,7 +115,7 @@ def main():
               controller.read_lease().state == "human")
 
         # 5. correctly-authenticated /resume succeeds and actually flips the lease
-        auth_resume_data = "decision=approved&summary=authenticated+approval".encode()
+        auth_resume_data = b"decision=approved&summary=authenticated+approval"
         req = urllib.request.Request(
             f"{OPERATOR_BASE}/resume", data=auth_resume_data, method="POST", headers=auth_headers
         )

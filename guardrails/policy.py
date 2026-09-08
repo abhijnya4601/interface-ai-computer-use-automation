@@ -11,18 +11,27 @@ Two independent responsibilities, both graded requirements:
    a live-reloading policy store, and re-reading a YAML file on every click would be the kind of
    premature-infrastructure the assignment explicitly says not to build.
 
-2. Redaction (`redact`) — applied uniformly to anything before it touches disk: evidence logs,
-   discovery transcripts, and the compiled artifact itself. Two independent passes:
+2. Redaction (`redact`) — applied to anything before it touches disk (evidence logs, discovery
+   transcripts, the compiled artifact) and before page content is sent to the model. Two
+   independent hard passes, then a sink-aware gray-area pass:
      - by KEY (`ssn`, `account_number`, `password`, `token` — case-insensitive substring): catches
        a secret regardless of its shape, but only if the field is *named* like a secret.
      - by VALUE SHAPE (`_STRUCTURED_SECRET_PATTERNS`): catches an SSN or a card/routing number
        even sitting inside an innocuously-named field (a real observation payload, a free-text
        log line) that the key-based pass would miss. Deliberately narrow — an SSN's `###-##-####`
        shape and a 13-19-digit run are distinctive enough to flag with very low false-positive
-       risk; this is NOT a general PII scanner (a customer's name or a dollar-formatted balance
-       is not secret-shaped in this sense, and legitimately belongs in a capability's declared
-       outputs — see REPORT.md's Safety section on why blanket value-redaction would break the
-       system's actual purpose). Full NLP-based PII detection remains an explicit cut.
+       risk.
+
+   Everything else — names, addresses, emails, phone numbers — is the GRAY AREA: sometimes a
+   legitimate declared output, sometimes a leak, and the difference is *where the data is going*,
+   not what it is. `redact(obj, sink=...)` routes that. `"artifact"` (the default) runs the two
+   hard passes only and lets gray-area data through, because a capability's declared outputs are
+   the point (a name in output_schema is not a leak). `"evidence"` additionally tokenizes
+   gray-area entities (`<PERSON_1>`, reversible under audit via the returned map). `"llm_prompt"`
+   additionally hard-masks them plus ZIP / long-digit shapes, since sending page content to a
+   third-party model is a one-way door. Gray-area detection (Presidio if installed, regex
+   fallback otherwise) and its per-run `RedactionReport` live in `guardrails/pii.py`;
+   `redact_with_report()` returns that report for a caller that wants to log it.
 """
 from __future__ import annotations
 
@@ -129,14 +138,9 @@ def _contains_structured_secret(value: str) -> bool:
     return any(pattern.search(value) for pattern in _STRUCTURED_SECRET_PATTERNS)
 
 
-def redact(obj):
-    """
-    Recursively redact (a) anything under a key that looks like a secret or raw PII (ssn,
-    account_number, password, token — case-insensitive substring match), and (b) any string
-    value that itself matches a structured-secret shape (SSN, card/routing-number-like digit
-    run), regardless of what key it's under. Returns a new object; never mutates the input.
-    Applied uniformly before ANYTHING is written to disk.
-    """
+def _hard_redact(obj):
+    """The two always-on passes: secret-shaped KEYS and structured-secret VALUE shapes. Sink
+    never changes this part — a password or an SSN is redacted everywhere, unconditionally."""
     if isinstance(obj, dict):
         result = {}
         for key, value in obj.items():
@@ -144,10 +148,41 @@ def redact(obj):
             if any(marker in key_lower for marker in _REDACT_KEY_SUBSTRINGS):
                 result[key] = "***REDACTED***"
             else:
-                result[key] = redact(value)
+                result[key] = _hard_redact(value)
         return result
     if isinstance(obj, list):
-        return [redact(item) for item in obj]
+        return [_hard_redact(item) for item in obj]
     if isinstance(obj, str) and _contains_structured_secret(obj):
         return "***REDACTED (structured secret pattern)***"
     return obj
+
+
+def redact(obj, sink: str = "artifact"):
+    """
+    Redact `obj` for a given destination. Returns a new object; never mutates the input.
+
+      - always: keys named like a secret (ssn/account_number/password/token) and values shaped
+        like an SSN or card/routing number are masked.
+      - sink="artifact" (default): nothing more — gray-area PII (names, addresses, emails) is
+        left intact, because a capability's declared outputs are supposed to contain it. This is
+        byte-for-byte the original redact() behavior.
+      - sink="evidence": gray-area entities are tokenized (`<PERSON_1>`), reversibly.
+      - sink="llm_prompt": gray-area entities plus ZIP / 6+ digit runs are hard-masked.
+
+    Use `redact_with_report()` instead when you want the RedactionReport (counts, low-confidence
+    review list) — e.g. to log what left for the model on each discovery turn.
+    """
+    return redact_with_report(obj, sink)[0]
+
+
+def redact_with_report(obj, sink: str = "artifact"):
+    """Like `redact`, but returns `(redacted_obj, report, token_map)`. `report` is a
+    `guardrails.pii.RedactionReport` (a plain dataclass; call `.as_dict()` / `.summary_line()`).
+    `token_map` is non-empty only for sink="evidence"."""
+    hard = _hard_redact(obj)
+    if sink == "artifact":
+        from guardrails.pii import RedactionReport  # local import: keeps pii optional-dep-safe
+        return hard, RedactionReport(sink=sink, backend="hard-passes-only"), {}
+
+    from guardrails.pii import scrub_gray_area
+    return scrub_gray_area(hard, sink)

@@ -1,0 +1,94 @@
+# `docker compose up bank operator` brings up the mock bank (:5050) and the escalation
+# operator console (:5001) — the whole target surface for a discovery or replay run, with no
+# local Python/Playwright setup. `docker compose run --rm tests` runs the suite.
+#
+#   docker compose up --build bank operator      # the app + operator console
+#   docker compose run --rm tests                # pytest
+#   docker compose run --rm tests python scripts/smoke_test_replay.py   # live smoke
+#   docker compose run --rm discovery --goal "..." --target http://bank:5050/search --capability-id lookup_member_balance
+
+services:
+  bank:
+    build: .
+    image: live-console-demo
+    working_dir: /app/app
+    # init + seed on every start so the fixture data (incl. member 77777, the
+    # page-renders-but-no-data case) is always present; then serve.
+    command: >
+      sh -c "python -c 'import models; models.init_db(); models.seed()' &&
+             python app.py"
+    ports:
+      - "5050:5050"
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:5050/search').read()"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+
+  # Link-gated live console: pick a target + params, hit Run, watch the console and the
+  # browser side by side.  http://localhost:5055/?key=<CONSOLE_ACCESS_KEY>
+  #   docker compose up --build bank console
+  console:
+    build: .
+    image: live-console-demo
+    command: python -m webconsole.server
+    environment:
+      TARGET_BASE: http://bank:5050
+      CONSOLE_ACCESS_KEY: ${CONSOLE_ACCESS_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      PORT: "5055"
+    ports:
+      - "5055:5055"
+    depends_on:
+      bank:
+        condition: service_healthy
+    volumes:
+      - escalation-state:/app/escalation/state
+      - capabilities:/app/capabilities
+      - evidence:/app/evidence
+
+  operator:
+    build: .
+    image: live-console-demo
+    command: python escalation/operator_page.py
+    environment:
+      OPERATOR_USERNAME: operator
+      OPERATOR_PASSWORD: demo-only-not-a-real-secret
+    ports:
+      - "5001:5001"
+    volumes:
+      - escalation-state:/app/escalation/state
+      - evidence:/app/evidence
+
+  tests:
+    build: .
+    image: live-console-demo
+    depends_on:
+      bank:
+        condition: service_healthy
+    environment:
+      BANK_BASE: http://bank:5050
+    command: python -m pytest -q
+
+  discovery:
+    build: .
+    image: live-console-demo
+    depends_on:
+      bank:
+        condition: service_healthy
+      operator:
+        condition: service_started
+    env_file:
+      - path: .env
+        required: false
+    entrypoint: ["python", "scripts/run_discovery.py"]
+    volumes:
+      - evidence:/app/evidence
+      - capabilities:/app/capabilities
+
+volumes:
+  escalation-state:
+  evidence:
+  capabilities:

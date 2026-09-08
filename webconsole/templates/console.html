@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --ground:#0e1418;--ground-2:#131c22;--ground-3:#1a262d;--hair:#26343d;--hair-b:#33454f;
+    --ink-1:#e8eef0;--ink-2:#9fb2ba;--ink-3:#6c828c;
+    --signal:#e8b23a;--signal-dim:#7a6224;--wire:#5fb3a3;--wire-dim:#2f5e57;--alarm:#d9694e;--alarm-dim:#6b3a30;
+    --serif:"Spectral",Georgia,serif;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink-1);font-family:var(--sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  h1{font-family:var(--serif);font-weight:600;font-size:19px;margin:0}
+  a{color:var(--signal)}
+  code,.mono{font-family:var(--mono)}
+  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3)}
+
+  header{display:flex;align-items:baseline;gap:16px;padding:14px 22px;border-bottom:1px solid var(--hair);background:linear-gradient(180deg,var(--ground-2),var(--ground));flex-wrap:wrap}
+  header .sub{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+  header .sub b{color:var(--wire);font-weight:500}
+
+  .app{display:grid;grid-template-columns:340px minmax(0,1fr) minmax(0,1fr);gap:14px;padding:16px 22px;align-items:start}
+  .col{background:var(--ground-2);border:1px solid var(--hair);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+  .col > .cap{padding:9px 13px;border-bottom:1px solid var(--hair);background:var(--ground-3);font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);display:flex;justify-content:space-between;align-items:center}
+  .col-body{padding:14px}
+
+  /* controls */
+  .seg{display:flex;border:1px solid var(--hair-b);border-radius:7px;overflow:hidden;margin-bottom:14px}
+  .seg button{flex:1;background:var(--ground-3);color:var(--ink-2);border:none;padding:8px;font-family:var(--sans);font-size:12.5px;font-weight:600;cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--signal);color:#241c07}
+  label.f{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:12px 0 5px}
+  select,input[type=text],textarea{width:100%;font-family:var(--mono);font-size:12.5px;background:var(--ground-3);color:var(--ink-1);border:1px solid var(--hair-b);border-radius:6px;padding:8px 10px}
+  select:focus,input:focus,textarea:focus{outline:none;border-color:var(--signal)}
+  textarea{font-family:var(--sans);min-height:66px;resize:vertical}
+  .hint{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:4px}
+  .check{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:12.5px;color:var(--ink-2)}
+  .check input{width:auto}
+  .runbar{display:flex;gap:8px;margin-top:16px}
+  .runbar button{font-family:var(--mono);font-size:13px;font-weight:500;border-radius:7px;padding:9px 16px;cursor:pointer;border:1px solid var(--hair-b);background:var(--ground-3);color:var(--ink-1)}
+  .runbar button.go{background:var(--signal);color:#241c07;border-color:var(--signal);font-weight:600;flex:1}
+  .runbar button:disabled{opacity:.45;cursor:not-allowed}
+  .warnbox{border:1px solid var(--alarm-dim);background:rgba(217,105,78,.07);border-radius:7px;padding:9px 11px;font-size:11.5px;color:var(--ink-2);margin-top:12px}
+
+  details.rules{margin-top:16px;border:1px solid var(--hair);border-radius:8px;padding:0}
+  details.rules > summary{cursor:pointer;list-style:none;padding:10px 12px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+  details.rules > summary::-webkit-details-marker{display:none}
+  details.rules[open] > summary{border-bottom:1px solid var(--hair)}
+  details.rules .hint{padding:0 12px;margin:10px 0}
+  #rulesList{list-style:none;margin:0;padding:0 12px}
+  #rulesList li{display:flex;gap:8px;align-items:flex-start;font-family:var(--mono);font-size:11px;color:var(--ink-2);padding:7px 0;border-bottom:1px solid var(--hair)}
+  #rulesList li .body{flex:1}
+  #rulesList li .then{flex:none;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;border:1px solid;border-radius:4px;padding:1px 6px}
+  #rulesList li .then.escalate{color:var(--alarm);border-color:var(--alarm-dim)}
+  #rulesList li .then.block{color:#c99bd6;border-color:#5a3f63}
+  #rulesList li .then.allow{color:var(--wire);border-color:var(--wire-dim)}
+  #rulesList li .del{flex:none;background:none;border:none;color:var(--ink-3);cursor:pointer;font-size:13px;padding:0 2px}
+  #rulesList li .del:hover{color:var(--alarm)}
+  .addrule{padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+  .addrule .rr{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .addrule .rr select{flex:1}
+  .addrule input,.addrule select{font-size:12px;padding:6px 8px}
+  .addrule button{align-self:flex-start;font-family:var(--mono);font-size:12px;background:var(--ground-3);color:var(--ink-1);border:1px solid var(--hair-b);border-radius:6px;padding:7px 13px;cursor:pointer;margin-top:2px}
+  .addrule button:hover{border-color:var(--signal);color:var(--signal)}
+  .ln.policy .m{color:var(--ink-3)} .ln.policy .m b{color:var(--alarm)}
+
+  /* console */
+  .console{flex:1;min-height:420px;max-height:calc(100vh - 190px);overflow-y:auto;padding:12px 13px;font-family:var(--mono);font-size:11.8px;line-height:1.65;background:var(--ground-3)}
+  .ln{display:flex;gap:9px;padding:1px 0;white-space:pre-wrap;word-break:break-word}
+  .ln .t{color:var(--ink-3);flex:none;font-size:10.5px;padding-top:1px}
+  .ln.nav .m,.ln.obs .m{color:var(--ink-3)}
+  .ln.model .m{color:var(--wire)}
+  .ln.act .m{color:var(--ink-1)} .ln.act .m b{color:var(--signal)}
+  .ln.step .m{color:var(--ink-2)} .ln.step .m b{color:var(--wire)}
+  .ln.red .m{color:#c99bd6}
+  .ln.esc .m{color:var(--alarm)}
+  .ln.done .m{color:var(--signal);font-weight:500}
+  .ln.err .m{color:var(--alarm);font-weight:500}
+  .empty{color:var(--ink-3);font-family:var(--mono);font-size:11.5px;padding:20px 4px}
+
+  /* live browser */
+  .screenwrap{flex:1;display:flex;flex-direction:column;min-height:420px}
+  .screenbar{display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid var(--hair);background:var(--ground-3);font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+  .screenbar .st{margin-left:auto;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--hair-b);border-radius:4px;padding:2px 7px;color:var(--ink-3)}
+  .screenbar .st.live{color:var(--wire);border-color:var(--wire-dim)}
+  .screenbar .st.done{color:var(--signal);border-color:var(--signal-dim)}
+  #screen{width:100%;display:block;background:#20323f;min-height:380px;object-fit:contain}
+  .noscreen{padding:60px 20px;text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:11.5px}
+
+  .escpanel{border-top:1px solid var(--alarm-dim);background:rgba(217,105,78,.07);padding:12px 14px}
+  .escpanel h4{font-family:var(--sans);font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--alarm);margin:0 0 7px}
+  .escpanel p{margin:5px 0;font-size:12px;color:var(--ink-2);font-family:var(--mono)}
+  .escpanel .ops{display:flex;gap:8px;margin-top:10px}
+  .escpanel button{font-family:var(--sans);font-size:12.5px;font-weight:600;border-radius:6px;padding:7px 15px;cursor:pointer;border:1px solid}
+  .escpanel .ap{background:var(--wire-dim);color:#dff3ef;border-color:var(--wire)}
+  .escpanel .de{background:var(--ground-3);color:var(--ink-2);border-color:var(--hair-b)}
+
+  .result{padding:12px 14px;border-top:1px solid var(--hair);font-family:var(--mono);font-size:11.5px}
+  .result .status{font-size:10px;letter-spacing:.06em;text-transform:uppercase;border-radius:4px;padding:2px 8px;border:1px solid}
+  .status-success{color:var(--wire);border-color:var(--wire-dim)}
+  .status-business_outcome{color:var(--signal);border-color:var(--signal-dim)}
+  .status-data_unavailable{color:#c99bd6;border-color:#5a3f63}
+  .status-hard_failure,.status-error,.status-stopped{color:var(--alarm);border-color:var(--alarm-dim)}
+  pre{white-space:pre-wrap;word-break:break-word;color:var(--ink-2);margin:8px 0 0;font-size:11px}
+
+  footer{padding:14px 22px;color:var(--ink-3);font-family:var(--mono);font-size:11px;border-top:1px solid var(--hair)}
+  @media (max-width:1180px){ .app{grid-template-columns:1fr} .console{max-height:340px} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Live Console</h1>
+  <span class="sub">choose a target &amp; parameters &middot; <b>watch it run</b> — console and browser, same page, in real time</span>
+</header>
+
+<div class="app">
+  <!-- controls -->
+  <div class="col">
+    <div class="cap"><span>Run</span><span id="busytag" class="eyebrow"></span></div>
+    <div class="col-body">
+      <div class="seg" id="mode">
+        <button data-mode="replay" aria-pressed="true">Replay</button>
+        <button data-mode="discovery" aria-pressed="false" {{ '' if (allow_byo_key or server_has_key) else 'disabled' }}>Discover</button>
+      </div>
+
+      <label class="f">Target</label>
+      <select id="target">
+        {% for k,t in targets.items() %}<option value="{{k}}">{{t.label}}</option>{% endfor %}
+      </select>
+      <div class="hint">Targets are limited to the approved non-prod app (guardrails/allowlist.yaml).</div>
+
+      <!-- replay fields -->
+      <div id="f-replay">
+        <label class="f">Capability</label>
+        <select id="capability">
+          {% for c in capabilities %}<option value="{{c.path}}" data-inputs="{{ c.inputs|join(',') }}" data-risk="{{c.risk}}">{{c.id}} &nbsp;·&nbsp; {{c.risk}} &nbsp;·&nbsp; {{c.lifecycle}}</option>{% endfor %}
+        </select>
+        <div id="params"></div>
+        <label class="check"><input type="checkbox" id="confirm"> <span>confirm = true (required for a <code>risky</code> capability)</span></label>
+      </div>
+
+      <!-- discovery fields -->
+      <div id="f-discovery" hidden>
+        <label class="f">Goal (natural language)</label>
+        <textarea id="goal" placeholder="Look up member 12345 and read their current savings balance."></textarea>
+        <label class="f">Name the capability</label>
+        <input type="text" id="capid" value="discovered" placeholder="what to call the replay this produces">
+        {% if allow_byo_key %}
+        <label class="f">Anthropic API key{% if server_has_key %} <span style="text-transform:none;letter-spacing:0;color:var(--ink-3)">— optional, the server has one</span>{% endif %}</label>
+        <input type="password" id="apikey" placeholder="sk-ant-…  (used for this run, never stored)" autocomplete="off">
+        <div class="hint">Sent straight to Anthropic through this server for the run and <b>never written to disk or logged</b>. Kept in this browser tab only. <a href="#" id="forgetkey">forget it</a></div>
+        {% elif not server_has_key %}
+        <div class="warnbox">Discovery needs <code>ANTHROPIC_API_KEY</code> on the server. Replay runs fully without it.</div>
+        {% endif %}
+      </div>
+
+      <div class="runbar">
+        <button class="go" id="btnRun">▶ Run</button>
+        <button id="btnStop" disabled>■ Stop</button>
+      </div>
+      <div class="hint" id="err" style="color:var(--alarm);margin-top:10px"></div>
+
+      <details class="rules" id="rulesBox">
+        <summary>Escalation rules <span id="rulesCount" class="eyebrow"></span></summary>
+        <p class="hint">Checked before every state-changing step, in replay <em>and</em> discovery. First match wins; no match = proceed. The model may also escalate on its own judgment — these are the floor under it.</p>
+        <ul id="rulesList"></ul>
+        <div class="addrule">
+          <div class="rr"><span>when</span></div>
+          <input type="text" id="r-cap" placeholder="capability id (blank = any)">
+          <select id="r-risk"><option value="">risk: any</option><option value="risky">risky</option><option value="safe">safe</option></select>
+          <input type="text" id="r-name" placeholder="step name contains… e.g. Confirm">
+          <select id="r-act"><option value="">action: any</option><option value="click">click</option><option value="type">type</option></select>
+          <div class="rr"><span>then</span>
+            <select id="r-then"><option value="escalate">escalate — pause for a human</option><option value="block">block — stop the run</option><option value="allow">allow — proceed</option></select>
+          </div>
+          <button id="r-add">Add rule</button>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- console -->
+  <div class="col">
+    <div class="cap"><span>Agent console</span><span id="metatag" class="eyebrow"></span></div>
+    <div class="console" id="console"><div class="empty">Pick a capability and press Run. Every observation, tool call, redaction pass and step outcome streams here as it happens.</div></div>
+  </div>
+
+  <!-- live browser -->
+  <div class="col">
+    <div class="cap"><span>Target — live</span></div>
+    <div class="screenwrap">
+      <div class="screenbar"><span class="mono" id="scr-url">—</span><span class="st" id="scr-st">idle</span></div>
+      <img id="screen" alt="live view of the target browser" hidden>
+      <div class="noscreen" id="noscreen">the target browser appears here once a run starts</div>
+      <div class="escpanel" id="escpanel" hidden>
+        <h4>Action needs a human — the run is paused</h4>
+        <p id="esc-reason"></p>
+        <div class="ops"><button class="ap" id="escApprove">Approve &amp; resume</button><button class="de" id="escDecline">Decline</button></div>
+      </div>
+      <div class="result" id="result" hidden></div>
+    </div>
+  </div>
+</div>
+
+<footer>Live console. One run at a time; a run auto-stops after its wall-clock budget. Screenshots are streamed from the real browser the agent is driving.</footer>
+
+<script>
+(function(){
+  "use strict";
+  var $=function(s){return document.querySelector(s);};
+  var caps = {{ capabilities|tojson }};
+  var allowByo = {{ 'true' if allow_byo_key else 'false' }};
+  var mode = "replay", es = null, running = false;
+  var SS = window.sessionStorage;
+  function ssGet(k){ try{ return SS.getItem(k); }catch(e){ return null; } }
+  function ssSet(k,v){ try{ SS.setItem(k,v); }catch(e){} }
+
+  /* remembered API key (this browser tab only) */
+  if(allowByo && $('#apikey')){
+    var savedKey = ssGet('ia_apikey'); if(savedKey) $('#apikey').value = savedKey;
+    $('#forgetkey') && $('#forgetkey').addEventListener('click', function(e){
+      e.preventDefault(); $('#apikey').value=''; try{ SS.removeItem('ia_apikey'); }catch(x){}
+    });
+  }
+
+  /* ---- mode toggle ---- */
+  [].forEach.call(document.querySelectorAll('#mode button'), function(b){
+    b.addEventListener('click', function(){
+      if(b.disabled) return;
+      mode = b.dataset.mode;
+      [].forEach.call(document.querySelectorAll('#mode button'), function(x){x.setAttribute('aria-pressed', x===b?'true':'false');});
+      $('#f-replay').hidden = mode!=='replay';
+      $('#f-discovery').hidden = mode!=='discovery';
+    });
+  });
+
+  /* ---- dynamic param inputs for the chosen capability ---- */
+  function hintFor(name){
+    if(name==='member_id') return '12345 (ok) · 88888 (not found) · 99999 (locked) · 77777 (data missing)';
+    return '';
+  }
+  function capFor(path){ for(var i=0;i<caps.length;i++){ if(caps[i].path===path) return caps[i]; } return null; }
+  function renderParams(){
+    var opt = $('#capability').selectedOptions[0];
+    var names = (opt && opt.dataset.inputs ? opt.dataset.inputs.split(',') : []).filter(Boolean);
+    $('#confirm').closest('.check').style.display = (opt && opt.dataset.risk==='risky') ? 'flex' : 'none';
+    var html = names.map(function(n){
+      return '<label class="f">'+esc(n)+'</label><input type="text" data-param="'+esc(n)+'" placeholder="'+esc(hintFor(n))+'">'
+        + (hintFor(n)?'<div class="hint">'+esc(hintFor(n))+'</div>':'');
+    }).join('');
+    var cap = opt ? capFor(opt.value) : null;
+    var ov = (cap && cap.overridable) || [];
+    if(ov.length){
+      html += '<label class="f" style="margin-top:16px">Override recorded values <span style="text-transform:none;letter-spacing:0;color:var(--ink-3)">— optional, blank = use recorded</span></label>';
+      html += ov.map(function(o){
+        return '<label class="f" style="margin-top:8px">'+esc(o.field)+'</label>'
+          + '<input type="text" data-override="'+esc(o.step_id)+'" placeholder="'+esc(String(o.value))+'">';
+      }).join('');
+    }
+    $('#params').innerHTML = html;
+  }
+  $('#capability') && $('#capability').addEventListener('change', renderParams);
+  renderParams();
+
+  /* ---- rebuild the replay capability list (after a discovery, without a page reload) ---- */
+  function rebuildCapSelect(list, selectPath){
+    var sel = $('#capability'); if(!sel) return;
+    var cur = selectPath || sel.value;
+    sel.innerHTML = list.map(function(c){
+      return '<option value="'+c.path+'" data-inputs="'+(c.inputs||[]).join(',')+'" data-risk="'+c.risk+'"'
+        + (c.path===cur?' selected':'') + '>'+c.id+'  ·  '+c.risk+'  ·  '+c.lifecycle+'</option>';
+    }).join('');
+    renderParams();
+  }
+  function refreshCatalog(selectPath){
+    return fetch('/catalog').then(function(r){return r.json();}).then(function(j){
+      caps = j.capabilities; rebuildCapSelect(caps, selectPath); return j.capabilities;
+    }).catch(function(){});
+  }
+
+  /* ---- console rendering ---- */
+  var consoleEl = $('#console');
+  function clearConsole(){ consoleEl.innerHTML=''; }
+  function t(){ var d=new Date(); return ('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2); }
+  function line(cls, html){
+    var el=document.createElement('div'); el.className='ln '+cls;
+    el.innerHTML='<span class="t">'+t()+'</span><span class="m">'+html+'</span>';
+    consoleEl.appendChild(el); consoleEl.scrollTop=consoleEl.scrollHeight;
+  }
+  function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  function jshort(o){ try{ var s=JSON.stringify(o); return s.length>140?s.slice(0,140)+'…':s; }catch(e){ return ''+o; } }
+
+  function renderAgentEntry(e){
+    var tp=e.type;
+    if(tp==='navigate') line('nav','→ navigate  '+esc(e.url));
+    else if(tp==='observation') line('obs','· observe   '+esc(e.url)+'  |  '+esc((e.last_action_result||'').slice(0,80)));
+    else if(tp==='llm_response'){
+      var tu=(e.content||[]).filter(function(b){return b.type==='tool_use';})[0];
+      line('model','‹ model'+(tu?'  →  '+esc(tu.name)+' '+esc(jshort(tu.input)):'  (stop: '+esc(e.stop_reason)+')'));
+    }
+    else if(tp==='tool_call') line('act','→ <b>'+esc(e.name)+'</b>  '+esc(jshort(e.input)));
+    else if(tp==='redaction') line('red','⊘ redaction ['+esc(e.sink||e.phase)+']  '+esc(jshort(e.by_type||{}))+(e.low_confidence_for_review&&e.low_confidence_for_review.length?'  · '+e.low_confidence_for_review.length+' flagged':''));
+    else if(tp==='note_branch'||tp==='note_data_shape') line('act','● '+esc(tp)+' — proposal noted for review');
+    else if(tp==='escalate_requested'){ line('esc','↯ escalate — '+esc((e.reason||'').slice(0,140))+'…'); showEsc(e.reason); }
+    else if(tp==='dead_end') line('esc','↯ dead-end — '+esc(e.reason));
+    else if(tp==='escalation_resumed'){ line('done','✓ resumed — decision='+esc(e.decision)); hideEsc(); }
+    else if(tp==='guardrail_violation') line('err','✕ guardrail — '+esc(e.detail));
+    else if(tp==='token_usage') line('obs','tokens  in '+e.input+'  out '+e.output);
+    else if(tp==='finish') line('done','■ finish — '+esc((e.input&&e.input.summary)||''));
+    else if(tp==='stop') line('obs','· stop — '+esc(e.reason));
+    else if(tp==='precheck_block') line('err','✕ blocked — '+esc(jshort(e.detail)));
+    else if(tp==='replay_start') line('act','▶ replay  '+esc(e.capability_id)+'  '+esc(jshort(e.params)));
+    else if(tp==='step') line('step','● <b>'+esc(e.step_id)+'</b> '+esc(e.action_type)+'  · tier '+esc(e.tier||'—')+'  · '+e.ms+'ms  → '+esc(e.outcome));
+    else if(tp==='policy_check') line('policy','⚖ policy · '+esc(e.step_id)+' → <b>'+esc(e.decision)+'</b>'+(e.rule?'  (rule: '+esc(e.rule)+')':'')+'  — '+esc(e.reason));
+    else if(tp==='override_applied') line('act','✎ override · '+esc(e.step_id)+' '+esc(e.field||'')+' = <b>'+esc(e.value)+'</b>  (recorded value replaced for this run)');
+    else if(tp==='result'){ /* handled by done */ }
+    else line('obs','· '+esc(tp)+'  '+esc(jshort(e)));
+  }
+
+  /* ---- escalation panel ---- */
+  function showEsc(reason){ $('#esc-reason').textContent=reason||''; $('#escpanel').hidden=false; }
+  function hideEsc(){ $('#escpanel').hidden=true; }
+  function sendResume(decision){
+    fetch('/resume',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:decision,note:'web console'})})
+      .then(function(){ line(decision==='approved'?'done':'esc',(decision==='approved'?'✓':'✕')+' operator '+decision.toUpperCase()); hideEsc(); });
+  }
+  $('#escApprove').addEventListener('click',function(){ sendResume('approved'); });
+  $('#escDecline').addEventListener('click',function(){ sendResume('declined'); });
+
+  /* ---- screen ---- */
+  function setFrame(b64,url){
+    var img=$('#screen'); img.hidden=false; $('#noscreen').hidden=true;
+    img.src='data:image/jpeg;base64,'+b64;
+    if(url){ $('#scr-url').textContent=url; }
+  }
+  function setSt(cls,text){ var s=$('#scr-st'); s.className='st '+cls; s.textContent=text; }
+
+  /* ---- result ---- */
+  function showResult(d){
+    var r=$('#result'); r.hidden=false;
+    var st=d.status||'—';
+    r.innerHTML='<span class="status status-'+esc(st)+'">'+esc(st.replace('_',' '))+'</span>'
+      +(d.code?' <b style="color:var(--signal)">'+esc(d.code)+'</b>':'')
+      +(d.detail?'<pre>'+esc(d.detail)+'</pre>':'')
+      +(d.failure_detail?'<pre>'+esc(JSON.stringify(d.failure_detail,null,2))+'</pre>':'')
+      +(d.outputs&&Object.keys(d.outputs).length?'<pre>'+esc(JSON.stringify(d.outputs,null,2))+'</pre>':'')
+      +(d.summary?'<pre>'+esc(d.summary)+'</pre>':'')
+      +(d.capability_path?'<pre>compiled → '+esc(d.capability_path)+'</pre>':'')
+      +(d.tokens?'<pre>tokens: '+d.tokens.input+' in / '+d.tokens.output+' out</pre>':'');
+  }
+
+  /* ---- run ---- */
+  function setRunning(on){
+    running=on;
+    $('#btnRun').disabled=on; $('#btnStop').disabled=!on;
+    $('#btnRun').textContent=on?'running…':'▶ Run';
+    $('#busytag').textContent=on?'● running':'';
+    setSt(on?'live':'idle', on?'live':'idle');
+  }
+
+  $('#btnRun').addEventListener('click', function(){
+    if(running) return;
+    $('#err').textContent=''; $('#result').hidden=true; hideEsc();
+    var body={mode:mode, target:$('#target').value};
+    if(mode==='replay'){
+      body.capability=$('#capability').value;
+      body.confirm=$('#confirm').checked;
+      body.params={}; body.overrides={};
+      [].forEach.call(document.querySelectorAll('#params [data-param]'),function(i){ if(i.value.trim()) body.params[i.dataset.param]=i.value.trim(); });
+      [].forEach.call(document.querySelectorAll('#params [data-override]'),function(i){ if(i.value.trim()) body.overrides[i.dataset.override]=i.value.trim(); });
+    } else {
+      body.goal=$('#goal').value; body.capability_id=$('#capid').value;
+      if(allowByo && $('#apikey')){
+        var k=$('#apikey').value.trim();
+        if(k){ body.api_key=k; ssSet('ia_apikey', k); }
+      }
+    }
+    fetch('/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,j:j}; }); })
+      .then(function(x){
+        if(!x.ok){ $('#err').textContent=x.j.error||'could not start'; return; }
+        clearConsole(); setRunning(true);
+        line('act','▶ run '+x.j.run_id+'  ('+mode+')');
+        openStream();
+      })
+      .catch(function(){ $('#err').textContent='network error starting the run'; });
+  });
+
+  $('#btnStop').addEventListener('click', function(){
+    fetch('/stop',{method:'POST'}); line('err','■ stop requested');
+  });
+
+  function openStream(){
+    if(es) es.close();
+    es = new EventSource('/stream');
+    es.onmessage=function(m){
+      var ev; try{ ev=JSON.parse(m.data); }catch(e){ return; }
+      if(ev.type==='frame') setFrame(ev.b64, ev.url);
+      else if(ev.type==='meta'){ $('#metatag').textContent=ev.mode+(ev.capability?' · '+ev.capability:''); }
+      else if(ev.type==='agent') renderAgentEntry(ev.entry||{});
+      else if(ev.type==='compiled'){
+        line('done','⟳ compiled → '+esc(ev.path)+(ev.unratified&&ev.unratified.length?'  ('+ev.unratified.length+' rules need review)':''));
+      }
+      else if(ev.type==='done'){
+        line(ev.ok?'done':'err','■ '+ (ev.status||'done').toUpperCase() + (ev.code?' · '+ev.code:''));
+        showResult(ev); setRunning(false); setSt('done', ev.status||'done'); hideEsc();
+        es.close(); es=null;
+        // a discovery that compiled a capability -> pull it into the replay list and switch there
+        if(ev.capability_path){
+          refreshCatalog(ev.capability_path).then(function(){
+            [].forEach.call(document.querySelectorAll('#mode button'), function(x){
+              var on = x.dataset.mode==='replay'; x.setAttribute('aria-pressed', on?'true':'false');
+            });
+            mode='replay'; $('#f-replay').hidden=false; $('#f-discovery').hidden=true;
+            line('done','▸ saved as a replay — '+esc(ev.capability_path.split('/').pop())+' is now in the Replay list. Set params and Run it.');
+          });
+        }
+      }
+    };
+    es.onerror=function(){ /* browser auto-retries; if the run is done the server closes it */ };
+  }
+
+  /* ---- escalation rules panel ---- */
+  function ruleSummary(r){
+    var w=r.when||{}, bits=[];
+    if(w.capability_id) bits.push('capability '+(Array.isArray(w.capability_id)?w.capability_id.join('/'):w.capability_id));
+    if(w.risk_level) bits.push('risk '+w.risk_level);
+    if(w.step_action) bits.push((Array.isArray(w.step_action)?w.step_action.join('/'):w.step_action));
+    if(w.step_name_contains) bits.push('step name ~ '+[].concat(w.step_name_contains).join('/'));
+    if(w.param) bits.push('param '+w.param.name+' '+(w.param.op||'eq')+' '+w.param.value);
+    if(w.target_app) bits.push('app '+w.target_app);
+    return (r.description? r.description+' — ' : '') + 'when ' + (bits.join(', ') || 'anything');
+  }
+  function renderRules(list){
+    $('#rulesCount').textContent = list.length ? list.length+' active' : 'none';
+    $('#rulesList').innerHTML = list.map(function(r){
+      return '<li><span class="then '+esc(r.then)+'">'+esc(r.then)+'</span>'
+        + '<span class="body">'+esc(ruleSummary(r))+'</span>'
+        + '<button class="del" data-id="'+esc(r.id)+'" title="delete">✕</button></li>';
+    }).join('') || '<li style="color:var(--ink-3)">no rules — every step proceeds</li>';
+    [].forEach.call($('#rulesList').querySelectorAll('.del'), function(b){
+      b.addEventListener('click', function(){
+        fetch('/rules?id='+encodeURIComponent(b.dataset.id),{method:'DELETE'})
+          .then(function(r){return r.json();}).then(function(j){ renderRules(j.rules||[]); });
+      });
+    });
+  }
+  function loadRules(){ fetch('/rules').then(function(r){return r.json();}).then(function(j){ renderRules(j.rules||[]); }).catch(function(){}); }
+  loadRules();
+
+  $('#r-add') && $('#r-add').addEventListener('click', function(){
+    var when={};
+    if($('#r-cap').value.trim()) when.capability_id=$('#r-cap').value.trim();
+    if($('#r-risk').value) when.risk_level=$('#r-risk').value;
+    if($('#r-name').value.trim()) when.step_name_contains=[$('#r-name').value.trim()];
+    if($('#r-act').value) when.step_action=$('#r-act').value;
+    fetch('/rules',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({when:when, then:$('#r-then').value})})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(x){
+        if(!x.ok){ $('#err').textContent=x.j.error||'could not add rule'; return; }
+        renderRules(x.j.rules||[]);
+        $('#r-cap').value=''; $('#r-name').value=''; $('#r-risk').value=''; $('#r-act').value='';
+      });
+  });
+})();
+</script>
+</body>
+</html>

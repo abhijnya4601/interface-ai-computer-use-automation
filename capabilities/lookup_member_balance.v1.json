@@ -1,4 +1,7 @@
 {
+  "schema_version": "1.1",
+  "lifecycle": "draft",
+  "verification": null,
   "capability_id": "lookup_member_balance",
   "version": "1.0.0",
   "created_from_run_id": "run_150cea0c47",
@@ -26,7 +29,8 @@
       "role": "rowheader",
       "name": "Savings Balance"
     },
-    "expected": "present"
+    "expected": "present",
+    "provenance": "curated"
   },
   "steps": [
     {
@@ -42,7 +46,9 @@
           "transient_load"
         ]
       },
-      "expected_outcomes": []
+      "expected_outcomes": [],
+      "ready_when": null,
+      "extract_contract": null
     },
     {
       "step_id": "s2",
@@ -72,7 +78,9 @@
           "transient_load"
         ]
       },
-      "expected_outcomes": []
+      "expected_outcomes": [],
+      "ready_when": null,
+      "extract_contract": null
     },
     {
       "step_id": "s3",
@@ -100,7 +108,9 @@
           "transient_load"
         ]
       },
-      "expected_outcomes": []
+      "expected_outcomes": [],
+      "ready_when": null,
+      "extract_contract": null
     },
     {
       "step_id": "s4",
@@ -133,9 +143,12 @@
           "condition": "page contains 'No results.'",
           "classification": "business_outcome",
           "code": "MEMBER_NOT_FOUND",
-          "handling": "search returned no matching row for this member_id; there is no 'View' link to click through \u2014 treat as not found rather than a broken locator"
+          "handling": "search returned no matching row for this member_id; there is no 'View' link to click through \u2014 treat as not found rather than a broken locator",
+          "provenance": "curated"
         }
-      ]
+      ],
+      "ready_when": null,
+      "extract_contract": null
     },
     {
       "step_id": "s5",
@@ -168,15 +181,29 @@
           "condition": "page contains 'Access denied. This account is restricted'",
           "classification": "business_outcome",
           "code": "PERMISSION_DENIED",
-          "handling": "member exists but the account is locked; balance is not shown on this page"
+          "handling": "member exists but the account is locked; balance is not shown on this page",
+          "provenance": "curated"
         },
         {
           "condition": "page contains 'No member record found'",
           "classification": "business_outcome",
           "code": "MEMBER_NOT_FOUND",
-          "handling": "member record does not exist at this URL"
+          "handling": "member record does not exist at this URL",
+          "provenance": "curated"
         }
-      ]
+      ],
+      "ready_when": null,
+      "extract_contract": {
+        "pattern": "\\$[\\d,]+\\.\\d{2}",
+        "nonempty": true,
+        "placeholders": [
+          "--",
+          "N/A",
+          "Not available"
+        ],
+        "reason": "a savings balance renders as a currency amount ($1,842.30); an empty or non-currency value in this cell means the member page loaded but the balance field behind it did not resolve",
+        "provenance": "curated"
+      }
     }
   ]
 }

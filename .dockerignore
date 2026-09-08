@@ -1,0 +1,13 @@
+.git
+.github
+.venv
+**/__pycache__
+*.pyc
+.pytest_cache
+app/bank.db
+app/bank.db-journal
+.env
+.playwright-profile*
+escalation/state
+.DS_Store
+docs
