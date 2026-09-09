@@ -114,16 +114,43 @@
   pre{white-space:pre-wrap;word-break:break-word;color:var(--ink-2);margin:8px 0 0;font-size:11px}
 
   footer{padding:14px 22px;color:var(--ink-3);font-family:var(--mono);font-size:11px;border-top:1px solid var(--hair)}
-  @media (max-width:1180px){ .app{grid-template-columns:1fr} .console{max-height:340px} }
+
+  /* view toggle (Run / History) */
+  .viewseg{margin-left:auto;display:flex;border:1px solid var(--hair-b);border-radius:7px;overflow:hidden}
+  .viewseg button{background:var(--ground-3);color:var(--ink-2);border:none;padding:6px 14px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+  .viewseg button[aria-pressed="true"]{background:var(--wire);color:#08201c}
+
+  /* history view */
+  .history{padding:16px 22px}
+  .hcol{background:var(--ground-2);border:1px solid var(--hair);border-radius:10px;overflow:hidden}
+  .hbody{padding:14px 16px}
+  .htable{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px}
+  .htable th{text-align:left;color:var(--ink-3);font-weight:500;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:6px 10px;border-bottom:1px solid var(--hair-b)}
+  .htable td{padding:7px 10px;border-bottom:1px solid var(--hair);color:var(--ink-2);vertical-align:top}
+  .htable tbody tr{cursor:pointer}
+  .htable tbody tr:hover td{background:var(--ground-3)}
+  .htable .k{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--hair-b);border-radius:4px;padding:1px 6px;color:var(--ink-3)}
+  .htable .s-success{color:var(--wire)} .htable .s-business_outcome{color:var(--signal)}
+  .htable .s-data_unavailable{color:#c99bd6} .htable .s-no_match{color:var(--ink-3)}
+  .htable .s-hard_failure,.htable .s-error,.htable .s-stopped{color:var(--alarm)}
+  .htable .esc{color:var(--alarm)}
+  #hdetail{margin-top:12px;white-space:pre-wrap;word-break:break-word;background:var(--ground-3);border:1px solid var(--hair);border-radius:8px;padding:12px;font-family:var(--mono);font-size:11px;color:var(--ink-2);max-height:340px;overflow:auto}
+  .ln.answer .m{color:var(--wire);font-weight:500}
+
+  @media (max-width:1180px){ .app{grid-template-columns:1fr} .console{max-height:340px} .htable{font-size:10.5px} }
 </style>
 </head>
 <body>
 <header>
   <h1>Live Console</h1>
   <span class="sub">choose a target &amp; parameters &middot; <b>watch it run</b> — console and browser, same page, in real time</span>
+  <div class="viewseg" id="viewseg">
+    <button data-view="run" aria-pressed="true">Run</button>
+    <button data-view="history" aria-pressed="false">History</button>
+  </div>
 </header>
 
-<div class="app">
+<div class="app" id="view-run">
   <!-- controls -->
   <div class="col">
     <div class="cap"><span>Run</span><span id="busytag" class="eyebrow"></span></div>
@@ -133,14 +160,16 @@
         <summary>How this works &amp; what the buttons do</summary>
         <div class="howbody">
           <p><b>Run a task.</b> Pick a capability (a task the system already learned), fill in the inputs, press <b>Run</b>. Middle panel = the agent's console. Right panel = the real browser it is driving. Both update live.</p>
-          <p><b>Replay vs Discover.</b> <b>Replay</b> re-runs a known task step by step — deterministic, no API key, never writes real data. <b>Discover</b> gives the model a goal and lets it work the task out; it needs an API key — Anthropic, OpenAI or Google (Gemini) — and the result is saved as a new replay.</p>
+          <p><b>Three ways to run.</b> <b>Replay</b> — pick a known task, deterministic, no API key, never writes real data. <b>Ask</b> — type a request in plain English; the model picks one task the console already knows and fills its inputs (needs a key). <b>Discover</b> — give the model a goal and it works out a <em>new</em> task, saved as a replay (needs a key). Anthropic, OpenAI or Google (Gemini) for Ask and Discover.</p>
           <p><b>Override recorded values.</b> Blank = use the value captured when the task was learned. Type something to use it for this one run only (for example a different amount).</p>
           <p><b>Escalation — when a step needs a human.</b> Before any step that changes data, the run checks the <b>escalation rules</b> below. If a rule says <em>escalate</em> — or the model asks for a human itself — the run <b>pauses</b> and a panel appears on the right. <b>Approve</b> runs that step and continues; <b>Decline</b> stops the run. Nothing changes while it is paused.</p>
+          <p><b>History.</b> The <b>History</b> tab (top right) is every run this instance has done — kind, capability, status, outcome, escalations, duration — newest first, params and outputs redacted.</p>
         </div>
       </details>
 
       <div class="seg" id="mode">
         <button data-mode="replay" aria-pressed="true">Replay</button>
+        <button data-mode="ask" aria-pressed="false" {{ '' if (allow_byo_key or server_has_key) else 'disabled' }}>Ask</button>
         <button data-mode="discovery" aria-pressed="false" {{ '' if (allow_byo_key or server_has_key) else 'disabled' }}>Discover</button>
       </div>
 
@@ -166,6 +195,17 @@
         <textarea id="goal" placeholder="Look up member 12345 and read their current savings balance."></textarea>
         <label class="f">Name the capability</label>
         <input type="text" id="capid" value="discovered" placeholder="what to call the replay this produces">
+      </div>
+
+      <!-- ask fields -->
+      <div id="f-ask" hidden>
+        <label class="f">What do you want done?</label>
+        <textarea id="askreq" placeholder="What's the savings balance for member 12345?"></textarea>
+        <div class="hint">The model picks <b>one capability the console already knows</b> and fills its inputs — it does not learn anything new (that's Discover). A risky pick still pauses for a human.</div>
+      </div>
+
+      <!-- shared model credentials (Ask + Discover) -->
+      <div id="f-credentials" hidden>
         <label class="f">Model provider</label>
         <select id="provider">
           <option value="auto">Auto-detect from the key</option>
@@ -178,7 +218,7 @@
         <input type="password" id="apikey" placeholder="sk-ant-…  /  sk-…  /  AIza…   (used for this run, never stored)" autocomplete="off">
         <div class="hint">Anthropic, OpenAI or Google key — the provider is picked from the key prefix unless you set it above. Sent straight to that provider through this server for the run and <b>never written to disk or logged</b>. Kept in this browser tab only. <a href="#" id="forgetkey">forget it</a></div>
         {% elif not server_has_key %}
-        <div class="warnbox">Discovery needs an API key (<code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code> or <code>GEMINI_API_KEY</code>) on the server. Replay runs fully without one.</div>
+        <div class="warnbox">Ask and Discover need an API key (<code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code> or <code>GEMINI_API_KEY</code>) on the server. Replay runs fully without one.</div>
         {% endif %}
       </div>
 
@@ -190,7 +230,7 @@
 
       <details class="rules" id="rulesBox">
         <summary>Escalation rules <span id="rulesCount" class="eyebrow"></span></summary>
-        <p class="hint">Each rule reads <b>when</b> … <b>then</b> …, checked top-to-bottom before every step that changes data (replay <em>and</em> discovery). First match wins; no match = the step just runs.</p>
+        <p class="hint">Each rule reads <b>when</b> … <b>then</b> …, checked top-to-bottom before every step that changes data (replay, ask <em>and</em> discovery). First match wins; no match = the step just runs.</p>
         <p class="hint"><b>escalate</b> = pause and wait for a human · <b>block</b> = stop the run now · <b>allow</b> = let it through (put one above a broader rule to carve an exception). The model can also escalate on its own — rules are the floor under that. Edits apply to the next run.</p>
         <ul id="rulesList"></ul>
         <div class="addrule">
@@ -233,6 +273,22 @@
   </div>
 </div>
 
+<div class="history" id="view-history" hidden>
+  <div class="hcol">
+    <div class="cap"><span>Run history</span><span id="hcount" class="eyebrow"></span></div>
+    <div class="hbody">
+      <p class="hint">Every replay, ask and discovery run on this instance — newest first, params &amp; outputs redacted. Click a row for the full record. <a href="#" id="hrefresh">refresh</a></p>
+      <div style="overflow-x:auto">
+      <table class="htable">
+        <thead><tr><th>when</th><th>kind</th><th>capability</th><th>status</th><th>outcome</th><th>esc</th><th>dur</th></tr></thead>
+        <tbody id="hrows"><tr><td colspan="7" style="color:var(--ink-3)">no runs yet</td></tr></tbody>
+      </table>
+      </div>
+      <pre id="hdetail" hidden></pre>
+    </div>
+  </div>
+</div>
+
 <footer>Live console. One run at a time; a run auto-stops after its wall-clock budget. Screenshots are streamed from the real browser the agent is driving.</footer>
 
 <script>
@@ -241,7 +297,7 @@
   var $=function(s){return document.querySelector(s);};
   var caps = {{ capabilities|tojson }};
   var allowByo = {{ 'true' if allow_byo_key else 'false' }};
-  var mode = "replay", es = null, running = false;
+  var mode = "replay", es = null, running = false, historyDirty = false;
   var SS = window.sessionStorage;
   function ssGet(k){ try{ return SS.getItem(k); }catch(e){ return null; } }
   function ssSet(k,v){ try{ SS.setItem(k,v); }catch(e){} }
@@ -258,14 +314,31 @@
     $('#provider').addEventListener('change', function(){ ssSet('ia_provider', $('#provider').value); });
   }
 
-  /* ---- mode toggle ---- */
+  /* ---- mode toggle (Replay / Ask / Discover) ---- */
+  function applyMode(){
+    $('#f-replay').hidden = mode!=='replay';
+    $('#f-ask').hidden = mode!=='ask';
+    $('#f-discovery').hidden = mode!=='discovery';
+    if($('#f-credentials')) $('#f-credentials').hidden = (mode==='replay');
+  }
   [].forEach.call(document.querySelectorAll('#mode button'), function(b){
     b.addEventListener('click', function(){
       if(b.disabled) return;
       mode = b.dataset.mode;
       [].forEach.call(document.querySelectorAll('#mode button'), function(x){x.setAttribute('aria-pressed', x===b?'true':'false');});
-      $('#f-replay').hidden = mode!=='replay';
-      $('#f-discovery').hidden = mode!=='discovery';
+      applyMode();
+    });
+  });
+  applyMode();
+
+  /* ---- view toggle (Run / History) ---- */
+  [].forEach.call(document.querySelectorAll('#viewseg button'), function(b){
+    b.addEventListener('click', function(){
+      var v = b.dataset.view;
+      [].forEach.call(document.querySelectorAll('#viewseg button'), function(x){x.setAttribute('aria-pressed', x===b?'true':'false');});
+      $('#view-run').hidden = v!=='run';
+      $('#view-history').hidden = v!=='history';
+      if(v==='history') loadHistory();
     });
   });
 
@@ -341,6 +414,7 @@
     else if(tp==='escalation_resumed'){ line('done','✓ resumed — decision='+esc(e.decision)); hideEsc(); }
     else if(tp==='guardrail_violation') line('err','✕ guardrail — '+esc(e.detail));
     else if(tp==='provider') line('model','◇ provider · '+esc(e.provider)+'  ·  model '+esc(e.model));
+    else if(tp==='answer') line('answer','▷ '+esc(e.text));
     else if(tp==='token_usage') line('obs','tokens  in '+e.input+'  out '+e.output);
     else if(tp==='finish') line('done','■ finish — '+esc((e.input&&e.input.summary)||''));
     else if(tp==='stop') line('obs','· stop — '+esc(e.reason));
@@ -405,7 +479,8 @@
       [].forEach.call(document.querySelectorAll('#params [data-param]'),function(i){ if(i.value.trim()) body.params[i.dataset.param]=i.value.trim(); });
       [].forEach.call(document.querySelectorAll('#params [data-override]'),function(i){ if(i.value.trim()) body.overrides[i.dataset.override]=i.value.trim(); });
     } else {
-      body.goal=$('#goal').value; body.capability_id=$('#capid').value;
+      if(mode==='discovery'){ body.goal=$('#goal').value; body.capability_id=$('#capid').value; }
+      else { body.request=$('#askreq').value; }
       body.provider = $('#provider') ? $('#provider').value : 'auto';
       if(allowByo && $('#apikey')){
         var k=$('#apikey').value.trim();
@@ -442,13 +517,15 @@
         line(ev.ok?'done':'err','■ '+ (ev.status||'done').toUpperCase() + (ev.code?' · '+ev.code:''));
         showResult(ev); setRunning(false); setSt('done', ev.status||'done'); hideEsc();
         es.close(); es=null;
+        historyDirty = true;
+        if(!$('#view-history').hidden) loadHistory();
         // a discovery that compiled a capability -> pull it into the replay list and switch there
         if(ev.capability_path){
           refreshCatalog(ev.capability_path).then(function(){
             [].forEach.call(document.querySelectorAll('#mode button'), function(x){
               var on = x.dataset.mode==='replay'; x.setAttribute('aria-pressed', on?'true':'false');
             });
-            mode='replay'; $('#f-replay').hidden=false; $('#f-discovery').hidden=true;
+            mode='replay'; applyMode();
             line('done','▸ saved as a replay — '+esc(ev.capability_path.split('/').pop())+' is now in the Replay list. Set params and Run it.');
           });
         }
@@ -456,6 +533,40 @@
     };
     es.onerror=function(){ /* browser auto-retries; if the run is done the server closes it */ };
   }
+
+  /* ---- History view ---- */
+  function fmtTime(ts){ if(!ts) return '—'; var d=new Date(ts*1000);
+    return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2); }
+  function historyRow(r){
+    var st=r.status||'—';
+    return '<tr data-id="'+esc(r.run_id)+'">'
+      + '<td>'+esc(fmtTime(r.finished_at||r.started_at))+'</td>'
+      + '<td><span class="k">'+esc(r.kind||'')+'</span></td>'
+      + '<td>'+esc(r.capability_id||'—')+'</td>'
+      + '<td class="s-'+esc(st)+'">'+esc(st.replace(/_/g,' '))+'</td>'
+      + '<td>'+esc(r.business_outcome_code||'')+'</td>'
+      + '<td class="'+(r.escalations?'esc':'')+'">'+(r.escalations||0)+'</td>'
+      + '<td>'+(r.duration_s!=null?r.duration_s+'s':'—')+'</td>'
+      + '</tr>';
+  }
+  function loadHistory(){
+    fetch('/runs').then(function(r){return r.json();}).then(function(j){
+      var rows=j.runs||[];
+      historyDirty=false;
+      $('#hcount').textContent = rows.length ? rows.length+' runs' : 'none yet';
+      $('#hrows').innerHTML = rows.length
+        ? rows.map(historyRow).join('')
+        : '<tr><td colspan="7" style="color:var(--ink-3)">no runs yet — start one from the Run tab</td></tr>';
+      [].forEach.call($('#hrows').querySelectorAll('tr[data-id]'), function(tr){
+        tr.addEventListener('click', function(){
+          fetch('/runs?id='+encodeURIComponent(tr.dataset.id)).then(function(r){return r.json();})
+            .then(function(row){ var p=$('#hdetail'); p.hidden=false;
+              p.textContent = JSON.stringify(row, null, 2); });
+        });
+      });
+    }).catch(function(){});
+  }
+  $('#hrefresh') && $('#hrefresh').addEventListener('click', function(e){ e.preventDefault(); loadHistory(); });
 
   /* ---- escalation rules panel ---- */
   function ruleSummary(r){

@@ -220,13 +220,21 @@ make console    # terminal 2 — prints  http://localhost:5055/?key=<token>
 
 - **Replay mode** works with no API key — pick a compiled capability, set `member_id`
   (`12345` ok · `88888` not found · `99999` locked · `77777` data missing), Run.
-- **Discover mode** — type a goal, watch the model loop. Runs on **Anthropic, OpenAI, or
-  Google (Gemini)** — auto-detected from the key prefix (`sk-ant-` / `sk-` / `AIza`) or picked
-  in the UI; same prompt, tools and loop for all three. The key comes from `ANTHROPIC_API_KEY` /
-  `OPENAI_API_KEY` / `GEMINI_API_KEY` on the server, or each viewer **pastes their own** in the
-  UI (`CONSOLE_ALLOW_BYO_KEY=1`, the default) — passed straight to that provider for that run,
-  never written to disk or logged.
-- **Escalation works in both modes.** Before every state-changing step an editable policy
+- **Ask mode** — type a request in plain English; the model picks **one capability the console
+  already knows** from the tool catalog (`agent_interface/catalog.py`), fills its typed inputs,
+  and runs it deterministically with the same escalation gate. Nothing new is learned (that's
+  Discover). Needs a key.
+- **Discover mode** — type a goal, watch the model loop. Ask and Discover both run on
+  **Anthropic, OpenAI, or Google (Gemini)** — auto-detected from the key prefix (`sk-ant-` /
+  `sk-` / `AIza`) or picked in the UI; same prompt, tools and loop for all three. The key comes
+  from `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` on the server, or each viewer
+  **pastes their own** in the UI (`CONSOLE_ALLOW_BYO_KEY=1`, the default) — passed straight to
+  that provider for that run, never written to disk or logged.
+- **History tab** — every replay, ask and discovery run on the instance
+  (`agent_interface/runs.py` → `runs.jsonl`): kind, capability, status, business outcome,
+  escalation count, duration. Newest first, params and outputs redacted. `CONSOLE_RUNS_PATH`
+  points it at the data volume so it survives a redeploy.
+- **Escalation works in every mode.** Before every state-changing step an editable policy
   (`escalation/rules.yaml`, or the **Escalation rules** panel in the console) decides
   allow / escalate / block. On `escalate` the run pauses and an **Approve / Decline** panel
   appears on the page; Approve continues the same live browser, Decline ends the run as

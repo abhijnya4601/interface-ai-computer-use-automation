@@ -98,6 +98,46 @@ def test_run_discovery_accepts_an_openai_and_a_gemini_key(client, monkeypatch):
     assert seen["api_key"] == "AIzaSyABC"
 
 
+# ---- ask mode ---------------------------------------------------------------------------------
+
+def test_run_ask_needs_a_request(client):
+    r = _post(client, {"mode": "ask", "request": "  ", "api_key": "sk-ant-x"})
+    assert r.status_code == 400
+
+
+def test_run_ask_needs_a_key(client, monkeypatch):
+    for env in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        monkeypatch.delenv(env, raising=False)
+    r = _post(client, {"mode": "ask", "request": "what's the balance for member 12345?"})
+    assert r.status_code == 400
+    assert b"needs an API key" in r.data
+
+
+def test_run_ask_starts_and_forwards_request_and_provider(client, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(runner, "start", lambda kind, **kw: seen.update(kind=kind, kw=kw)
+                        or type("R", (), {"id": "live_a"})())
+    r = _post(client, {"mode": "ask", "request": "look up member 12345",
+                       "api_key": "sk-ant-abc", "provider": "anthropic"})
+    assert r.status_code == 200
+    assert seen["kind"] == "ask"
+    assert seen["kw"]["request"] == "look up member 12345"
+    assert seen["kw"]["provider"] == "anthropic"
+
+
+# ---- /runs (History) ------------------------------------------------------------------------
+
+def test_runs_endpoint_is_gated_and_returns_a_list(client, tmp_path, monkeypatch):
+    assert client.get("/runs").status_code == 403
+    import agent_interface.runs as runs_mod
+    monkeypatch.setattr(runs_mod, "REGISTRY_PATH", tmp_path / "runs.jsonl")
+    runs_mod.record_run("r1", "replay", "lookup_member_balance", status="success", started_at=1.0)
+    j = client.get(f"/runs?key={KEY}").get_json()
+    assert j["runs"][0]["run_id"] == "r1"
+    assert client.get(f"/runs?key={KEY}&id=r1").get_json()["capability_id"] == "lookup_member_balance"
+    assert client.get(f"/runs?key={KEY}&id=nope").status_code == 404
+
+
 def test_catalog_endpoint_returns_json_capabilities(client):
     j = client.get(f"/catalog?key={KEY}").get_json()
     assert any(c["id"] == "lookup_member_balance" for c in j["capabilities"])

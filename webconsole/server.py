@@ -21,6 +21,7 @@ from pathlib import Path
 
 from flask import Flask, Response, jsonify, redirect, render_template, request
 
+from agent_interface.runs import get_run, list_runs
 from escalation import controller
 from escalation import policy as esc_policy
 from webconsole import runner
@@ -123,6 +124,21 @@ def rules():
     return jsonify(rules=esc_policy.load_rules(), added=rule["id"])
 
 
+def _resolve_model_key(body: dict):
+    """(api_key, provider, None) or (None, None, (json_error, status)). Shared by discovery and
+    ask: a pasted BYO key wins, else the first server key env that's set."""
+    byo = (body.get("api_key") or "").strip() if ALLOW_BYO_KEY else ""
+    provider = (body.get("provider") or "auto").strip() or "auto"
+    if byo and not byo.startswith(("sk-ant-", "sk-", "AIza")):
+        return None, None, (jsonify(error="that doesn't look like an Anthropic (sk-ant-), OpenAI "
+                                   "(sk-) or Google (AIza) API key"), 400)
+    api_key = byo or next((os.environ[k] for k in _SERVER_KEY_ENVS if os.environ.get(k)), None)
+    if not api_key:
+        return None, None, (jsonify(error="this needs an API key — paste an Anthropic, OpenAI or "
+                                    "Google key in the field, or set one on the server"), 400)
+    return api_key, provider, None
+
+
 @app.route("/run", methods=["POST"])
 def run():
     body = request.get_json(force=True, silent=True) or {}
@@ -146,24 +162,37 @@ def run():
             goal = (body.get("goal") or "").strip()
             if not goal:
                 return jsonify(error="a goal is required for discovery"), 400
-            byo = (body.get("api_key") or "").strip() if ALLOW_BYO_KEY else ""
-            provider = (body.get("provider") or "auto").strip() or "auto"
-            api_key = byo or next((os.environ[k] for k in _SERVER_KEY_ENVS if os.environ.get(k)), None)
-            if not api_key:
-                return jsonify(error="discovery needs an API key — paste an Anthropic, OpenAI or "
-                               "Google key in the field, or set one on the server"), 400
-            if byo and not byo.startswith(("sk-ant-", "sk-", "AIza")):
-                return jsonify(error="that doesn't look like an Anthropic (sk-ant-), OpenAI (sk-) "
-                               "or Google (AIza) API key"), 400
+            api_key, provider, err = _resolve_model_key(body)
+            if err:
+                return err
             r = runner.start("discovery",
                              goal=goal, target_url=target["entry"],
                              capability_id=(body.get("capability_id") or "discovered").strip(),
                              app_name=target["app_name"], api_key=api_key, provider=provider)
+        elif mode == "ask":
+            req = (body.get("request") or "").strip()
+            if not req:
+                return jsonify(error="type what you want done"), 400
+            api_key, provider, err = _resolve_model_key(body)
+            if err:
+                return err
+            r = runner.start("ask", request=req, api_key=api_key, provider=provider)
         else:
-            return jsonify(error="mode must be 'replay' or 'discovery'"), 400
+            return jsonify(error="mode must be 'replay', 'discovery' or 'ask'"), 400
     except RuntimeError as exc:
         return jsonify(error=str(exc)), 409
     return jsonify(run_id=r.id)
+
+
+@app.route("/runs")
+def runs():
+    """History view: the run registry (agent_interface/runs.py), newest first. `?id=` returns
+    one run's full record."""
+    rid = request.args.get("id")
+    if rid:
+        row = get_run(rid)
+        return (jsonify(row) if row else (jsonify(error="no such run"), 404))
+    return jsonify(runs=list_runs(limit=int(request.args.get("limit", "60"))))
 
 
 @app.route("/stream")

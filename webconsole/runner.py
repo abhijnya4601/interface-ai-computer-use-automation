@@ -9,6 +9,7 @@ screenshots are taken from inside the `on_event` hook (same thread as the page).
 from __future__ import annotations
 
 import base64
+import json
 import queue
 import threading
 import time
@@ -21,10 +22,24 @@ import app_knowledge
 from agent.compiler import CAPABILITIES_DIR as CAPS_DIR
 from agent.compiler import compile_capability, save_capability
 from agent.discovery import run_discovery
+from agent_interface.runs import record_run
 from artifact.schema import Capability, Checkpoint
 from common.browser import LAUNCH_ARGS
 from guardrails.policy import redact
 from replay.engine import _precheck, _run_on_page
+
+_ASK_SYSTEM = (
+    "You are a back-office assistant for a bank. Each tool runs a pre-recorded, deterministic "
+    "UI automation (a 'capability') against the servicing console and returns a structured "
+    "result. Choose the one tool and the typed arguments that match the user's request. If no "
+    "tool fits the request, do not call one — reply in plain text saying so."
+)
+_ASK_PHRASE_SYSTEM = (
+    "Answer the user in one or two sentences, stating the concrete outcome: the value(s) "
+    "returned, the business outcome (e.g. 'no such member', 'account locked'), or that the "
+    "action was routed to a human for approval. Never claim success unless the result status "
+    "is 'success'."
+)
 
 REPO = Path(__file__).parent.parent
 
@@ -60,6 +75,7 @@ class LiveRun:
         self._stop = threading.Event()
         self.started_at = time.time()
         self.status = "starting"
+        self.escalations = 0  # counted from the event stream, recorded on the run
 
     # ---- lifecycle -----------------------------------------------------------------------
 
@@ -82,6 +98,8 @@ class LiveRun:
         """Returned callback: forwards an agent event to the client AND grabs a screenshot."""
         def cb(entry):
             e = dict(entry)
+            if e.get("type") == "escalate_requested":
+                self.escalations += 1
             # keep the stream light — drop the bulky raw accessibility tree
             e.pop("accessibility_tree", None)
             self._emit({"type": "agent", "entry": redact(e, sink="evidence")})
@@ -90,47 +108,144 @@ class LiveRun:
                 raise _Stopped()
         return cb
 
-    # ---- the two run modes --------------------------------------------------------------
+    def _save_run(self, rec: dict):
+        """Append this run to the History registry (agent_interface/runs.py). Best-effort —
+        a registry write must never break the run itself."""
+        try:
+            record_run(self.id, rec.pop("kind"), rec.pop("capability_id"),
+                       started_at=self.started_at, escalations=self.escalations, **rec)
+        except Exception:
+            pass
+
+    def _run_capability(self, page, cap: Capability, params: dict, confirm: bool, overrides: dict):
+        """Shared tail for replay and ask: precheck (with a live operator available) then run
+        the deterministic engine on `page`, streaming every step + escalation to the client."""
+        self.status = "running"
+        # allow_escalation=True: a live operator is on the page, so a risky step pauses for
+        # Approve/Decline (escalation/policy.py) instead of being refused up front.
+        short, ledgered = _precheck(cap, confirm, None, allow_escalation=True)
+        if short is not None:
+            self._emit({"type": "agent", "entry": {"type": "precheck_block",
+                        "detail": short.failure_detail}})
+            return short
+        return _run_on_page(cap, params, page, run_id=self.id, ledgered=ledgered,
+                            idempotency_key=None, on_event=self._hook(page),
+                            confirm=confirm, allow_escalation=True, overrides=overrides)
+
+    # ---- the three run modes ----------------------------------------------------------------
 
     def run_replay(self, capability_path: str, params: dict, confirm: bool,
                    overrides: dict | None = None):
+        rec = {"kind": "replay", "capability_id": Path(capability_path).stem, "status": "error",
+               "params": params, "outputs": {}, "business_outcome_code": None,
+               "failure_detail": None, "extra": {"overrides": bool(overrides)}}
         with sync_playwright() as p:
             browser = p.chromium.launch(args=LAUNCH_ARGS)
             page = browser.new_page()
             try:
                 cap = Capability.model_validate_json(Path(capability_path).read_text())
+                rec["capability_id"] = cap.capability_id
                 self._emit({"type": "meta", "mode": "replay", "capability": cap.capability_id,
                             "risk": cap.risk_level, "lifecycle": cap.lifecycle, "params": params,
                             "overrides": overrides or {}, "confirm": confirm})
-                self.status = "running"
-                # allow_escalation=True: a live operator is on the page, so a risky step pauses
-                # for Approve/Decline (escalation/policy.py) instead of being refused up front.
-                short, ledgered = _precheck(cap, confirm, None, allow_escalation=True)
-                if short is not None:
-                    self._emit({"type": "agent", "entry": {"type": "precheck_block",
-                                "detail": short.failure_detail}})
-                    result = short
-                else:
-                    result = _run_on_page(cap, params, page, run_id=self.id, ledgered=ledgered,
-                                          idempotency_key=None, on_event=self._hook(page),
-                                          confirm=confirm, allow_escalation=True,
-                                          overrides=overrides or {})
+                result = self._run_capability(page, cap, params, confirm, overrides or {})
+                rec.update(status=result.status, outputs=result.outputs,
+                           business_outcome_code=result.business_outcome_code,
+                           failure_detail=result.failure_detail)
                 self._shot(page)
                 self._emit({"type": "done", "ok": True, "status": result.status,
                             "code": result.business_outcome_code, "outputs": result.outputs,
                             "failure_detail": result.failure_detail})
             except _Stopped:
+                rec["status"] = "stopped"
                 self._emit({"type": "done", "ok": False, "status": "stopped"})
             except Exception as exc:  # surface, don't swallow
+                rec.update(status="error", failure_detail={"error": f"{type(exc).__name__}: {exc}"})
                 self._emit({"type": "done", "ok": False, "status": "error",
                             "detail": f"{type(exc).__name__}: {exc}"})
             finally:
                 browser.close()
                 self.status = "done"
+                self._save_run(rec)
+
+    def run_ask(self, request_text: str, api_key: str | None, provider: str | None = None):
+        """Plain-English request -> the model picks one existing capability + typed args from the
+        catalog (agent_interface/catalog.py) -> run it deterministically, same escalation gate as
+        replay -> one-sentence answer. A NEW capability is never learned here (that's discovery)."""
+        from agent.llm import make_session
+        from agent_interface.catalog import build_tool_catalog, load_capabilities
+        rec = {"kind": "ask", "capability_id": "-", "status": "error", "params": {},
+               "outputs": {}, "business_outcome_code": None, "failure_detail": None,
+               "extra": {"request": request_text}}
+        with sync_playwright() as p:
+            browser = p.chromium.launch(args=LAUNCH_ARGS)
+            page = browser.new_page()
+            try:
+                self._emit({"type": "meta", "mode": "ask", "request": request_text})
+                self.status = "running"
+                session = make_session(api_key=api_key, provider=provider,
+                                       tools=build_tool_catalog())
+                rec["extra"].update(provider=session.provider, model=session.model)
+                self._emit({"type": "agent", "entry": {"type": "provider",
+                            "provider": session.provider, "model": session.model}})
+                session.add_user_text(request_text)
+                turn = session.complete(_ASK_SYSTEM, 500, force_tool=False)
+                caps = load_capabilities()
+                call = turn.tool_calls[0] if turn.tool_calls else None
+                if call is None or call.name not in caps:
+                    why = (f"model picked unknown capability {call.name!r}" if call
+                           else "no capability matched that request")
+                    self._emit({"type": "agent", "entry": {"type": "stop", "reason": why}})
+                    rec["status"] = "no_match"
+                    self._emit({"type": "done", "ok": bool(turn.text), "status": "no_match",
+                                "summary": turn.text or why, "detail": None if turn.text else why})
+                    return
+                cap = caps[call.name]
+                args = {k: str(v) for k, v in (call.input or {}).items()}
+                rec.update(capability_id=call.name, params=args)
+                rec["extra"]["picked"] = call.name
+                self._emit({"type": "agent", "entry": {"type": "tool_call",
+                            "name": call.name, "input": args}})
+                self._emit({"type": "meta", "mode": "ask", "capability": call.name,
+                            "risk": cap.risk_level, "lifecycle": cap.lifecycle, "params": args})
+                result = self._run_capability(page, cap, args, False, {})
+                rec.update(status=result.status, outputs=result.outputs,
+                           business_outcome_code=result.business_outcome_code,
+                           failure_detail=result.failure_detail)
+                self._shot(page)
+                answer = ""
+                try:  # plain-language phrasing — best-effort, non-forced tool choice
+                    session.add_tool_results([(call.id, json.dumps({
+                        "status": result.status,
+                        "business_outcome_code": result.business_outcome_code,
+                        "outputs": redact(result.outputs, sink="evidence")}, default=str))])
+                    answer = session.complete(_ASK_PHRASE_SYSTEM, 220, force_tool=False).text
+                except Exception:
+                    pass
+                if answer:
+                    self._emit({"type": "agent", "entry": {"type": "answer", "text": answer}})
+                self._emit({"type": "done", "ok": True, "status": result.status,
+                            "code": result.business_outcome_code, "outputs": result.outputs,
+                            "failure_detail": result.failure_detail, "summary": answer,
+                            "capability_id": call.name})
+            except _Stopped:
+                rec["status"] = "stopped"
+                self._emit({"type": "done", "ok": False, "status": "stopped"})
+            except Exception as exc:
+                rec.update(status="error", failure_detail={"error": f"{type(exc).__name__}: {exc}"})
+                self._emit({"type": "done", "ok": False, "status": "error",
+                            "detail": f"{type(exc).__name__}: {exc}"})
+            finally:
+                browser.close()
+                self.status = "done"
+                self._save_run(rec)
 
     def run_discovery(self, goal: str, target_url: str, capability_id: str, app_name: str,
                       api_key: str | None, provider: str | None = None):
         capability_id = _unique_capability_id(capability_id)
+        rec = {"kind": "discovery", "capability_id": capability_id, "status": "error",
+               "params": {"goal": goal}, "outputs": {}, "business_outcome_code": None,
+               "failure_detail": None, "extra": {}}
         with sync_playwright() as p:
             browser = p.chromium.launch(args=LAUNCH_ARGS)
             page = browser.new_page()
@@ -157,18 +272,25 @@ class LiveRun:
                     saved = str(save_capability(cap).relative_to(REPO))
                     self._emit({"type": "compiled", "path": saved,
                                 "unratified": cap.unratified_rules()})
+                rec.update(status=res.status, outputs=res.outputs,
+                           business_outcome_code=res.business_outcome_code)
+                rec["extra"] = {"tokens": res.token_usage, "capability_path": saved,
+                                "provider": provider or "auto"}
                 self._emit({"type": "done", "ok": True, "status": res.status,
                             "code": res.business_outcome_code, "summary": res.summary,
                             "outputs": redact(res.outputs, sink="evidence"),
                             "tokens": res.token_usage, "capability_path": saved})
             except _Stopped:
+                rec["status"] = "stopped"
                 self._emit({"type": "done", "ok": False, "status": "stopped"})
             except Exception as exc:
+                rec.update(status="error", failure_detail={"error": f"{type(exc).__name__}: {exc}"})
                 self._emit({"type": "done", "ok": False, "status": "error",
                             "detail": f"{type(exc).__name__}: {exc}"})
             finally:
                 browser.close()
                 self.status = "done"
+                self._save_run(rec)
 
 
 class _Stopped(Exception):
@@ -197,6 +319,8 @@ def start(kind: str, **kw) -> LiveRun:
             if kind == "replay":
                 run.run_replay(kw["capability_path"], kw["params"], kw["confirm"],
                                kw.get("overrides"))
+            elif kind == "ask":
+                run.run_ask(kw["request"], kw.get("api_key"), kw.get("provider"))
             else:
                 run.run_discovery(kw["goal"], kw["target_url"], kw["capability_id"],
                                   kw["app_name"], kw.get("api_key"), kw.get("provider"))

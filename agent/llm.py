@@ -74,18 +74,23 @@ def detect_provider(api_key: str, explicit: str | None = None) -> str:
 
 
 def make_session(api_key: str | None = None, provider: str | None = None,
-                 model: str | None = None) -> _Session:
+                 model: str | None = None, tools: list[dict] | None = None) -> _Session:
     """Build the right session. With neither key nor provider, defaults to Anthropic reading
-    ANTHROPIC_API_KEY from the environment (the historical behaviour)."""
+    ANTHROPIC_API_KEY from the environment (the historical behaviour).
+
+    `tools` is a list of Anthropic-schema tool dicts (`{name, description, input_schema}`);
+    defaults to the discovery action tools (agent/tools.py). The console's Ask mode passes the
+    capability catalog instead."""
     prov = "anthropic"
     if api_key or (provider and provider not in ("auto", "")):
         prov = detect_provider(api_key or "", provider)
     model = model or DEFAULT_MODELS[prov]
+    tools = tools or TOOLS
     if prov == "anthropic":
-        return _AnthropicSession(api_key, model)
+        return _AnthropicSession(api_key, model, tools)
     if prov == "openai":
-        return _OpenAISession(api_key, model)
-    return _GeminiSession(api_key, model)
+        return _OpenAISession(api_key, model, tools)
+    return _GeminiSession(api_key, model, tools)
 
 
 # --------------------------------------------------------------------------------------------
@@ -102,14 +107,14 @@ class _Session:
     retry_exceptions: tuple
 
     def add_user_text(self, text: str) -> None: ...
-    def complete(self, system: str, max_tokens: int) -> Turn: ...
+    def complete(self, system: str, max_tokens: int, force_tool: bool = True) -> Turn: ...
     def add_tool_results(self, results: list[tuple[str, str]]) -> None: ...
 
 
 class _AnthropicSession(_Session):
     provider = "anthropic"
 
-    def __init__(self, api_key: str | None, model: str):
+    def __init__(self, api_key: str | None, model: str, tools: list[dict]):
         import anthropic
         self.model = model
         self._client = anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
@@ -117,15 +122,15 @@ class _AnthropicSession(_Session):
                                  anthropic.RateLimitError)
         self._messages: list[dict] = []
         self._tools = [{"name": t["name"], "description": t["description"],
-                        "input_schema": t["input_schema"]} for t in TOOLS]
+                        "input_schema": t["input_schema"]} for t in tools]
 
     def add_user_text(self, text: str) -> None:
         self._messages.append({"role": "user", "content": text})
 
-    def complete(self, system: str, max_tokens: int) -> Turn:
+    def complete(self, system: str, max_tokens: int, force_tool: bool = True) -> Turn:
         r = self._client.messages.create(
-            model=self.model, max_tokens=max_tokens, system=system,
-            tools=self._tools, tool_choice={"type": "any"}, messages=self._messages,
+            model=self.model, max_tokens=max_tokens, system=system, tools=self._tools,
+            tool_choice={"type": "any" if force_tool else "auto"}, messages=self._messages,
         )
         self._messages.append({"role": "assistant", "content": r.content})
         calls = [ToolCall(b.id, b.name, dict(b.input)) for b in r.content if b.type == "tool_use"]
@@ -145,7 +150,7 @@ class _AnthropicSession(_Session):
 class _OpenAISession(_Session):
     provider = "openai"
 
-    def __init__(self, api_key: str | None, model: str):
+    def __init__(self, api_key: str | None, model: str, tools: list[dict]):
         import openai
         self.model = model
         self._client = openai.OpenAI(api_key=api_key) if api_key else openai.OpenAI()
@@ -156,15 +161,15 @@ class _OpenAISession(_Session):
         self._messages: list[dict] = []
         self._tools = [{"type": "function", "function": {
             "name": t["name"], "description": t["description"], "parameters": t["input_schema"],
-        }} for t in TOOLS]
+        }} for t in tools]
 
     def add_user_text(self, text: str) -> None:
         self._messages.append({"role": "user", "content": text})
 
-    def complete(self, system: str, max_tokens: int) -> Turn:
+    def complete(self, system: str, max_tokens: int, force_tool: bool = True) -> Turn:
         r = self._client.chat.completions.create(
-            model=self.model, max_tokens=max_tokens,
-            tools=self._tools, tool_choice="required",
+            model=self.model, max_tokens=max_tokens, tools=self._tools,
+            tool_choice="required" if force_tool else "auto",
             messages=[{"role": "system", "content": system}, *self._messages],
         )
         m = r.choices[0].message
@@ -195,7 +200,7 @@ class _OpenAISession(_Session):
 class _GeminiSession(_Session):
     provider = "gemini"
 
-    def __init__(self, api_key: str | None, model: str):
+    def __init__(self, api_key: str | None, model: str, tools: list[dict]):
         from google import genai
         from google.genai import errors as gerr
         from google.genai import types
@@ -212,18 +217,19 @@ class _GeminiSession(_Session):
             types.FunctionDeclaration(
                 name=t["name"], description=t["description"],
                 parameters=_gemini_schema(t["input_schema"]),
-            ) for t in TOOLS
+            ) for t in tools
         ])]
 
     def add_user_text(self, text: str) -> None:
         t = self._types
         self._contents.append(t.Content(role="user", parts=[t.Part(text=text)]))
 
-    def complete(self, system: str, max_tokens: int) -> Turn:
+    def complete(self, system: str, max_tokens: int, force_tool: bool = True) -> Turn:
         t = self._types
         cfg = t.GenerateContentConfig(
             system_instruction=system, tools=self._tools, max_output_tokens=max_tokens,
-            tool_config=t.ToolConfig(function_calling_config=t.FunctionCallingConfig(mode="ANY")),
+            tool_config=t.ToolConfig(function_calling_config=t.FunctionCallingConfig(
+                mode="ANY" if force_tool else "AUTO")),
         )
         r = self._client.models.generate_content(model=self.model, contents=self._contents, config=cfg)
         cand = r.candidates[0]

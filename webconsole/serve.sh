@@ -12,6 +12,8 @@ else
 fi
 export TARGET_BASE="${TARGET_BASE:-http://localhost:5050}"
 export CAPABILITIES_DIR="${CAPABILITIES_DIR:-/data/capabilities}"
+# run history for the console's History tab — on the volume so it survives a redeploy
+export CONSOLE_RUNS_PATH="${CONSOLE_RUNS_PATH:-/data/runs.jsonl}"
 
 mkdir -p "$CAPABILITIES_DIR"
 # first boot on an empty volume: seed it with the capabilities shipped in the image

@@ -726,25 +726,27 @@ flowchart TD
 <section id="api">
   <h2>API + chatbot + dashboard</h2>
 
-  <p>The callable surface: capabilities exposed as a typed API, a thin chatbot that maps plain
-  English to a capability plus arguments, and a server-rendered dashboard of run history.</p>
+  <p>The callable surface: capabilities exposed as a typed tool catalog
+  (<code>agent_interface/catalog.py</code>), a chatbot that maps plain English to one capability
+  plus arguments, and a run-history dashboard. In the live console these are the <strong>Ask</strong>
+  and <strong>History</strong> tabs; the model behind Ask is Anthropic, OpenAI or Google (Gemini).</p>
 
-  <p>There is deliberately no <code>confirm</code> field on the invoke endpoint — the chatbot has
-  no way to self-approve an irreversible action. A risky capability runs to its confirmation
-  checkpoint, pauses, and routes to the operator console; every run is written to
-  <code>runs.jsonl</code>, redacted, and shown on the dashboard.</p>
+  <p>The catalog deliberately exposes no <code>confirm</code> parameter — the chatbot has no way
+  to self-approve an irreversible action. A risky pick runs to its confirmation checkpoint,
+  pauses, and shows the Approve / Decline panel on the page; every run is written to
+  <code>runs.jsonl</code>, redacted, and shown in History.</p>
 
   <pre class="mermaid">
 flowchart TD
-    A[Chatbot: plain-English request] --&gt; B[Claude maps to a capability + args]
-    B --&gt; C[POST /api/capabilities/id/invoke]
+    A[Ask tab: plain-English request] --&gt; B[Model maps it to one capability + args]
+    B --&gt; C[Deterministic replay of that capability]
     C --&gt; D{Risky?}
-    D --&gt;|yes| E[Runs to confirmation checkpoint, pauses, routes to operator console]
+    D --&gt;|yes| E[Runs to confirmation checkpoint, pauses, Approve/Decline panel on the page]
     D --&gt;|no| F[Runs to completion]
     E --&gt; G[Human approves/declines]
     G --&gt; H[Result written to runs.jsonl, redacted]
     F --&gt; H
-    H --&gt; I[Dashboard shows it]
+    H --&gt; I[History tab shows it]
   </pre>
 
   <h3>Scripts</h3>

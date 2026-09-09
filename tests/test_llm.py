@@ -44,6 +44,14 @@ def test_make_session_defaults_to_anthropic_with_no_key_or_provider():
     assert s.model  # a concrete default model id
 
 
+def test_make_session_uses_the_custom_tool_list_when_given_one():
+    one_tool = [{"name": "lookup_member_balance", "description": "look up a balance",
+                 "input_schema": {"type": "object", "properties": {"member_id": {"type": "string"}},
+                                  "required": ["member_id"]}}]
+    s = make_session(tools=one_tool)
+    assert [t["name"] for t in s._tools] == ["lookup_member_balance"]
+
+
 def test_make_session_picks_the_model_default_for_the_detected_provider(monkeypatch):
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-test")
     # reload so the module-level DEFAULT_MODELS re-reads the env
