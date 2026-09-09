@@ -220,9 +220,12 @@ make console    # terminal 2 — prints  http://localhost:5055/?key=<token>
 
 - **Replay mode** works with no API key — pick a compiled capability, set `member_id`
   (`12345` ok · `88888` not found · `99999` locked · `77777` data missing), Run.
-- **Discover mode** — type a goal, watch the LLM loop. The key comes from `ANTHROPIC_API_KEY`
-  on the server, or each viewer **pastes their own** in the UI (`CONSOLE_ALLOW_BYO_KEY=1`, the
-  default) — passed straight to Anthropic for that run, never written to disk or logged.
+- **Discover mode** — type a goal, watch the model loop. Runs on **Anthropic, OpenAI, or
+  Google (Gemini)** — auto-detected from the key prefix (`sk-ant-` / `sk-` / `AIza`) or picked
+  in the UI; same prompt, tools and loop for all three. The key comes from `ANTHROPIC_API_KEY` /
+  `OPENAI_API_KEY` / `GEMINI_API_KEY` on the server, or each viewer **pastes their own** in the
+  UI (`CONSOLE_ALLOW_BYO_KEY=1`, the default) — passed straight to that provider for that run,
+  never written to disk or logged.
 - **Escalation works in both modes.** Before every state-changing step an editable policy
   (`escalation/rules.yaml`, or the **Escalation rules** panel in the console) decides
   allow / escalate / block. On `escalate` the run pauses and an **Approve / Decline** panel

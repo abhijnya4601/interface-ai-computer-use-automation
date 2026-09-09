@@ -1,11 +1,14 @@
 """
-Discovery agent loop: observe (perception.build_observation) -> Claude decides a tool call ->
+Discovery agent loop: observe (perception.build_observation) -> the model decides a tool call ->
 guardrail_check -> execute the tool against the live page -> record it as a Step -> repeat,
 until the model calls finish() or escalate(), or a stopping condition fires.
 
+The model is whichever of Anthropic / OpenAI / Google backs the run (agent/llm.py, chosen by
+the caller's key/provider) — the prompt, tools and loop are identical across all three.
+
 This is the one part of the system required to be genuinely non-deterministic and genuinely
 live — no step sequence is hand-written or hardcoded anywhere in this file; every action comes
-from an actual Anthropic API tool-use response reasoning over an actual observation of the real
+from an actual hosted-model tool-use response reasoning over an actual observation of the real
 running app. See scripts/run_discovery.py for how this gets invoked, and evidence/ for a real
 run's transcript.
 
@@ -24,12 +27,10 @@ import time
 import uuid
 from dataclasses import dataclass, field
 
-import anthropic
-
+from agent.llm import make_session
 from agent.perception import build_observation
 from agent.recorder import Recorder
 from agent.tools import (
-    TOOLS,
     ToolExecutionError,
     execute_click,
     execute_extract,
@@ -42,7 +43,6 @@ from escalation.controller import trigger_escalation
 from guardrails import pii
 from guardrails.policy import ALLOWLIST, GuardrailViolation, guardrail_check, redact_with_report
 
-DEFAULT_MODEL = "claude-sonnet-5"
 MAX_STEPS = 20
 WALL_CLOCK_TIMEOUT_S = 300.0
 DEAD_END_REPEAT_THRESHOLD = 3
@@ -108,22 +108,13 @@ def _tree_hash(accessibility_tree: dict) -> str:
     return hashlib.sha256(json.dumps(accessibility_tree, sort_keys=True).encode()).hexdigest()
 
 
-def _to_jsonable(content_blocks) -> list[dict]:
-    out = []
-    for block in content_blocks:
-        if block.type == "text":
-            out.append({"type": "text", "text": block.text})
-        elif block.type == "tool_use":
-            out.append({"type": "tool_use", "id": block.id, "name": block.name, "input": block.input})
-    return out
-
-
 def run_discovery(
     goal: str,
     target_url: str,
     page,
     api_key: str | None = None,
-    model: str = DEFAULT_MODEL,
+    provider: str | None = None,
+    model: str | None = None,
     max_steps: int = MAX_STEPS,
     timeout_s: float = WALL_CLOCK_TIMEOUT_S,
     on_event=None,
@@ -132,8 +123,12 @@ def run_discovery(
     """`on_event(entry)` — if given, called with every transcript entry as it happens (the same
     dicts that end up in `DiscoveryResult.transcript`). Used by webconsole/ to stream the run
     live; never raises out of the loop. `capability_id` is only used to match escalation-policy
-    rules (escalation/policy.py) — the agent's own `escalate` tool still works independently."""
-    client = anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
+    rules (escalation/policy.py) — the agent's own `escalate` tool still works independently.
+
+    `provider` (anthropic / openai / gemini / None=auto-detect from the key) and `model` pick
+    which model backs the loop — see agent/llm.py. The tools, prompt and loop are identical
+    across providers."""
+    session = make_session(api_key=api_key, provider=provider, model=model)
     run_id = f"run_{uuid.uuid4().hex[:10]}"
     recorder = Recorder(goal=goal)
     transcript: list[dict] = []
@@ -154,9 +149,9 @@ def run_discovery(
     page.goto(target_url, timeout=15000)
     recorder.record_navigate(target_url)
     _log({"type": "navigate", "url": target_url})
+    _log({"type": "provider", "provider": session.provider, "model": session.model})
 
     system_prompt = _system_prompt(goal, target_url)
-    messages: list[dict] = []
     last_action_result = f"navigated to {target_url}"
     recent_hashes: list[str] = []
     start_time = time.monotonic()
@@ -218,48 +213,35 @@ def run_discovery(
         safe_observation, redaction_report, _ = redact_with_report(observation, sink="llm_prompt")
         _log({"type": "redaction", "phase": "llm_prompt", **redaction_report.as_dict()})
         pii.append_review(redaction_report, {"run_id": run_id, "step": step_count, "url": observation["url"]})
-        messages.append({"role": "user", "content": json.dumps(safe_observation)})
+        session.add_user_text(json.dumps(safe_observation))
 
         # A flaky network or a transient 5xx on the model call is exactly a retryable error;
-        # a bad request / auth error is not, so only connection + 5xx-class errors are retried.
-        response = retry_call(
-            lambda: client.messages.create(
-                model=model,
-                max_tokens=MAX_TOKENS,
-                system=system_prompt,
-                tools=TOOLS,
-                tool_choice={"type": "any"},
-                messages=messages,
-            ),
+        # a bad request / auth error is not, so only each provider's connection + 5xx-class
+        # errors are retried (agent/llm.py names them per provider).
+        turn = retry_call(
+            lambda: session.complete(system_prompt, MAX_TOKENS),
             attempts=3, base_delay=1.0,
-            retry_on=(anthropic.APIConnectionError, anthropic.InternalServerError,
-                      anthropic.RateLimitError),
+            retry_on=session.retry_exceptions,
             on_retry=lambda a, exc, delay: _log(
                 {"type": "llm_retry", "attempt": a, "error": str(exc), "delay_s": round(delay, 2)}
             ),
         )
-        messages.append({"role": "assistant", "content": response.content})
-        usage = getattr(response, "usage", None)
-        if usage is not None:
-            token_usage["input"] += getattr(usage, "input_tokens", 0)
-            token_usage["output"] += getattr(usage, "output_tokens", 0)
-        _log({"type": "llm_response", "stop_reason": response.stop_reason,
-              "content": _to_jsonable(response.content)})
+        token_usage["input"] += turn.usage.get("input", 0)
+        token_usage["output"] += turn.usage.get("output", 0)
+        _log({"type": "llm_response", "stop_reason": turn.stop_reason, "content": turn.jsonable()})
 
-        tool_use_blocks = [b for b in response.content if b.type == "tool_use"]
-        if not tool_use_blocks:
-            # tool_choice="any" should make this unreachable, but never loop silently if it happens.
+        if not turn.tool_calls:
+            # forced tool choice should make this unreachable, but never loop silently.
             _log({"type": "stop", "reason": "no_tool_use_in_response"})
             return DiscoveryResult(status="max_steps", run_id=run_id, recorder=recorder,
                                     transcript=transcript, token_usage=token_usage,
                                     summary="model returned no tool call")
 
-        primary = tool_use_blocks[0]
-        tool_results = []
-
-        for extra in tool_use_blocks[1:]:
-            tool_results.append({"type": "tool_result", "tool_use_id": extra.id,
-                                  "content": "skipped: only one tool call is processed per turn"})
+        primary = turn.tool_calls[0]
+        skipped_results = [
+            (extra.id, "skipped: only one tool call is processed per turn")
+            for extra in turn.tool_calls[1:]
+        ]
 
         step_count += 1
         name, tool_input = primary.name, primary.input
@@ -434,6 +416,4 @@ def run_discovery(
             tool_result_content = last_action_result
             _log({"type": "tool_error", "detail": str(exc)})
 
-        result_blocks = [{"type": "tool_result", "tool_use_id": primary.id, "content": str(tool_result_content)}]
-        result_blocks.extend(tool_results)
-        messages.append({"role": "user", "content": result_blocks})
+        session.add_tool_results([(primary.id, str(tool_result_content)), *skipped_results])

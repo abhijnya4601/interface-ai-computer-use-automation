@@ -57,10 +57,11 @@ def test_run_replay_needs_a_real_capability_path(client):
 
 
 def test_run_discovery_without_any_key_is_400(client, monkeypatch):
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    for env in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        monkeypatch.delenv(env, raising=False)
     r = _post(client, {"mode": "discovery", "goal": "look up member 12345"})
     assert r.status_code == 400
-    assert b"Anthropic API key" in r.data
+    assert b"needs an API key" in r.data
 
 
 def test_run_discovery_needs_a_goal(client):
@@ -78,12 +79,23 @@ def test_run_discovery_with_a_byo_key_starts(client, monkeypatch):
     seen = {}
     monkeypatch.setattr(runner, "start", lambda kind, **kw: seen.update(kind=kind, kw=kw)
                         or type("R", (), {"id": "live_x"})())
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    for env in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        monkeypatch.delenv(env, raising=False)
     r = _post(client, {"mode": "discovery", "goal": "look up member 12345",
-                       "api_key": "sk-ant-abc123", "capability_id": "my_lookup"})
+                       "api_key": "sk-ant-abc123", "capability_id": "my_lookup", "provider": "auto"})
     assert r.status_code == 200
     assert seen["kind"] == "discovery"
     assert seen["kw"]["api_key"] == "sk-ant-abc123"
+    assert seen["kw"]["provider"] == "auto"
+
+
+def test_run_discovery_accepts_an_openai_and_a_gemini_key(client, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(runner, "start", lambda kind, **kw: seen.update(kw) or type("R", (), {"id": "x"})())
+    for k in ("sk-proj-abc", "AIzaSyABC"):
+        r = _post(client, {"mode": "discovery", "goal": "look up member 12345", "api_key": k})
+        assert r.status_code == 200, k
+    assert seen["api_key"] == "AIzaSyABC"
 
 
 def test_catalog_endpoint_returns_json_capabilities(client):

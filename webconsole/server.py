@@ -32,7 +32,11 @@ _GENERATED = "CONSOLE_ACCESS_KEY" not in os.environ
 TARGET_BASE = os.environ.get("TARGET_BASE", "http://localhost:5050")
 # Discover mode uses a key from the server env if present, else one the viewer pastes in the UI
 # (bring-your-own-key). The pasted key is passed straight to Anthropic and never stored or logged.
-SERVER_HAS_KEY = bool(os.environ.get("ANTHROPIC_API_KEY"))
+# Discovery accepts a key for any of three providers (Anthropic / OpenAI / Google-Gemini),
+# from the server env if present, else pasted in the UI (bring-your-own-key). A pasted key is
+# passed straight to that provider and never stored or logged.
+_SERVER_KEY_ENVS = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY")
+SERVER_HAS_KEY = any(os.environ.get(k) for k in _SERVER_KEY_ENVS)
 ALLOW_BYO_KEY = os.environ.get("CONSOLE_ALLOW_BYO_KEY", "1") != "0"
 
 TARGETS = {
@@ -143,16 +147,18 @@ def run():
             if not goal:
                 return jsonify(error="a goal is required for discovery"), 400
             byo = (body.get("api_key") or "").strip() if ALLOW_BYO_KEY else ""
-            api_key = byo or os.environ.get("ANTHROPIC_API_KEY")
+            provider = (body.get("provider") or "auto").strip() or "auto"
+            api_key = byo or next((os.environ[k] for k in _SERVER_KEY_ENVS if os.environ.get(k)), None)
             if not api_key:
-                return jsonify(error="discovery needs an Anthropic API key — paste one in the "
-                               "field, or set ANTHROPIC_API_KEY on the server"), 400
-            if byo and not byo.startswith(("sk-ant-", "sk-")):
-                return jsonify(error="that doesn't look like an Anthropic API key"), 400
+                return jsonify(error="discovery needs an API key — paste an Anthropic, OpenAI or "
+                               "Google key in the field, or set one on the server"), 400
+            if byo and not byo.startswith(("sk-ant-", "sk-", "AIza")):
+                return jsonify(error="that doesn't look like an Anthropic (sk-ant-), OpenAI (sk-) "
+                               "or Google (AIza) API key"), 400
             r = runner.start("discovery",
                              goal=goal, target_url=target["entry"],
                              capability_id=(body.get("capability_id") or "discovered").strip(),
-                             app_name=target["app_name"], api_key=api_key)
+                             app_name=target["app_name"], api_key=api_key, provider=provider)
         else:
             return jsonify(error="mode must be 'replay' or 'discovery'"), 400
     except RuntimeError as exc:

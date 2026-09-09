@@ -69,6 +69,10 @@
   .addrule button:hover{border-color:var(--signal);color:var(--signal)}
   .ln.policy .m{color:var(--ink-3)} .ln.policy .m b{color:var(--alarm)}
 
+  .howbody{padding:2px 12px 12px;font-size:11.6px;color:var(--ink-2);line-height:1.62}
+  .howbody p{margin:8px 0}
+  .howbody b{color:var(--ink-1);font-weight:600}
+
   /* console */
   .console{flex:1;min-height:420px;max-height:calc(100vh - 190px);overflow-y:auto;padding:12px 13px;font-family:var(--mono);font-size:11.8px;line-height:1.65;background:var(--ground-3)}
   .ln{display:flex;gap:9px;padding:1px 0;white-space:pre-wrap;word-break:break-word}
@@ -99,6 +103,7 @@
   .escpanel button{font-family:var(--sans);font-size:12.5px;font-weight:600;border-radius:6px;padding:7px 15px;cursor:pointer;border:1px solid}
   .escpanel .ap{background:var(--wire-dim);color:#dff3ef;border-color:var(--wire)}
   .escpanel .de{background:var(--ground-3);color:var(--ink-2);border-color:var(--hair-b)}
+  .escpanel .why{margin:6px 0 0;font-size:10.8px;color:var(--ink-3);font-family:var(--mono);line-height:1.5}
 
   .result{padding:12px 14px;border-top:1px solid var(--hair);font-family:var(--mono);font-size:11.5px}
   .result .status{font-size:10px;letter-spacing:.06em;text-transform:uppercase;border-radius:4px;padding:2px 8px;border:1px solid}
@@ -123,6 +128,17 @@
   <div class="col">
     <div class="cap"><span>Run</span><span id="busytag" class="eyebrow"></span></div>
     <div class="col-body">
+
+      <details class="rules" id="howBox" open>
+        <summary>How this works &amp; what the buttons do</summary>
+        <div class="howbody">
+          <p><b>Run a task.</b> Pick a capability (a task the system already learned), fill in the inputs, press <b>Run</b>. Middle panel = the agent's console. Right panel = the real browser it is driving. Both update live.</p>
+          <p><b>Replay vs Discover.</b> <b>Replay</b> re-runs a known task step by step — deterministic, no API key, never writes real data. <b>Discover</b> gives the model a goal and lets it work the task out; it needs an API key — Anthropic, OpenAI or Google (Gemini) — and the result is saved as a new replay.</p>
+          <p><b>Override recorded values.</b> Blank = use the value captured when the task was learned. Type something to use it for this one run only (for example a different amount).</p>
+          <p><b>Escalation — when a step needs a human.</b> Before any step that changes data, the run checks the <b>escalation rules</b> below. If a rule says <em>escalate</em> — or the model asks for a human itself — the run <b>pauses</b> and a panel appears on the right. <b>Approve</b> runs that step and continues; <b>Decline</b> stops the run. Nothing changes while it is paused.</p>
+        </div>
+      </details>
+
       <div class="seg" id="mode">
         <button data-mode="replay" aria-pressed="true">Replay</button>
         <button data-mode="discovery" aria-pressed="false" {{ '' if (allow_byo_key or server_has_key) else 'disabled' }}>Discover</button>
@@ -150,12 +166,19 @@
         <textarea id="goal" placeholder="Look up member 12345 and read their current savings balance."></textarea>
         <label class="f">Name the capability</label>
         <input type="text" id="capid" value="discovered" placeholder="what to call the replay this produces">
+        <label class="f">Model provider</label>
+        <select id="provider">
+          <option value="auto">Auto-detect from the key</option>
+          <option value="anthropic">Anthropic — Claude</option>
+          <option value="openai">OpenAI — GPT</option>
+          <option value="gemini">Google — Gemini</option>
+        </select>
         {% if allow_byo_key %}
-        <label class="f">Anthropic API key{% if server_has_key %} <span style="text-transform:none;letter-spacing:0;color:var(--ink-3)">— optional, the server has one</span>{% endif %}</label>
-        <input type="password" id="apikey" placeholder="sk-ant-…  (used for this run, never stored)" autocomplete="off">
-        <div class="hint">Sent straight to Anthropic through this server for the run and <b>never written to disk or logged</b>. Kept in this browser tab only. <a href="#" id="forgetkey">forget it</a></div>
+        <label class="f">API key{% if server_has_key %} <span style="text-transform:none;letter-spacing:0;color:var(--ink-3)">— optional, the server has one</span>{% endif %}</label>
+        <input type="password" id="apikey" placeholder="sk-ant-…  /  sk-…  /  AIza…   (used for this run, never stored)" autocomplete="off">
+        <div class="hint">Anthropic, OpenAI or Google key — the provider is picked from the key prefix unless you set it above. Sent straight to that provider through this server for the run and <b>never written to disk or logged</b>. Kept in this browser tab only. <a href="#" id="forgetkey">forget it</a></div>
         {% elif not server_has_key %}
-        <div class="warnbox">Discovery needs <code>ANTHROPIC_API_KEY</code> on the server. Replay runs fully without it.</div>
+        <div class="warnbox">Discovery needs an API key (<code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code> or <code>GEMINI_API_KEY</code>) on the server. Replay runs fully without one.</div>
         {% endif %}
       </div>
 
@@ -167,7 +190,8 @@
 
       <details class="rules" id="rulesBox">
         <summary>Escalation rules <span id="rulesCount" class="eyebrow"></span></summary>
-        <p class="hint">Checked before every state-changing step, in replay <em>and</em> discovery. First match wins; no match = proceed. The model may also escalate on its own judgment — these are the floor under it.</p>
+        <p class="hint">Each rule reads <b>when</b> … <b>then</b> …, checked top-to-bottom before every step that changes data (replay <em>and</em> discovery). First match wins; no match = the step just runs.</p>
+        <p class="hint"><b>escalate</b> = pause and wait for a human · <b>block</b> = stop the run now · <b>allow</b> = let it through (put one above a broader rule to carve an exception). The model can also escalate on its own — rules are the floor under that. Edits apply to the next run.</p>
         <ul id="rulesList"></ul>
         <div class="addrule">
           <div class="rr"><span>when</span></div>
@@ -198,9 +222,11 @@
       <img id="screen" alt="live view of the target browser" hidden>
       <div class="noscreen" id="noscreen">the target browser appears here once a run starts</div>
       <div class="escpanel" id="escpanel" hidden>
-        <h4>Action needs a human — the run is paused</h4>
+        <h4>This step needs a human — the run is paused</h4>
         <p id="esc-reason"></p>
+        <p class="why">A rule matched this step, or the agent asked for a human. The browser is frozen exactly here — nothing changes until you choose.</p>
         <div class="ops"><button class="ap" id="escApprove">Approve &amp; resume</button><button class="de" id="escDecline">Decline</button></div>
+        <p class="why">Approve = run this step, then carry on. Decline = stop the run here.</p>
       </div>
       <div class="result" id="result" hidden></div>
     </div>
@@ -220,12 +246,16 @@
   function ssGet(k){ try{ return SS.getItem(k); }catch(e){ return null; } }
   function ssSet(k,v){ try{ SS.setItem(k,v); }catch(e){} }
 
-  /* remembered API key (this browser tab only) */
+  /* remembered API key + provider (this browser tab only) */
   if(allowByo && $('#apikey')){
     var savedKey = ssGet('ia_apikey'); if(savedKey) $('#apikey').value = savedKey;
     $('#forgetkey') && $('#forgetkey').addEventListener('click', function(e){
       e.preventDefault(); $('#apikey').value=''; try{ SS.removeItem('ia_apikey'); }catch(x){}
     });
+  }
+  if($('#provider')){
+    var savedProv = ssGet('ia_provider'); if(savedProv) $('#provider').value = savedProv;
+    $('#provider').addEventListener('change', function(){ ssSet('ia_provider', $('#provider').value); });
   }
 
   /* ---- mode toggle ---- */
@@ -310,6 +340,7 @@
     else if(tp==='dead_end') line('esc','↯ dead-end — '+esc(e.reason));
     else if(tp==='escalation_resumed'){ line('done','✓ resumed — decision='+esc(e.decision)); hideEsc(); }
     else if(tp==='guardrail_violation') line('err','✕ guardrail — '+esc(e.detail));
+    else if(tp==='provider') line('model','◇ provider · '+esc(e.provider)+'  ·  model '+esc(e.model));
     else if(tp==='token_usage') line('obs','tokens  in '+e.input+'  out '+e.output);
     else if(tp==='finish') line('done','■ finish — '+esc((e.input&&e.input.summary)||''));
     else if(tp==='stop') line('obs','· stop — '+esc(e.reason));
@@ -375,6 +406,7 @@
       [].forEach.call(document.querySelectorAll('#params [data-override]'),function(i){ if(i.value.trim()) body.overrides[i.dataset.override]=i.value.trim(); });
     } else {
       body.goal=$('#goal').value; body.capability_id=$('#capid').value;
+      body.provider = $('#provider') ? $('#provider').value : 'auto';
       if(allowByo && $('#apikey')){
         var k=$('#apikey').value.trim();
         if(k){ body.api_key=k; ssSet('ia_apikey', k); }

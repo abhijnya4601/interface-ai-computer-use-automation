@@ -129,7 +129,7 @@ class LiveRun:
                 self.status = "done"
 
     def run_discovery(self, goal: str, target_url: str, capability_id: str, app_name: str,
-                      api_key: str | None):
+                      api_key: str | None, provider: str | None = None):
         capability_id = _unique_capability_id(capability_id)
         with sync_playwright() as p:
             browser = p.chromium.launch(args=LAUNCH_ARGS)
@@ -138,7 +138,7 @@ class LiveRun:
                 self._emit({"type": "meta", "mode": "discovery", "goal": goal,
                             "target": target_url, "capability_id": capability_id})
                 self.status = "running"
-                res = run_discovery(goal, target_url, page, api_key=api_key,
+                res = run_discovery(goal, target_url, page, api_key=api_key, provider=provider,
                                     on_event=self._hook(page), max_steps=16, timeout_s=180,
                                     capability_id=capability_id)
                 self._shot(page)
@@ -199,7 +199,7 @@ def start(kind: str, **kw) -> LiveRun:
                                kw.get("overrides"))
             else:
                 run.run_discovery(kw["goal"], kw["target_url"], kw["capability_id"],
-                                  kw["app_name"], kw.get("api_key"))
+                                  kw["app_name"], kw.get("api_key"), kw.get("provider"))
         finally:
             _run_lock.release()
 

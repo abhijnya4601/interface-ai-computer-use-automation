@@ -70,8 +70,7 @@ def _inject_pause_banner(page, reason: str) -> None:
                     + 'background:#973524;color:#fff;padding:10px 16px;'
                     + 'font:600 14px system-ui,sans-serif;text-align:center;'
                     + 'box-shadow:0 2px 6px rgba(0,0,0,.35);';
-                banner.textContent = '⏸ PAUSED — awaiting human approval at '
-                    + 'http://localhost:5001 — ' + reasonText;
+                banner.textContent = '⏸ PAUSED — awaiting human approval — ' + reasonText;
                 document.body.prepend(banner);
             }""",
             [_BANNER_ID, reason],

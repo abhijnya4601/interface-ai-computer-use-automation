@@ -31,7 +31,7 @@ make replay runs work; heavy discovery runs may hit the limit.
    |---|---|
    | `CONSOLE_ACCESS_KEY` | a random string — your link token |
    | `CONSOLE_ALLOW_BYO_KEY` | `1` |
-   | `ANTHROPIC_API_KEY` | *(optional — only if you want to pay for Discover runs)* |
+   | `ANTHROPIC_API_KEY` *or* `OPENAI_API_KEY` *or* `GEMINI_API_KEY` | *(optional — only if you want to pay for Discover runs yourself; otherwise viewers paste their own)* |
    Render sets `PORT` itself; `serve.sh` honours it. No disk on free → discovered capabilities
    reset on redeploy (the 5 curated ones reseed).
 4. **Create Web Service.** First build ~5–10 min. Then:
@@ -104,9 +104,9 @@ docker compose up -d bank console                     # console on :5055
 ## Keys, cost, and who can do what
 
 - **Replay mode needs no key.** It's free and never writes to real data — safe to leave fully open to anyone with the link.
-- **Discover mode calls the Anthropic API and costs money per run.** Two ways to allow it:
-  - **Bring-your-own-key (default, `CONSOLE_ALLOW_BYO_KEY=1`):** each viewer pastes their own key in the UI. It's sent to Anthropic through the server for that run and **never written to disk or logged**; it lives only in the viewer's browser tab (sessionStorage). Over HTTPS (Fly/Render give you this) it isn't sniffable in transit — but it does pass through the server process in memory, so only host an instance people you trust are pointing their keys at.
-  - **Server key (`ANTHROPIC_API_KEY` set):** you pay for every discovery run anyone with the link starts. Only do this behind a link token you treat as a secret, or set `CONSOLE_ALLOW_BYO_KEY=0` and hand the link to a small group.
+- **Discover mode calls a hosted model and costs money per run.** It works with **Anthropic (Claude), OpenAI (GPT), or Google (Gemini)** — the viewer picks in the UI, or it's auto-detected from the key prefix (`sk-ant-` / `sk-` / `AIza`). Same loop, prompt and tools for all three; the model IDs default to `claude-sonnet-5` / `gpt-4o` / `gemini-2.0-flash` and are overridable with `ANTHROPIC_MODEL` / `OPENAI_MODEL` / `GEMINI_MODEL`. Two ways to allow it:
+  - **Bring-your-own-key (default, `CONSOLE_ALLOW_BYO_KEY=1`):** each viewer pastes their own key in the UI. It's sent to that provider through the server for that run and **never written to disk or logged**; it lives only in the viewer's browser tab (sessionStorage). Over HTTPS (Fly/Render give you this) it isn't sniffable in transit — but it does pass through the server process in memory, so only host an instance people you trust are pointing their keys at.
+  - **Server key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` set):** you pay for every discovery run anyone with the link starts; the first of those env vars that's set is used. Only do this behind a link token you treat as a secret, or set `CONSOLE_ALLOW_BYO_KEY=0` and hand the link to a small group.
 - **Discovered capabilities are shared.** Every discovery a viewer runs compiles a new
   `capabilities/<name>__<hash>.v1.json` on the volume and appears in everyone's Replay list.
   They land as `lifecycle: draft` with the agent's proposed rules unratified — clearly marked
