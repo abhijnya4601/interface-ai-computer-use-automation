@@ -6,14 +6,18 @@ FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 WORKDIR /app
 
-# System deps for Chromium come from `playwright install --with-deps`.
+# System deps for Chromium come from `playwright install --with-deps`. Browsers land in
+# PLAYWRIGHT_BROWSERS_PATH (a shared, absolute path) — not ~/.cache — so the non-root `runner`
+# user below finds them at runtime instead of looking under /home/runner and failing.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
-    && playwright install --with-deps chromium
+    && playwright install --with-deps chromium \
+    && chmod -R a+rX /ms-playwright
 
 COPY . .
 
