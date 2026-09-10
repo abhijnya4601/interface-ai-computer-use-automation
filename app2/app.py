@@ -147,9 +147,15 @@ def acct(mid: str):
         return _page('<div class="pnl"><div class="msg err">Access denied. '
                      'This account is restricted.</div></div>')
     bal = "" if _inject() == "blank" else m["balance"]
+    # every read-value is a bare <span> whose accessible name comes only from aria-labelledby
+    # (no structure, no <label>); that's the one anchor the perception layer can use.
     body = f"""
     <div class="pnl">
-      <div class="cap">Account - {m['name']}</div>
+      <div class="cap">Account</div>
+      <div class="kv">
+        <span class="k" id="nk-{mid}">Account holder</span>
+        <span class="v" role="status" aria-labelledby="nk-{mid}">{m['name']}</span>
+      </div>
       <div class="kv">
         <span class="k" id="bk-{mid}">Current balance</span>
         <span class="v" role="status" aria-labelledby="bk-{mid}">{bal}</span>

@@ -34,11 +34,12 @@ def test_find_no_match(c):
     assert b"No matching member." in c.post("/find", data={"q": "does-not-exist"}).data
 
 
-def test_account_balance_uses_a_labelledby_status_span(c):
+def test_account_holder_and_balance_are_labelledby_status_spans(c):
     r = c.get("/acct/12345")
     assert b'role="status"' in r.data and b"aria-labelledby" in r.data
-    assert b"$1,842.30" in r.data
-    # no classic label association anywhere
+    # both read-values sit in bare spans named only via aria-labelledby (no <label>)
+    assert b"Account holder" in r.data and b"Jordan Lee" in r.data
+    assert b"Current balance" in r.data and b"$1,842.30" in r.data
     assert b"<label" not in r.data
 
 
