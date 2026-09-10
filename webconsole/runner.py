@@ -76,14 +76,46 @@ def _unique_capability_id(base: str) -> str:
     return f"{base}__{uuid.uuid4().hex[:6]}"
 
 
-def _inferred_checkpoint(final_url: str, target_url: str) -> Checkpoint:
-    """Fallback when app_knowledge has no curated checkpoint: the final URL's last path segment
-    (stable across differently-parameterized replays), or the whole URL if it never navigated."""
+def _inferred_checkpoint(final_url: str, target_url: str, recorder=None,
+                         transcript: list | None = None) -> Checkpoint:
+    """Fallback when app_knowledge has no curated checkpoint. Preference order:
+
+      1. `element_present` on the last extract step's role+name locator -- stable across
+         differently-parameterized replays, and semantically "the datum we read is here".
+      2. `url_match` on the last final-URL path segment that is NOT a parameter value: an
+         all-digit segment, or a literal the agent typed/navigated with `param_name` set,
+         is the member id itself (`/acct/12345`) and can't anchor a replay for another id.
+      3. `url_match` on the entry URL (weak, but never false-fails a valid replay).
+
+    Provenance is `proposed` -- this is the agent's inference, not ratified knowledge."""
     from urllib.parse import urlparse
+
+    for s in reversed(list(getattr(recorder, "steps", []) or [])):
+        if s.action_type == "extract" and s.target:
+            role = s.target.primary.get("role")
+            name = s.target.primary.get("name")
+            if role and name:
+                return Checkpoint(type="element_present", locator={"role": role, "name": name},
+                                  expected="present", provenance="proposed")
+
     if final_url == target_url:
-        return Checkpoint(type="url_match", expected=target_url)
+        return Checkpoint(type="url_match", expected=target_url, provenance="proposed")
+
+    param_literals = set()
+    for e in (transcript or []):
+        if e.get("type") == "tool_call" and e.get("input", {}).get("param_name"):
+            for k in ("text", "url"):
+                v = e["input"].get(k)
+                if isinstance(v, str):
+                    param_literals.add(v)
+                    param_literals.update(p for p in v.split("/") if p)
+
     segs = [s for s in urlparse(final_url).path.split("/") if s]
-    return Checkpoint(type="url_match", expected=segs[-1] if segs else final_url)
+    for seg in reversed(segs):
+        if seg.isdigit() or seg in param_literals:
+            continue
+        return Checkpoint(type="url_match", expected=seg, provenance="proposed")
+    return Checkpoint(type="url_match", expected=target_url, provenance="proposed")
 
 
 class LiveRun:
@@ -180,7 +212,8 @@ class LiveRun:
         saved = None
         if res.status in ("success", "business_outcome"):
             cfg = app_knowledge.load(app_name).capability_config(capability_id)
-            checkpoint = cfg.checkpoint or _inferred_checkpoint(page.url, target_url)
+            checkpoint = cfg.checkpoint or _inferred_checkpoint(
+                page.url, target_url, res.recorder, res.transcript)
             risk = cfg.risk_level or (
                 "risky" if any(e.get("type") == "escalate_requested" for e in res.transcript)
                 else "safe")

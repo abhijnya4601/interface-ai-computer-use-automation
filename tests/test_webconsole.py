@@ -344,6 +344,35 @@ def test_rules_delete_removes_by_id(client, isolated_rules):
 
 # ---- catalog + LiveRun hook -------------------------------------------------------------
 
+def test_inferred_checkpoint_prefers_element_present_over_a_parameterised_url_segment():
+    from types import SimpleNamespace as NS
+    rec = NS(steps=[
+        NS(action_type="click", target=NS(primary={"role": "link", "name": "open"})),
+        NS(action_type="extract", target=NS(primary={"role": "status", "name": "Current balance"})),
+    ])
+    cp = runner._inferred_checkpoint("http://h/acct/12345", "http://h/find", rec, [])
+    assert cp.type == "element_present"
+    assert cp.locator == {"role": "status", "name": "Current balance"}
+    assert cp.provenance == "proposed"
+
+
+def test_inferred_checkpoint_skips_an_all_digit_id_segment():
+    from types import SimpleNamespace as NS
+    rec = NS(steps=[NS(action_type="click", target=None)])
+    # /acct/12345 and /acct/77777 must share a stable anchor -> "acct", not the member id
+    cp = runner._inferred_checkpoint("http://h/acct/77777", "http://h/find", rec, [])
+    assert cp.type == "url_match" and cp.expected == "acct"
+
+
+def test_inferred_checkpoint_skips_a_typed_param_literal():
+    from types import SimpleNamespace as NS
+    rec = NS(steps=[NS(action_type="click", target=None)])
+    cp = runner._inferred_checkpoint(
+        "http://h/x/JORDAN", "http://h/find", rec,
+        [{"type": "tool_call", "input": {"param_name": "who", "text": "JORDAN"}}])
+    assert cp.expected == "x"
+
+
 def test_unique_capability_id_keeps_a_fresh_name_but_suffixes_a_collision(tmp_path, monkeypatch):
     monkeypatch.setattr(runner, "CAPS_DIR", tmp_path)
     assert runner._unique_capability_id("brand_new") == "brand_new"
