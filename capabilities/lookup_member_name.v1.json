@@ -1,0 +1,210 @@
+{
+  "schema_version": "1.1",
+  "lifecycle": "draft",
+  "verification": null,
+  "capability_id": "lookup_member_name",
+  "version": "1.0.0",
+  "created_from_run_id": "hand_authored_mock_core_banking",
+  "description": "Look up a member and read the account holder's name from their detail page.",
+  "target": {
+    "app_name": "mock-core-banking",
+    "entry_point": "http://localhost:5050/search",
+    "surface_type": "legacy_web"
+  },
+  "risk_level": "safe",
+  "input_schema": {
+    "member_id": {
+      "type": "string",
+      "description": "the member id to use for this run"
+    }
+  },
+  "output_schema": {
+    "account_holder_name": {
+      "type": "string"
+    }
+  },
+  "checkpoint": {
+    "type": "element_present",
+    "locator": {
+      "role": "rowheader",
+      "name": "Name"
+    },
+    "expected": "present",
+    "provenance": "curated"
+  },
+  "steps": [
+    {
+      "step_id": "s1",
+      "action_type": "navigate",
+      "target": null,
+      "value": "http://localhost:5050/search",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": [],
+      "ready_when": null,
+      "extract_contract": null
+    },
+    {
+      "step_id": "s2",
+      "action_type": "type",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "textbox",
+          "name": "Search (ID / name)"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Search (ID / name)"
+          }
+        ],
+        "reasoning": "role='textbox' name='Search (ID / name)' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": {
+        "param_ref": "member_id"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": [],
+      "ready_when": null,
+      "extract_contract": null
+    },
+    {
+      "step_id": "s3",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "button",
+          "name": "Go"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Go"
+          }
+        ],
+        "reasoning": "role='button' name='Go' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": [],
+      "ready_when": null,
+      "extract_contract": null
+    },
+    {
+      "step_id": "s4",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "link",
+          "name": "View"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "View"
+          }
+        ],
+        "reasoning": "role='link' name='View' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": [
+        {
+          "condition": "page contains 'No results.'",
+          "classification": "business_outcome",
+          "code": "MEMBER_NOT_FOUND",
+          "handling": "search returned no matching row for this member_id; there is no 'View' link to click through - treat as not found rather than a broken locator",
+          "provenance": "curated"
+        }
+      ],
+      "ready_when": null,
+      "extract_contract": null
+    },
+    {
+      "step_id": "s5",
+      "action_type": "extract",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "rowheader",
+          "name": "Name"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Name"
+          }
+        ],
+        "reasoning": "role='rowheader' name='Name' anchors the member-detail row whose value cell holds the account holder's name; a <th scope=row>, real semantic HTML, not a class or test id. The search-results cell has no accessible name, so the capability clicks through to the detail page first (s4) to reach this anchor."
+      },
+      "value": null,
+      "extract_as": "account_holder_name",
+      "wait_policy": {
+        "timeout_ms": 5000,
+        "retry_count": 2,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": [
+        {
+          "condition": "page contains 'Access denied. This account is restricted'",
+          "classification": "business_outcome",
+          "code": "PERMISSION_DENIED",
+          "handling": "member exists but the account is locked; balance is not shown on this page",
+          "provenance": "curated"
+        },
+        {
+          "condition": "page contains 'No member record found'",
+          "classification": "business_outcome",
+          "code": "MEMBER_NOT_FOUND",
+          "handling": "member record does not exist at this URL",
+          "provenance": "curated"
+        }
+      ],
+      "ready_when": null,
+      "extract_contract": {
+        "pattern": "^[A-Za-z][A-Za-z .'-]{1,60}$",
+        "nonempty": true,
+        "placeholders": [
+          "--",
+          "N/A",
+          "Not available",
+          "Name"
+        ],
+        "reason": "a member name renders as a short run of letters/spaces (e.g. 'Dana Whitfield'); an empty value, the label text 'Name', or a page blob means the detail row rendered without its data behind it",
+        "provenance": "curated"
+      }
+    }
+  ]
+}

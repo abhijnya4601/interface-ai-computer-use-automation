@@ -566,7 +566,17 @@
       else if(ev.type==='meta'){ $('#metatag').textContent=ev.mode+(ev.capability?' · '+ev.capability:''); }
       else if(ev.type==='agent') renderAgentEntry(ev.entry||{});
       else if(ev.type==='compiled'){
-        line('done','⟳ compiled → '+esc(ev.path)+(ev.unratified&&ev.unratified.length?'  ('+ev.unratified.length+' rules need review)':''));
+        var sc = ev.self_check || '';
+        var scOk = ['success','business_outcome','recoverable_handled'].indexOf(sc) >= 0
+                   || sc.indexOf('skipped') === 0;
+        var tail = (ev.unratified&&ev.unratified.length ? '  ('+ev.unratified.length+' rules need review)' : '');
+        if(sc && scOk) tail += '  · self-check '+esc(sc);
+        line(sc && !scOk ? 'err' : 'done', '⟳ compiled → '+esc(ev.path)+tail);
+        if(sc && !scOk){
+          line('err','⚠ SELF-CHECK FAILED ('+esc(sc)+') — replayed the new capability and it '
+               +'did not hold up. Open '+esc(ev.path)+' and fix the extract locator / checkpoint, '
+               +'or re-run discovery with a sharper goal. Not reliable as-is.');
+        }
       }
       else if(ev.type==='done'){
         line(ev.ok?'done':'err','■ '+ (ev.status||'done').toUpperCase() + (ev.code?' · '+ev.code:''));

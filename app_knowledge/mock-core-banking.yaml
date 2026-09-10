@@ -72,6 +72,23 @@ expected_outcomes:
       code: NO_TRANSACTIONS
       handling: member has no transaction history; there is no real data to extract
 
+  lookup_member_name:
+    - match: {action_type: click, role: link, name: View}
+      condition: "page contains 'No results.'"
+      classification: business_outcome
+      code: MEMBER_NOT_FOUND
+      handling: search returned no matching row for this member_id
+    - match: {action_type: extract}
+      condition: "page contains 'Access denied. This account is restricted'"
+      classification: business_outcome
+      code: PERMISSION_DENIED
+      handling: member exists but the account is locked; the detail page shows msg-denied, not the name row
+    - match: {action_type: extract}
+      condition: "page contains 'No member record found'"
+      classification: business_outcome
+      code: MEMBER_NOT_FOUND
+      handling: member record does not exist at this URL
+
   dispute_transaction:
     - match: {action_type: click, role: link, name: View}
       condition: "page contains 'No results.'"
@@ -117,6 +134,15 @@ extract_contracts:
         the latest transaction date renders as YYYY-MM-DD; the known zero-transactions empty
         state is already a declared NO_TRANSACTIONS business outcome, so a value here that still
         isn't a date means the row rendered without its data
+  lookup_member_name:
+    account_holder_name:
+      pattern: "^[A-Za-z][A-Za-z .'-]{1,60}$"
+      placeholders: ["--", "N/A", "Not available", "Name"]
+      reason: >-
+        a member name renders as a short run of letters and spaces (e.g. 'Dana Whitfield') in
+        the detail page's Name row; an empty value, the label text 'Name', or a page blob means
+        the row rendered without its data (this is what a structural-locator extract on the
+        search-results page grabs by mistake)
 
 capabilities:
   lookup_member_balance:
@@ -129,6 +155,13 @@ capabilities:
       - {params: {member_id: "88888"}, expect: business_outcome, code: MEMBER_NOT_FOUND}
       - {params: {member_id: "99999"}, expect: business_outcome, code: PERMISSION_DENIED}
       - {params: {member_id: "77777"}, expect: data_unavailable}
+  lookup_member_name:
+    risk_level: safe
+    checkpoint: {type: element_present, locator: {role: rowheader, name: Name}, expected: present}
+    verify_scenarios:
+      - {params: {member_id: "23456"}, expect: success}
+      - {params: {member_id: "88888"}, expect: business_outcome, code: MEMBER_NOT_FOUND}
+      - {params: {member_id: "99999"}, expect: business_outcome, code: PERMISSION_DENIED}
   open_subaccount:
     risk_level: risky
     checkpoint: {type: text_match, expected: "created for"}

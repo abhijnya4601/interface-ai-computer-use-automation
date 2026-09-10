@@ -94,7 +94,11 @@ Rules:
 - If the page stops changing in response to your actions, or you don't understand what's in
   front of you, call `escalate` with a clear reason rather than repeating actions blindly.
 - Extract every value the goal asks you to read using the `extract` tool before calling finish,
-  and include them in finish's `outputs`.
+  and include them in finish's `outputs`. Prefer to read a value where it sits in a LABELLED
+  place - a row with a `<th>`/rowheader, a field with a label. If a value only appears in a
+  bare table cell or loose text with no label of its own (e.g. a name in a search-results
+  row), navigate to a detail view where it is labelled and extract it there; a value grabbed
+  without a stable anchor makes a capability that fails on replay.
 - When you type or navigate with a value the caller supplied that would change between runs (a
   member id, an account number, a date), set `param_name` on that tool call so the recorded
   capability treats it as a named input, not a fixed literal.
@@ -328,6 +332,19 @@ def run_discovery(
                     raise
                 last_action_result = f"extracted {tool_input['as_var']} = {value!r}"
                 tool_result_content = value
+                # A weak locator (matched >1 element, or nothing by role+name) makes a fragile
+                # capability -- tell the model so it can go to a page where this value is
+                # labelled (a <th> row header, a form label) instead of a bare cell / loose text.
+                _strategy = recorder.steps[-1].target.strategy if recorder.steps[-1].target else None
+                if _strategy in ("structural", "text", "table_position"):
+                    _hint = (f"NOTE: '{tool_input['as_var']}' was located with a weak "
+                             f"'{_strategy}' locator (no unique role+name anchor here). The "
+                             "recorded capability will be fragile. If there is a detail view "
+                             "where this value sits in a labelled row or field, navigate there "
+                             "and extract it from that anchor instead.")
+                    _log({"type": "weak_locator", "extract_as": tool_input["as_var"],
+                          "strategy": _strategy})
+                    tool_result_content = f"{value}\n\n{_hint}"
 
             elif name == "note_branch":
                 recorder.note_branch(

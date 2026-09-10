@@ -236,13 +236,28 @@ def infer_checkpoint(final_url: str, target_url: str, recorder=None,
     return Checkpoint(type="url_match", expected=target_url, provenance="proposed")
 
 
+def _params_from_transcript(transcript: list | None) -> dict:
+    """Reconstruct the run inputs the agent named with `param_name` -- used to self-check the
+    compiled capability by replaying it with the same values discovery used."""
+    params: dict = {}
+    for e in (transcript or []):
+        if e.get("type") == "tool_call":
+            pn = e.get("input", {}).get("param_name")
+            if pn and "text" in e["input"]:
+                params[pn] = str(e["input"]["text"])
+    return params
+
+
 def discover_and_compile(page, goal: str, capability_id: str, *, target_url: str, app_name: str,
                          api_key: str | None, provider: str | None,
                          on_step: Callable[[dict], None] = _noop,
                          on_compiled: Callable[[dict], None] = _noop):
-    """Run the discovery loop on an already-open `page`, compile + save on success. Returns
-    `(DiscoveryResult, saved_path_or_none, capability_id)`. `on_step` receives every transcript
-    entry live; `on_compiled` gets `{"path", "unratified"}` once the artifact is written."""
+    """Run the discovery loop on an already-open `page`, compile + save on success, then
+    SELF-CHECK a safe capability by replaying it once on the same page -- a fragile
+    (structural/positional) extract or a bad checkpoint fails here even though discovery
+    "succeeded" on the happy path, so you learn it at creation, not at first use. Returns
+    `(DiscoveryResult, saved_path_or_none, capability_id)`; `on_compiled` gets
+    `{"path", "unratified", "self_check", "self_check_detail"}`."""
     import app_knowledge
     from agent.compiler import compile_capability, save_capability
     from agent.discovery import run_discovery
@@ -267,8 +282,30 @@ def discover_and_compile(page, goal: str, capability_id: str, *, target_url: str
             saved = str(written.relative_to(_REPO))   # tidy for the in-repo default
         except ValueError:
             saved = str(written)                      # CAPABILITIES_DIR is a mounted volume
-        on_compiled({"path": saved, "unratified": cap.unratified_rules()})
+
+        self_check, self_check_detail = "skipped (risky - review before use)", None
+        if risk == "safe":
+            self_check, self_check_detail = _self_check(cap, page, res.transcript)
+
+        on_compiled({"path": saved, "unratified": cap.unratified_rules(),
+                     "self_check": self_check, "self_check_detail": self_check_detail})
     return res, saved, capability_id
+
+
+def _self_check(cap: Capability, page, transcript: list | None):
+    """Replay the just-compiled capability once on `page` with discovery's own inputs. Returns
+    (status_str, failure_detail_or_none). `success`/`business_outcome`/`recoverable_handled`
+    means it holds up; anything else means it needs a fix before it's trusted."""
+    from replay.engine import _precheck, _run_on_page
+    try:
+        short, ledgered = _precheck(cap, confirm=True, idempotency_key=None, allow_escalation=False)
+        r = short or _run_on_page(cap, _params_from_transcript(transcript), page,
+                                  run_id="selfcheck", ledgered=ledgered, idempotency_key=None,
+                                  confirm=True, allow_escalation=False)
+        return r.status, (r.failure_detail if r.status not in
+                          ("success", "business_outcome", "recoverable_handled") else None)
+    except Exception as exc:  # a self-check must never break the discovery result
+        return "error", {"error": f"{type(exc).__name__}: {exc}"}
 
 
 # --------------------------------------------------------------------------------------------
