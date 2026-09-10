@@ -17,6 +17,13 @@ cd interface-ai-computer-use-automation
 git checkout abhijnya/live-console
 ```
 
+**Try it live.** A running instance of the console is hosted on Render at
+`https://live-console-2y6p.onrender.com`. It is link-only, so it needs an access token on the
+URL (`?key=<token>`); the full link is shared separately. The first request after a quiet
+period takes about a minute to wake the free instance, then it is fast. The Replay tab needs no
+key of your own; the Chatbot and Discover tabs take an Anthropic, OpenAI, or Google key that
+you paste in and that is never stored.
+
 ---
 
 ## The short version
