@@ -230,8 +230,8 @@
         </select>
         {% if allow_byo_key %}
         <label class="f">API key{% if server_has_key %} <span style="text-transform:none;letter-spacing:0;color:var(--ink-3)">- optional, the server has one</span>{% endif %}</label>
-        <input type="password" id="apikey" placeholder="sk-ant-…  /  sk-…  /  AIza…   (used for this run, never stored)" autocomplete="off">
-        <div class="hint">Anthropic, OpenAI or Google key - the provider is picked from the key prefix unless you set it above. Sent straight to that provider through this server for the run and <b>never written to disk or logged</b>. Kept in this browser tab only. <a href="#" id="forgetkey">forget it</a></div>
+        <input type="password" id="apikey" placeholder="paste your key   (used for this run, never stored)" autocomplete="off">
+        <div class="hint">Anthropic, OpenAI or Google key. On <b>auto-detect</b> the provider comes from the key prefix; if you pick a provider above, any key shape is accepted (Google issues both <code>AIza…</code> and <code>AQ.…</code> keys). Sent straight to that provider through this server for the run and <b>never written to disk or logged</b>. Kept in this browser tab only. <a href="#" id="forgetkey">forget it</a></div>
         {% elif not server_has_key %}
         <div class="warnbox">Ask and Discover need an API key (<code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code> or <code>GEMINI_API_KEY</code>) on the server. Replay runs fully without one.</div>
         {% endif %}

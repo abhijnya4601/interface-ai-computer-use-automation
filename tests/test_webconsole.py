@@ -69,10 +69,22 @@ def test_run_discovery_needs_a_goal(client):
     assert r.status_code == 400
 
 
-def test_run_discovery_rejects_a_bogus_byo_key(client):
+def test_run_discovery_rejects_a_bogus_byo_key_on_auto_provider(client):
+    # provider left on auto -> an unrecognisable key shape is rejected with a hint
     r = _post(client, {"mode": "discovery", "goal": "look up member 12345", "api_key": "hunter2"})
     assert r.status_code == 400
-    assert b"look like" in r.data
+    assert b"which provider" in r.data
+
+
+def test_run_discovery_trusts_any_key_when_the_provider_is_explicit(client, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(runner, "start", lambda kind, **kw: seen.update(kw) or type("R", (), {"id": "x"})())
+    # a Google key in the newer AQ.<...> format, with the provider explicitly set
+    r = _post(client, {"mode": "discovery", "goal": "look up member 12345",
+                       "api_key": "AQ.Ab8RN6xxxxx", "provider": "gemini"})
+    assert r.status_code == 200
+    assert seen["api_key"] == "AQ.Ab8RN6xxxxx"
+    assert seen["provider"] == "gemini"
 
 
 def test_run_discovery_with_a_byo_key_starts(client, monkeypatch):

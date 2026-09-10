@@ -63,7 +63,7 @@ def detect_provider(api_key: str, explicit: str | None = None) -> str:
     k = (api_key or "").strip()
     if k.startswith("sk-ant-"):
         return "anthropic"
-    if k.startswith("AIza"):
+    if k.startswith(("AIza", "AQ.")):  # Google issues both key formats
         return "gemini"
     if k.startswith("sk-"):  # sk-, sk-proj-, ...
         return "openai"

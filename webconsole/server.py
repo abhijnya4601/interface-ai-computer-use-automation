@@ -76,7 +76,8 @@ def _gate():
 @app.after_request
 def _setcookie(resp):
     if request.args.get("key") == SECRET and not request.cookies.get("ck"):
-        resp.set_cookie("ck", SECRET, httponly=True, samesite="Lax", max_age=86400)
+        # 30 days: a demo link is shared and revisited over days, not one session
+        resp.set_cookie("ck", SECRET, httponly=True, samesite="Lax", max_age=2592000)
     return resp
 
 
@@ -140,9 +141,13 @@ def _resolve_model_key(body: dict):
     ask: a pasted BYO key wins, else the first server key env that's set."""
     byo = (body.get("api_key") or "").strip() if ALLOW_BYO_KEY else ""
     provider = (body.get("provider") or "auto").strip() or "auto"
-    if byo and not byo.startswith(("sk-ant-", "sk-", "AIza")):
-        return None, None, (jsonify(error="that doesn't look like an Anthropic (sk-ant-), OpenAI "
-                                   "(sk-) or Google (AIza) API key"), 400)
+    # Only sniff the key shape when the provider is left on auto-detect. If the viewer explicitly
+    # picked a provider, trust their key — formats vary (Google now issues both `AIza...` and
+    # `AQ.<...>` keys) and the real check is the provider's own API call.
+    known_prefixes = ("sk-ant-", "sk-", "AIza", "AQ.")
+    if byo and provider == "auto" and not byo.startswith(known_prefixes):
+        return None, None, (jsonify(error="couldn't tell which provider that key is for - pick one "
+                                    "in the Model provider dropdown"), 400)
     api_key = byo or next((os.environ[k] for k in _SERVER_KEY_ENVS if os.environ.get(k)), None)
     if not api_key:
         return None, None, (jsonify(error="this needs an API key - paste an Anthropic, OpenAI or "

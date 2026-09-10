@@ -18,6 +18,7 @@ from agent.llm import Turn, _gemini_schema, detect_provider, make_session
     ("sk-xxxx", "openai"),
     ("sk-proj-xxxx", "openai"),
     ("AIzaSyD-xxxx", "gemini"),
+    ("AQ.Ab8RN6xxxxx", "gemini"),
 ])
 def test_detect_provider_from_key_prefix(key, expected):
     assert detect_provider(key) == expected
