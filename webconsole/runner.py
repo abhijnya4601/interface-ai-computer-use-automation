@@ -9,7 +9,6 @@ screenshots are taken from inside the `on_event` hook (same thread as the page).
 from __future__ import annotations
 
 import base64
-import json
 import queue
 import threading
 import time
@@ -18,107 +17,17 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-import app_knowledge
-from agent.compiler import CAPABILITIES_DIR as CAPS_DIR
-from agent.compiler import compile_capability, save_capability
-from agent.discovery import run_discovery
+from agent_interface import assistant
 from agent_interface.runs import record_run
-from artifact.schema import Capability, Checkpoint
+from artifact.schema import Capability
 from common.browser import LAUNCH_ARGS
 from guardrails.policy import redact, redact_with_report
 from replay.engine import _precheck, _run_on_page
 
-_ASK_SYSTEM = (
-    "You are a back-office assistant for a bank. Most tools run a pre-recorded, deterministic "
-    "UI automation (a 'capability') against the servicing console and return a structured "
-    "result. ALWAYS prefer existing tools: if one matches the user's request even loosely "
-    "(e.g. a tool that reads the same field, for a different member), call it with the right "
-    "typed arguments -- a tool named for member 12345 still works for any member id. If the "
-    "request has several tasks (e.g. the name AND the balance), call one tool per task, in the "
-    "order asked -- an existing tool where one fits, `discover_new_capability` (with a precise "
-    "goal for just that task) where none does. You may mix both in one response. Only reply in "
-    "plain text (no tool) if the request cannot be done against this app at all."
-)
-_ASK_PHRASE_SYSTEM = (
-    "Answer the user in one or two sentences, stating the concrete outcome: the value(s) "
-    "returned, the business outcome (e.g. 'no such member', 'account locked'), or that the "
-    "action was routed to a human for approval. Never claim success unless the result status "
-    "is 'success'."
-)
-# The Chatbot's escape hatch: offered alongside the capability catalog so the model can say
-# "none of these fit" and have a NEW capability learned for the request instead of failing.
-_DISCOVER_TOOL = {
-    "name": "discover_new_capability",
-    "description": (
-        "Use this ONLY when no other tool matches the request. Drives the app step by step to "
-        "learn a NEW capability for it (a discovery run) - slower, calls the model repeatedly, "
-        "and actually operates the site. The learned capability then becomes replayable."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "goal": {"type": "string", "description": "a precise, self-contained instruction "
-                     "for the new task, including any ids/values from the request"},
-            "name": {"type": "string", "description": "a short snake_case name for the new capability"},
-        },
-        "required": ["goal"],
-    },
-}
-
 REPO = Path(__file__).parent.parent
+CAPS_DIR = assistant.CAPABILITIES_DIR
 
 _run_lock = threading.Lock()
-
-
-def _unique_capability_id(base: str) -> str:
-    """Keep the first discovery of a name clean; suffix later ones so nothing is overwritten
-    and every discovered capability becomes its own replayable artifact."""
-    base = (base or "discovered").strip().replace("/", "_") or "discovered"
-    if not (CAPS_DIR / f"{base}.v1.json").exists():
-        return base
-    return f"{base}__{uuid.uuid4().hex[:6]}"
-
-
-def _inferred_checkpoint(final_url: str, target_url: str, recorder=None,
-                         transcript: list | None = None) -> Checkpoint:
-    """Fallback when app_knowledge has no curated checkpoint. Preference order:
-
-      1. `element_present` on the last extract step's role+name locator -- stable across
-         differently-parameterized replays, and semantically "the datum we read is here".
-      2. `url_match` on the last final-URL path segment that is NOT a parameter value: an
-         all-digit segment, or a literal the agent typed/navigated with `param_name` set,
-         is the member id itself (`/acct/12345`) and can't anchor a replay for another id.
-      3. `url_match` on the entry URL (weak, but never false-fails a valid replay).
-
-    Provenance is `proposed` -- this is the agent's inference, not ratified knowledge."""
-    from urllib.parse import urlparse
-
-    for s in reversed(list(getattr(recorder, "steps", []) or [])):
-        if s.action_type == "extract" and s.target:
-            role = s.target.primary.get("role")
-            name = s.target.primary.get("name")
-            if role and name:
-                return Checkpoint(type="element_present", locator={"role": role, "name": name},
-                                  expected="present", provenance="proposed")
-
-    if final_url == target_url:
-        return Checkpoint(type="url_match", expected=target_url, provenance="proposed")
-
-    param_literals = set()
-    for e in (transcript or []):
-        if e.get("type") == "tool_call" and e.get("input", {}).get("param_name"):
-            for k in ("text", "url"):
-                v = e["input"].get(k)
-                if isinstance(v, str):
-                    param_literals.add(v)
-                    param_literals.update(p for p in v.split("/") if p)
-
-    segs = [s for s in urlparse(final_url).path.split("/") if s]
-    for seg in reversed(segs):
-        if seg.isdigit() or seg in param_literals:
-            continue
-        return Checkpoint(type="url_match", expected=seg, provenance="proposed")
-    return Checkpoint(type="url_match", expected=target_url, provenance="proposed")
 
 
 class LiveRun:
@@ -201,36 +110,21 @@ class LiveRun:
 
     def _discover_on_page(self, page, goal: str, target_url: str, capability_id: str,
                           app_name: str, api_key: str | None, provider: str | None):
-        """Run the discovery loop on an already-open page; compile + save + emit `compiled` on
-        success. Returns (DiscoveryResult, saved_relpath|None, resolved_capability_id). Used by
-        both `run_discovery` and the Chatbot's discover-new-capability path."""
-        capability_id = _unique_capability_id(capability_id)
+        """Streaming adapter around agent_interface.assistant.discover_and_compile: run discovery
+        on an already-open page, compile + save, emit `meta` + `compiled`. Returns
+        (DiscoveryResult, saved_path|None, resolved_capability_id). Used by both `run_discovery`
+        and the Chatbot's discover-new-capability path."""
+        cid = assistant.unique_capability_id(capability_id)
         self._emit({"type": "meta", "mode": "discovery", "goal": goal,
-                    "target": target_url, "capability_id": capability_id})
+                    "target": target_url, "capability_id": cid})
         self.status = "running"
-        res = run_discovery(goal, target_url, page, api_key=api_key, provider=provider,
-                            on_event=self._hook(page), max_steps=16, timeout_s=180,
-                            capability_id=capability_id)
+        res, saved, cid = assistant.discover_and_compile(
+            page, goal, cid, target_url=target_url, app_name=app_name,
+            api_key=api_key, provider=provider,
+            on_step=self._hook(page),
+            on_compiled=lambda d: self._emit({"type": "compiled", **d}))
         self._shot(page)
-        saved = None
-        if res.status in ("success", "business_outcome"):
-            cfg = app_knowledge.load(app_name).capability_config(capability_id)
-            checkpoint = cfg.checkpoint or _inferred_checkpoint(
-                page.url, target_url, res.recorder, res.transcript)
-            risk = cfg.risk_level or (
-                "risky" if any(e.get("type") == "escalate_requested" for e in res.transcript)
-                else "safe")
-            cap = compile_capability(
-                capability_id=capability_id, version="1.0.0", run_id=res.run_id,
-                target_url=target_url, risk_level=risk, recorder=res.recorder,
-                outputs=res.outputs, checkpoint=checkpoint, description=goal, app_name=app_name)
-            written = save_capability(cap)
-            try:
-                saved = str(written.relative_to(REPO))       # tidy for the in-repo default
-            except ValueError:
-                saved = str(written)                         # CAPABILITIES_DIR is a mounted volume
-            self._emit({"type": "compiled", "path": saved, "unratified": cap.unratified_rules()})
-        return res, saved, capability_id
+        return res, saved, cid
 
     # ---- the three run modes ----------------------------------------------------------------
 
@@ -283,14 +177,11 @@ class LiveRun:
 
     def run_ask(self, request_text: str, api_key: str | None, provider: str | None,
                 target_url: str, app_name: str):
-        """Plain-English request -> the model picks one or more existing capabilities from the
-        catalog (agent_interface/catalog.py) and each runs deterministically in order on the
-        same page (a compound request like "name AND balance" needs two); OR, if nothing fits,
-        it calls `discover_new_capability` and a NEW capability is learned (same discovery loop
-        as Discover mode). Same escalation gate throughout, then one plain-language answer over
-        all the results."""
-        from agent.llm import make_session
-        from agent_interface.catalog import build_tool_catalog, load_capabilities
+        """Streaming + History adapter around agent_interface.assistant.handle(): it plans the
+        request into tasks and runs each in order -- an existing capability deterministically, a
+        task with none via discovery -- then one plain-language answer over every result. This
+        method only wires the assistant's callbacks to LiveRun's page, escalation gate and event
+        queue; the orchestration lives in agent_interface/assistant.py so a CLI/API shares it."""
         rec = {"kind": "ask", "capability_id": "-", "status": "error", "params": {},
                "outputs": {}, "business_outcome_code": None, "failure_detail": None,
                "extra": {"request": request_text}}
@@ -300,100 +191,52 @@ class LiveRun:
             try:
                 self._emit({"type": "meta", "mode": "ask", "request": request_text})
                 self.status = "running"
-                session = make_session(api_key=api_key, provider=provider,
-                                       tools=build_tool_catalog() + [_DISCOVER_TOOL])
-                rec["extra"].update(provider=session.provider, model=session.model)
-                self._emit({"type": "agent", "entry": {"type": "provider",
-                            "provider": session.provider, "model": session.model}})
-                session.add_user_text(request_text)
-                turn = session.complete(_ASK_SYSTEM, 700, force_tool=False)
-                caps = load_capabilities()
 
-                # Each task the model chose, IN ORDER. A task with a matching capability runs
-                # deterministically; one without triggers discovery (the LLM works it out and
-                # a new capability is saved). Then on to the next task the same way. Stop at the
-                # first that doesn't cleanly succeed.
-                queue = [c for c in turn.tool_calls
-                         if c.name in caps or c.name == "discover_new_capability"]
-                if not queue:
-                    why = (f"model picked unknown capability {turn.tool_calls[0].name!r}"
-                           if turn.tool_calls else "no capability matched that request")
-                    self._emit({"type": "agent", "entry": {"type": "stop", "reason": why}})
+                def _ev(e: dict):
+                    t = e.get("type")
+                    if t == "provider":
+                        rec["extra"].update(provider=e.get("provider"), model=e.get("model"))
+                        self._emit({"type": "agent", "entry": e})
+                    elif t == "task_meta":
+                        self._emit({"type": "meta", "mode": "ask",
+                                    **{k: v for k, v in e.items() if k != "type"}})
+                        self._shot(page)
+                    else:  # tool_call / answer / stop
+                        self._emit({"type": "agent", "entry": e})
+                        if t == "tool_call":
+                            self._shot(page)
+
+                res = assistant.handle(
+                    request_text, api_key=api_key, provider=provider,
+                    run_capability=lambda cap, a: self._run_capability(page, cap, a, False, {}),
+                    discover=lambda g, n: self._discover_on_page(
+                        page, g, target_url, n, app_name, api_key, provider),
+                    on_event=_ev, should_stop=self._stop.is_set)
+                self._shot(page)
+
+                if res.status == "no_match":
                     rec["status"] = "no_match"
-                    self._emit({"type": "done", "ok": bool(turn.text), "status": "no_match",
-                                "summary": turn.text or why, "detail": None if turn.text else why})
+                    self._emit({"type": "done", "ok": bool(res.answer), "status": "no_match",
+                                "summary": res.answer,
+                                "detail": None if res.answer else "no capability matched that request"})
                     return
 
-                merged: dict = {}
-                ran: list[dict] = []
-                learned: list[str] = []
-                tool_results: list[tuple[str, str]] = []
-                final_status, final_code, final_detail = "success", None, None
-                for c in queue:
-                    if c.name == "discover_new_capability":
-                        goal = (c.input.get("goal") or request_text).strip()
-                        name = (c.input.get("name") or "discovered").strip() or "discovered"
-                        self._emit({"type": "agent", "entry": {"type": "tool_call",
-                                    "name": "discover_new_capability",
-                                    "input": {"goal": goal, "name": name}}})
-                        res, saved, cid = self._discover_on_page(page, goal, target_url, name,
-                                                                 app_name, api_key, provider)
-                        outs, status, code, detail = res.outputs, res.status, res.business_outcome_code, None
-                        ran.append({"task": f"discover:{cid}", "goal": goal, "status": status, "code": code})
-                        if saved:
-                            learned.append(saved)
-                        tool_results.append((c.id, json.dumps({
-                            "status": status, "business_outcome_code": code,
-                            "outputs": redact(outs, sink="evidence"),
-                            "learned_capability": saved}, default=str)))
-                    else:
-                        cap = caps[c.name]
-                        args = {k: str(v) for k, v in (c.input or {}).items()}
-                        self._emit({"type": "agent", "entry": {"type": "tool_call",
-                                    "name": c.name, "input": args}})
-                        self._emit({"type": "meta", "mode": "ask", "capability": c.name,
-                                    "risk": cap.risk_level, "lifecycle": cap.lifecycle, "params": args})
-                        result = self._run_capability(page, cap, args, False, {})
-                        outs, status, code, detail = (result.outputs, result.status,
-                                                      result.business_outcome_code, result.failure_detail)
-                        ran.append({"task": c.name, "params": args, "status": status, "code": code})
-                        tool_results.append((c.id, json.dumps({
-                            "status": status, "business_outcome_code": code,
-                            "outputs": redact(outs, sink="evidence")}, default=str)))
-                    self._shot(page)
-                    merged.update(outs or {})
-                    if status != "success":
-                        final_status, final_code, final_detail = status, code, detail
-                        break
-
-                # respond to any tool calls we didn't get to, so the phrasing call has a clean history
-                done_ids = {c.id for c in queue[:len(ran)]}
-                for c in turn.tool_calls:
-                    if c.id not in done_ids:
-                        tool_results.append((c.id, "skipped: not run this turn"))
-
-                rec.update(capability_id=", ".join(x["task"] for x in ran),
-                           params={"tasks": ran}, status=final_status, outputs=merged,
-                           business_outcome_code=final_code, failure_detail=final_detail)
-                rec["extra"]["picked"] = [x["task"] for x in ran]
-                if learned:
-                    rec["extra"]["learned"] = learned
-
-                answer = ""
-                try:  # one plain-language answer over every task's result - best-effort
-                    session.add_tool_results(tool_results)
-                    answer = session.complete(_ASK_PHRASE_SYSTEM, 280, force_tool=False).text
-                except Exception:
-                    pass
-                if answer:
-                    self._emit({"type": "agent", "entry": {"type": "answer", "text": answer}})
-                done = {"type": "done", "ok": final_status == "success",
-                        "status": final_status, "code": final_code,
-                        "outputs": self._redacted_outputs(merged),
-                        "failure_detail": final_detail, "summary": answer,
+                names = [t.task for t in res.tasks]
+                rec.update(capability_id=", ".join(names) or "-",
+                           params={"tasks": [vars(t) for t in res.tasks]},
+                           status=res.status, outputs=res.outputs,
+                           business_outcome_code=res.business_outcome_code,
+                           failure_detail=res.failure_detail)
+                rec["extra"]["picked"] = names
+                if res.learned:
+                    rec["extra"]["learned"] = res.learned
+                done = {"type": "done", "ok": res.status == "success", "status": res.status,
+                        "code": res.business_outcome_code,
+                        "outputs": self._redacted_outputs(res.outputs),
+                        "failure_detail": res.failure_detail, "summary": res.answer,
                         "capability_id": rec["capability_id"]}
-                if learned:
-                    done["capability_path"] = learned[-1]  # newest -> UI pulls it into Replay
+                if res.learned:
+                    done["capability_path"] = res.learned[-1]  # newest -> UI pulls it into Replay
                 self._emit(done)
             except _Stopped:
                 rec["status"] = "stopped"

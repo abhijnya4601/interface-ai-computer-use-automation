@@ -141,9 +141,9 @@ def test_run_ask_starts_and_forwards_request_and_provider(client, monkeypatch):
 
 
 def test_ask_tool_list_includes_the_discover_escape_hatch():
+    from agent_interface.assistant import DISCOVER_TOOL
     from agent_interface.catalog import build_tool_catalog
-    from webconsole.runner import _DISCOVER_TOOL
-    names = [t["name"] for t in build_tool_catalog()] + [_DISCOVER_TOOL["name"]]
+    names = [t["name"] for t in build_tool_catalog()] + [DISCOVER_TOOL["name"]]
     assert "discover_new_capability" in names
     assert "lookup_member_balance" in names
 
@@ -346,11 +346,13 @@ def test_rules_delete_removes_by_id(client, isolated_rules):
 
 def test_inferred_checkpoint_prefers_element_present_over_a_parameterised_url_segment():
     from types import SimpleNamespace as NS
+
+    from agent_interface import assistant
     rec = NS(steps=[
         NS(action_type="click", target=NS(primary={"role": "link", "name": "open"})),
         NS(action_type="extract", target=NS(primary={"role": "status", "name": "Current balance"})),
     ])
-    cp = runner._inferred_checkpoint("http://h/acct/12345", "http://h/find", rec, [])
+    cp = assistant.infer_checkpoint("http://h/acct/12345", "http://h/find", rec, [])
     assert cp.type == "element_present"
     assert cp.locator == {"role": "status", "name": "Current balance"}
     assert cp.provenance == "proposed"
@@ -358,26 +360,30 @@ def test_inferred_checkpoint_prefers_element_present_over_a_parameterised_url_se
 
 def test_inferred_checkpoint_skips_an_all_digit_id_segment():
     from types import SimpleNamespace as NS
+
+    from agent_interface import assistant
     rec = NS(steps=[NS(action_type="click", target=None)])
     # /acct/12345 and /acct/77777 must share a stable anchor -> "acct", not the member id
-    cp = runner._inferred_checkpoint("http://h/acct/77777", "http://h/find", rec, [])
+    cp = assistant.infer_checkpoint("http://h/acct/77777", "http://h/find", rec, [])
     assert cp.type == "url_match" and cp.expected == "acct"
 
 
 def test_inferred_checkpoint_skips_a_typed_param_literal():
     from types import SimpleNamespace as NS
+
+    from agent_interface import assistant
     rec = NS(steps=[NS(action_type="click", target=None)])
-    cp = runner._inferred_checkpoint(
+    cp = assistant.infer_checkpoint(
         "http://h/x/JORDAN", "http://h/find", rec,
         [{"type": "tool_call", "input": {"param_name": "who", "text": "JORDAN"}}])
     assert cp.expected == "x"
 
 
-def test_unique_capability_id_keeps_a_fresh_name_but_suffixes_a_collision(tmp_path, monkeypatch):
-    monkeypatch.setattr(runner, "CAPS_DIR", tmp_path)
-    assert runner._unique_capability_id("brand_new") == "brand_new"
+def test_unique_capability_id_keeps_a_fresh_name_but_suffixes_a_collision(tmp_path):
+    from agent_interface import assistant
+    assert assistant.unique_capability_id("brand_new", tmp_path) == "brand_new"
     (tmp_path / "taken.v1.json").write_text("{}")
-    got = runner._unique_capability_id("taken")
+    got = assistant.unique_capability_id("taken", tmp_path)
     assert got.startswith("taken__") and got != "taken"
 
 

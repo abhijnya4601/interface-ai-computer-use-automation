@@ -227,10 +227,12 @@ make console    # terminal 3 - prints  http://localhost:5055/?key=<token>
   to the selected target.
 - **Replay mode** works with no API key - pick a compiled capability, set `member_id`
   (`12345` ok · `88888` not found · `99999` locked · `77777` data missing), Run.
-- **Ask mode** - type a request in plain English; the model picks **one capability the console
-  already knows** from the tool catalog (`agent_interface/catalog.py`), fills its typed inputs,
-  and runs it deterministically with the same escalation gate. Nothing new is learned (that's
-  Discover). Needs a key.
+- **Chatbot mode** - type a request in plain English. `agent_interface/assistant.py` plans it
+  into tasks and carries each out **in order**: a task that matches a capability the system
+  already has runs deterministically (no model call); a task with none triggers a discovery run
+  and the new capability is saved for next time. Every task's output merges into one answer.
+  One planning call + one phrasing call per request, regardless of task count. Needs a key.
+  The same orchestration runs headless from a CLI: `python scripts/assistant_cli.py "..."`.
 - **Discover mode** - type a goal, watch the model loop. Ask and Discover both run on
   **Anthropic, OpenAI, or Google (Gemini)** - auto-detected from the key prefix (`sk-ant-` /
   `sk-` / `AIza`) or picked in the UI; same prompt, tools and loop for all three. The key comes
