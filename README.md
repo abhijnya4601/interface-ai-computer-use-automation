@@ -1,15 +1,19 @@
 # Computer-use automation: hands for an AI agent
 
-A small end-to-end system where a language model drives a real, messy web app to get a job
-done, that successful run is turned into a typed and versioned artifact, and the artifact is
-then replayed deterministically with no model in the loop. Around that core there is
-runtime-error and business-outcome handling, safety guardrails, redaction, a human-in-the-loop
-escalation path, and a link-shareable web console that lets someone watch all of it happen
-live.
+## Live console
 
-This branch is where all the current work lives:
+**Running instance: https://live-console-2y6p.onrender.com**
 
-> **https://github.com/abhijnya4601/interface-ai-computer-use-automation/tree/abhijnya/live-console**
+It is link-only, so the URL needs an access token on it: `https://live-console-2y6p.onrender.com/?key=<token>`.
+The full link with the token is shared separately, not committed here. The first request after
+a quiet period takes about a minute to wake the free instance, then it is fast. The Replay tab
+needs no key; the Chatbot and Discover tabs take an Anthropic, OpenAI, or Google key that you
+paste in and that is never stored.
+
+## Repository
+
+All the current work is on the **`abhijnya/live-console`** branch:
+https://github.com/abhijnya4601/interface-ai-computer-use-automation/tree/abhijnya/live-console
 
 ```bash
 git clone https://github.com/abhijnya4601/interface-ai-computer-use-automation.git
@@ -17,12 +21,14 @@ cd interface-ai-computer-use-automation
 git checkout abhijnya/live-console
 ```
 
-**Try it live.** A running instance of the console is hosted on Render at
-`https://live-console-2y6p.onrender.com`. It is link-only, so it needs an access token on the
-URL (`?key=<token>`); the full link is shared separately. The first request after a quiet
-period takes about a minute to wake the free instance, then it is fast. The Replay tab needs no
-key of your own; the Chatbot and Discover tabs take an Anthropic, OpenAI, or Google key that
-you paste in and that is never stored.
+## What it is
+
+A small end-to-end system where a language model drives a real, messy web app to get a job
+done, that successful run is turned into a typed and versioned artifact, and the artifact is
+then replayed deterministically with no model in the loop. Around that core there is
+runtime-error and business-outcome handling, safety guardrails, redaction, a human-in-the-loop
+escalation path, and a link-shareable web console that lets someone watch all of it happen
+live.
 
 ---
 
