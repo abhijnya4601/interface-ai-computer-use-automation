@@ -188,7 +188,11 @@ class LiveRun:
                 capability_id=capability_id, version="1.0.0", run_id=res.run_id,
                 target_url=target_url, risk_level=risk, recorder=res.recorder,
                 outputs=res.outputs, checkpoint=checkpoint, description=goal, app_name=app_name)
-            saved = str(save_capability(cap).relative_to(REPO))
+            written = save_capability(cap)
+            try:
+                saved = str(written.relative_to(REPO))       # tidy for the in-repo default
+            except ValueError:
+                saved = str(written)                         # CAPABILITIES_DIR is a mounted volume
             self._emit({"type": "compiled", "path": saved, "unratified": cap.unratified_rules()})
         return res, saved, capability_id
 
