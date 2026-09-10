@@ -17,6 +17,8 @@ evidence/_encryption_demo/
 # runtime queues/ledgers written by the running system, not deliverable evidence
 evidence/redaction_review.jsonl
 evidence/replay_ledger.jsonl
+evidence/runs.jsonl
+runs.jsonl
 
 # capabilities discovered through the live web console (webconsole/) - the 5 curated ones have
 # no "__" and don't match; a local console run shouldn't clutter git status
