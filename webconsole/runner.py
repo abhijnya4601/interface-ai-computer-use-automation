@@ -31,10 +31,11 @@ from replay.engine import _precheck, _run_on_page
 _ASK_SYSTEM = (
     "You are a back-office assistant for a bank. Most tools run a pre-recorded, deterministic "
     "UI automation (a 'capability') against the servicing console and return a structured "
-    "result. Choose the one tool and the typed arguments that match the user's request. If "
-    "none of the pre-recorded tools fit, call `discover_new_capability` with a precise goal so "
-    "a new one is learned for this request. Only reply in plain text (no tool) if the request "
-    "cannot be done against this app at all."
+    "result. ALWAYS prefer an existing tool: if one matches the user's request even loosely "
+    "(e.g. a tool that reads the same field, for a different member), call it with the right "
+    "typed arguments -- a tool named for member 12345 still works for any member id. Call "
+    "`discover_new_capability` ONLY when no existing tool reads/does the thing being asked. "
+    "Only reply in plain text (no tool) if the request cannot be done against this app at all."
 )
 _ASK_PHRASE_SYSTEM = (
     "Answer the user in one or two sentences, stating the concrete outcome: the value(s) "

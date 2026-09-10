@@ -394,6 +394,22 @@ def test_capabilities_dir_is_overridable_by_env(tmp_path):
     assert out.stdout.strip() == str(tmp_path)
 
 
+def test_chatbot_catalog_honours_capabilities_dir_env(tmp_path):
+    # the Chatbot's tool list must see capabilities discovery SAVED to CAPABILITIES_DIR,
+    # not only the in-repo ones -- otherwise it re-discovers something it already has.
+    import subprocess
+    import sys
+    (tmp_path / "x.json").write_text(
+        (runner.REPO / "capabilities/lookup_member_balance.v1.json").read_text())
+    out = subprocess.run(
+        [sys.executable, "-c",
+         "import agent_interface.catalog as c; print(c.CAPABILITIES_DIR)"],
+        cwd=str(runner.REPO), env={"CAPABILITIES_DIR": str(tmp_path), "PATH": os.environ["PATH"]},
+        capture_output=True, text=True, check=True,
+    )
+    assert out.stdout.strip() == str(tmp_path)
+
+
 def test_catalog_lists_the_real_capabilities_with_their_inputs():
     cat = runner.catalog()
     ids = {c["id"] for c in cat["capabilities"]}

@@ -7,12 +7,19 @@ that could drift from what replay() actually accepts.
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from agent.recorder import _MEMBER_ID_RE
 from artifact.schema import Capability
 
-CAPABILITIES_DIR = Path(__file__).parent.parent / "capabilities"
+# Same source of truth as agent/compiler.py: honour CAPABILITIES_DIR so the catalog sees
+# capabilities discovery has SAVED there (a mounted volume on Render/Fly), not just the
+# in-repo ones. Without this the Chatbot never sees a capability it just discovered and
+# re-runs discovery every time.
+CAPABILITIES_DIR = Path(
+    os.environ.get("CAPABILITIES_DIR") or (Path(__file__).parent.parent / "capabilities")
+)
 
 
 def _generalize_description(description: str, input_schema: dict) -> str:
