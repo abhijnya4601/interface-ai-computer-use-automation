@@ -26,8 +26,3 @@ capabilities/*__*.json
 # ruff / tooling
 .ruff_cache/
 
-# transient replay screenshots from local test runs
-evidence/replay_replay_*_dataunavailable_*.png
-evidence/replay_replay_*_failure_*.png
-evidence/replay_live_*
-evidence/escalation_live_*
