@@ -31,11 +31,12 @@ from replay.engine import _precheck, _run_on_page
 _ASK_SYSTEM = (
     "You are a back-office assistant for a bank. Most tools run a pre-recorded, deterministic "
     "UI automation (a 'capability') against the servicing console and return a structured "
-    "result. ALWAYS prefer an existing tool: if one matches the user's request even loosely "
+    "result. ALWAYS prefer existing tools: if one matches the user's request even loosely "
     "(e.g. a tool that reads the same field, for a different member), call it with the right "
-    "typed arguments -- a tool named for member 12345 still works for any member id. Call "
-    "`discover_new_capability` ONLY when no existing tool reads/does the thing being asked. "
-    "Only reply in plain text (no tool) if the request cannot be done against this app at all."
+    "typed arguments -- a tool named for member 12345 still works for any member id. If the "
+    "request asks for more than one thing (e.g. the name AND the balance), call every tool it "
+    "needs, in order. Call `discover_new_capability` ONLY when no existing tool covers a part "
+    "of the request. Only reply in plain text (no tool) if the request cannot be done here."
 )
 _ASK_PHRASE_SYSTEM = (
     "Answer the user in one or two sentences, stating the concrete outcome: the value(s) "
@@ -281,11 +282,12 @@ class LiveRun:
 
     def run_ask(self, request_text: str, api_key: str | None, provider: str | None,
                 target_url: str, app_name: str):
-        """Plain-English request -> the model either picks one existing capability + typed args
-        from the catalog (agent_interface/catalog.py) and runs it deterministically, OR, if
-        nothing fits, calls `discover_new_capability` and a NEW capability is learned for the
-        request (same discovery loop as Discover mode). Same escalation gate throughout, then a
-        one-sentence answer."""
+        """Plain-English request -> the model picks one or more existing capabilities from the
+        catalog (agent_interface/catalog.py) and each runs deterministically in order on the
+        same page (a compound request like "name AND balance" needs two); OR, if nothing fits,
+        it calls `discover_new_capability` and a NEW capability is learned (same discovery loop
+        as Discover mode). Same escalation gate throughout, then one plain-language answer over
+        all the results."""
         from agent.llm import make_session
         from agent_interface.catalog import build_tool_catalog, load_capabilities
         rec = {"kind": "ask", "capability_id": "-", "status": "error", "params": {},
@@ -325,43 +327,67 @@ class LiveRun:
                                 "capability_path": saved})
                     return
 
-                if call is None or call.name not in caps:
-                    why = (f"model picked unknown capability {call.name!r}" if call
-                           else "no capability matched that request")
+                # Every capability the model chose this turn -- a compound request ("read the
+                # name AND the balance") maps to more than one. Run them in order on the same
+                # page; stop at the first that doesn't cleanly succeed.
+                runnable = [c for c in turn.tool_calls if c.name in caps]
+                if not runnable:
+                    why = (f"model picked unknown capability {turn.tool_calls[0].name!r}"
+                           if turn.tool_calls else "no capability matched that request")
                     self._emit({"type": "agent", "entry": {"type": "stop", "reason": why}})
                     rec["status"] = "no_match"
                     self._emit({"type": "done", "ok": bool(turn.text), "status": "no_match",
                                 "summary": turn.text or why, "detail": None if turn.text else why})
                     return
-                cap = caps[call.name]
-                args = {k: str(v) for k, v in (call.input or {}).items()}
-                rec.update(capability_id=call.name, params=args)
-                rec["extra"]["picked"] = call.name
-                self._emit({"type": "agent", "entry": {"type": "tool_call",
-                            "name": call.name, "input": args}})
-                self._emit({"type": "meta", "mode": "ask", "capability": call.name,
-                            "risk": cap.risk_level, "lifecycle": cap.lifecycle, "params": args})
-                result = self._run_capability(page, cap, args, False, {})
-                rec.update(status=result.status, outputs=result.outputs,
-                           business_outcome_code=result.business_outcome_code,
-                           failure_detail=result.failure_detail)
-                self._shot(page)
-                answer = ""
-                try:  # plain-language phrasing - best-effort, non-forced tool choice
-                    session.add_tool_results([(call.id, json.dumps({
+
+                merged: dict = {}
+                ran: list[dict] = []
+                tool_results: list[tuple[str, str]] = []
+                final_status, final_code, final_detail = "success", None, None
+                for c in runnable:
+                    cap = caps[c.name]
+                    args = {k: str(v) for k, v in (c.input or {}).items()}
+                    self._emit({"type": "agent", "entry": {"type": "tool_call",
+                                "name": c.name, "input": args}})
+                    self._emit({"type": "meta", "mode": "ask", "capability": c.name,
+                                "risk": cap.risk_level, "lifecycle": cap.lifecycle, "params": args})
+                    result = self._run_capability(page, cap, args, False, {})
+                    self._shot(page)
+                    merged.update(result.outputs or {})
+                    ran.append({"capability": c.name, "params": args, "status": result.status,
+                                "code": result.business_outcome_code})
+                    tool_results.append((c.id, json.dumps({
                         "status": result.status,
                         "business_outcome_code": result.business_outcome_code,
-                        "outputs": redact(result.outputs, sink="evidence")}, default=str))])
-                    answer = session.complete(_ASK_PHRASE_SYSTEM, 220, force_tool=False).text
+                        "outputs": redact(result.outputs, sink="evidence")}, default=str)))
+                    if result.status != "success":
+                        final_status, final_code, final_detail = (
+                            result.status, result.business_outcome_code, result.failure_detail)
+                        break
+                # respond to any tool calls we didn't run, so the phrasing call has a clean history
+                ran_ids = {c.id for c in runnable[:len(ran)]}
+                for c in turn.tool_calls:
+                    if c.id not in ran_ids:
+                        tool_results.append((c.id, "skipped: not run this turn"))
+
+                rec.update(capability_id=", ".join(x["capability"] for x in ran),
+                           params={"steps": ran}, status=final_status, outputs=merged,
+                           business_outcome_code=final_code, failure_detail=final_detail)
+                rec["extra"]["picked"] = [x["capability"] for x in ran]
+
+                answer = ""
+                try:  # plain-language phrasing over ALL the results - best-effort
+                    session.add_tool_results(tool_results)
+                    answer = session.complete(_ASK_PHRASE_SYSTEM, 260, force_tool=False).text
                 except Exception:
                     pass
                 if answer:
                     self._emit({"type": "agent", "entry": {"type": "answer", "text": answer}})
-                self._emit({"type": "done", "ok": True, "status": result.status,
-                            "code": result.business_outcome_code,
-                            "outputs": self._redacted_outputs(result.outputs),
-                            "failure_detail": result.failure_detail, "summary": answer,
-                            "capability_id": call.name})
+                self._emit({"type": "done", "ok": final_status == "success",
+                            "status": final_status, "code": final_code,
+                            "outputs": self._redacted_outputs(merged),
+                            "failure_detail": final_detail, "summary": answer,
+                            "capability_id": rec["capability_id"]})
             except _Stopped:
                 rec["status"] = "stopped"
                 self._emit({"type": "done", "ok": False, "status": "stopped"})
