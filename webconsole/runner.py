@@ -34,9 +34,10 @@ _ASK_SYSTEM = (
     "result. ALWAYS prefer existing tools: if one matches the user's request even loosely "
     "(e.g. a tool that reads the same field, for a different member), call it with the right "
     "typed arguments -- a tool named for member 12345 still works for any member id. If the "
-    "request asks for more than one thing (e.g. the name AND the balance), call every tool it "
-    "needs, in order. Call `discover_new_capability` ONLY when no existing tool covers a part "
-    "of the request. Only reply in plain text (no tool) if the request cannot be done here."
+    "request has several tasks (e.g. the name AND the balance), call one tool per task, in the "
+    "order asked -- an existing tool where one fits, `discover_new_capability` (with a precise "
+    "goal for just that task) where none does. You may mix both in one response. Only reply in "
+    "plain text (no tool) if the request cannot be done against this app at all."
 )
 _ASK_PHRASE_SYSTEM = (
     "Answer the user in one or two sentences, stating the concrete outcome: the value(s) "
@@ -305,33 +306,16 @@ class LiveRun:
                 self._emit({"type": "agent", "entry": {"type": "provider",
                             "provider": session.provider, "model": session.model}})
                 session.add_user_text(request_text)
-                turn = session.complete(_ASK_SYSTEM, 500, force_tool=False)
+                turn = session.complete(_ASK_SYSTEM, 700, force_tool=False)
                 caps = load_capabilities()
-                call = turn.tool_calls[0] if turn.tool_calls else None
 
-                if call is not None and call.name == "discover_new_capability":
-                    goal = (call.input.get("goal") or request_text).strip()
-                    name = (call.input.get("name") or "discovered").strip() or "discovered"
-                    self._emit({"type": "agent", "entry": {"type": "tool_call",
-                                "name": "discover_new_capability", "input": {"goal": goal, "name": name}}})
-                    res, saved, cid = self._discover_on_page(page, goal, target_url, name,
-                                                             app_name, api_key, provider)
-                    rec.update(capability_id=cid, params={"goal": goal}, status=res.status,
-                               outputs=res.outputs, business_outcome_code=res.business_outcome_code)
-                    rec["extra"].update(picked="discover_new_capability",
-                                        capability_path=saved, tokens=res.token_usage)
-                    self._emit({"type": "done", "ok": res.status in ("success", "business_outcome"),
-                                "status": res.status, "code": res.business_outcome_code,
-                                "summary": res.summary,
-                                "outputs": self._redacted_outputs(res.outputs),
-                                "capability_path": saved})
-                    return
-
-                # Every capability the model chose this turn -- a compound request ("read the
-                # name AND the balance") maps to more than one. Run them in order on the same
-                # page; stop at the first that doesn't cleanly succeed.
-                runnable = [c for c in turn.tool_calls if c.name in caps]
-                if not runnable:
+                # Each task the model chose, IN ORDER. A task with a matching capability runs
+                # deterministically; one without triggers discovery (the LLM works it out and
+                # a new capability is saved). Then on to the next task the same way. Stop at the
+                # first that doesn't cleanly succeed.
+                queue = [c for c in turn.tool_calls
+                         if c.name in caps or c.name == "discover_new_capability"]
+                if not queue:
                     why = (f"model picked unknown capability {turn.tool_calls[0].name!r}"
                            if turn.tool_calls else "no capability matched that request")
                     self._emit({"type": "agent", "entry": {"type": "stop", "reason": why}})
@@ -342,52 +326,75 @@ class LiveRun:
 
                 merged: dict = {}
                 ran: list[dict] = []
+                learned: list[str] = []
                 tool_results: list[tuple[str, str]] = []
                 final_status, final_code, final_detail = "success", None, None
-                for c in runnable:
-                    cap = caps[c.name]
-                    args = {k: str(v) for k, v in (c.input or {}).items()}
-                    self._emit({"type": "agent", "entry": {"type": "tool_call",
-                                "name": c.name, "input": args}})
-                    self._emit({"type": "meta", "mode": "ask", "capability": c.name,
-                                "risk": cap.risk_level, "lifecycle": cap.lifecycle, "params": args})
-                    result = self._run_capability(page, cap, args, False, {})
+                for c in queue:
+                    if c.name == "discover_new_capability":
+                        goal = (c.input.get("goal") or request_text).strip()
+                        name = (c.input.get("name") or "discovered").strip() or "discovered"
+                        self._emit({"type": "agent", "entry": {"type": "tool_call",
+                                    "name": "discover_new_capability",
+                                    "input": {"goal": goal, "name": name}}})
+                        res, saved, cid = self._discover_on_page(page, goal, target_url, name,
+                                                                 app_name, api_key, provider)
+                        outs, status, code, detail = res.outputs, res.status, res.business_outcome_code, None
+                        ran.append({"task": f"discover:{cid}", "goal": goal, "status": status, "code": code})
+                        if saved:
+                            learned.append(saved)
+                        tool_results.append((c.id, json.dumps({
+                            "status": status, "business_outcome_code": code,
+                            "outputs": redact(outs, sink="evidence"),
+                            "learned_capability": saved}, default=str)))
+                    else:
+                        cap = caps[c.name]
+                        args = {k: str(v) for k, v in (c.input or {}).items()}
+                        self._emit({"type": "agent", "entry": {"type": "tool_call",
+                                    "name": c.name, "input": args}})
+                        self._emit({"type": "meta", "mode": "ask", "capability": c.name,
+                                    "risk": cap.risk_level, "lifecycle": cap.lifecycle, "params": args})
+                        result = self._run_capability(page, cap, args, False, {})
+                        outs, status, code, detail = (result.outputs, result.status,
+                                                      result.business_outcome_code, result.failure_detail)
+                        ran.append({"task": c.name, "params": args, "status": status, "code": code})
+                        tool_results.append((c.id, json.dumps({
+                            "status": status, "business_outcome_code": code,
+                            "outputs": redact(outs, sink="evidence")}, default=str)))
                     self._shot(page)
-                    merged.update(result.outputs or {})
-                    ran.append({"capability": c.name, "params": args, "status": result.status,
-                                "code": result.business_outcome_code})
-                    tool_results.append((c.id, json.dumps({
-                        "status": result.status,
-                        "business_outcome_code": result.business_outcome_code,
-                        "outputs": redact(result.outputs, sink="evidence")}, default=str)))
-                    if result.status != "success":
-                        final_status, final_code, final_detail = (
-                            result.status, result.business_outcome_code, result.failure_detail)
+                    merged.update(outs or {})
+                    if status != "success":
+                        final_status, final_code, final_detail = status, code, detail
                         break
-                # respond to any tool calls we didn't run, so the phrasing call has a clean history
-                ran_ids = {c.id for c in runnable[:len(ran)]}
+
+                # respond to any tool calls we didn't get to, so the phrasing call has a clean history
+                done_ids = {c.id for c in queue[:len(ran)]}
                 for c in turn.tool_calls:
-                    if c.id not in ran_ids:
+                    if c.id not in done_ids:
                         tool_results.append((c.id, "skipped: not run this turn"))
 
-                rec.update(capability_id=", ".join(x["capability"] for x in ran),
-                           params={"steps": ran}, status=final_status, outputs=merged,
+                rec.update(capability_id=", ".join(x["task"] for x in ran),
+                           params={"tasks": ran}, status=final_status, outputs=merged,
                            business_outcome_code=final_code, failure_detail=final_detail)
-                rec["extra"]["picked"] = [x["capability"] for x in ran]
+                rec["extra"]["picked"] = [x["task"] for x in ran]
+                if learned:
+                    rec["extra"]["learned"] = learned
 
                 answer = ""
-                try:  # plain-language phrasing over ALL the results - best-effort
+                try:  # one plain-language answer over every task's result - best-effort
                     session.add_tool_results(tool_results)
-                    answer = session.complete(_ASK_PHRASE_SYSTEM, 260, force_tool=False).text
+                    answer = session.complete(_ASK_PHRASE_SYSTEM, 280, force_tool=False).text
                 except Exception:
                     pass
                 if answer:
                     self._emit({"type": "agent", "entry": {"type": "answer", "text": answer}})
-                self._emit({"type": "done", "ok": final_status == "success",
-                            "status": final_status, "code": final_code,
-                            "outputs": self._redacted_outputs(merged),
-                            "failure_detail": final_detail, "summary": answer,
-                            "capability_id": rec["capability_id"]})
+                done = {"type": "done", "ok": final_status == "success",
+                        "status": final_status, "code": final_code,
+                        "outputs": self._redacted_outputs(merged),
+                        "failure_detail": final_detail, "summary": answer,
+                        "capability_id": rec["capability_id"]}
+                if learned:
+                    done["capability_path"] = learned[-1]  # newest -> UI pulls it into Replay
+                self._emit(done)
             except _Stopped:
                 rec["status"] = "stopped"
                 self._emit({"type": "done", "ok": False, "status": "stopped"})
