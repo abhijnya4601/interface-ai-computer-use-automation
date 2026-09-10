@@ -1,6 +1,6 @@
 """
 Builds a Claude tool-use catalog directly from the real, compiled capabilities in
-/capabilities/ — no separate registry to keep in sync. Each Capability's own `input_schema`
+/capabilities/ - no separate registry to keep in sync. Each Capability's own `input_schema`
 is already `{param_name: {"type": ..., "description": ...}}`, which is exactly the shape a
 JSON-Schema `properties` object needs, so the mapping is direct rather than a translation layer
 that could drift from what replay() actually accepts.

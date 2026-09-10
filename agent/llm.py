@@ -3,13 +3,13 @@ Provider-agnostic backend for the discovery tool-use loop.
 
 Discovery needs very little from a model: send a system prompt + a growing transcript + a
 fixed set of tools, get back either text or a tool call, feed the tool's result back, repeat
-(agent/discovery.py). Three providers implement exactly that here — Anthropic (Claude),
-OpenAI (GPT), and Google (Gemini) — behind one small `_Session` interface, so whoever is
+(agent/discovery.py). Three providers implement exactly that here - Anthropic (Claude),
+OpenAI (GPT), and Google (Gemini) - behind one small `_Session` interface, so whoever is
 driving the console can bring whichever key they already have.
 
 The tool *schemas* are authored once, in Anthropic form (agent/tools.py); each session
 translates them to its provider's function-calling shape. Each session also owns its own
-conversation history in the provider's native format — the loop never sees it.
+conversation history in the provider's native format - the loop never sees it.
 
 SDKs for OpenAI and Gemini are imported lazily inside their session classes, so a
 replay-only or Anthropic-only deployment doesn't need them installed.
@@ -58,7 +58,7 @@ def detect_provider(api_key: str, explicit: str | None = None) -> str:
     """Which provider a key belongs to. `explicit` (anything but None/"auto") wins outright."""
     if explicit and explicit not in ("auto", ""):
         if explicit not in DEFAULT_MODELS:
-            raise ValueError(f"unknown provider {explicit!r} — anthropic / openai / gemini")
+            raise ValueError(f"unknown provider {explicit!r} - anthropic / openai / gemini")
         return explicit
     k = (api_key or "").strip()
     if k.startswith("sk-ant-"):
@@ -68,7 +68,7 @@ def detect_provider(api_key: str, explicit: str | None = None) -> str:
     if k.startswith("sk-"):  # sk-, sk-proj-, ...
         return "openai"
     raise ValueError(
-        "couldn't tell which provider this key is for — pick one explicitly "
+        "couldn't tell which provider this key is for - pick one explicitly "
         "(keys normally start sk-ant- for Anthropic, sk- for OpenAI, AIza for Google)"
     )
 

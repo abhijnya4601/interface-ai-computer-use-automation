@@ -1,9 +1,9 @@
 """
-`replay_many` — run one capability against many parameter sets, without paying the per-run
+`replay_many` - run one capability against many parameter sets, without paying the per-run
 browser launch cost every time.
 
 Two modes:
-  - `concurrency == 1` (default): a single warm `BrowserPool` — one Chromium, an isolated
+  - `concurrency == 1` (default): a single warm `BrowserPool` - one Chromium, an isolated
     `new_context()` per run, reused. A 400-member batch launches the browser once instead of
     400 times. Sequential (Playwright's sync API isn't safe to share across threads).
   - `concurrency > 1`: a thread pool, each worker calling `replay()` with its own

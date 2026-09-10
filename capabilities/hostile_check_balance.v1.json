@@ -1,0 +1,234 @@
+{
+  "schema_version": "1.1",
+  "lifecycle": "draft",
+  "verification": null,
+  "capability_id": "hostile_check_balance",
+  "version": "1.0.0",
+  "created_from_run_id": "hand_authored_hostile_dom",
+  "description": "On the hostile-DOM servicing app, look up a member and read their current balance.",
+  "target": {
+    "app_name": "hostile-dom",
+    "entry_point": "http://localhost:5051/find",
+    "surface_type": "legacy_web"
+  },
+  "risk_level": "safe",
+  "input_schema": {
+    "member_id": {
+      "type": "string",
+      "description": "the member id to look up (12345 ok / 88888 not found / 99999 locked / 77777 data missing)"
+    }
+  },
+  "output_schema": {
+    "current_balance": {
+      "type": "string"
+    }
+  },
+  "checkpoint": {
+    "type": "element_present",
+    "locator": {
+      "role": "status",
+      "name": "Current balance"
+    },
+    "expected": "present",
+    "provenance": "curated"
+  },
+  "steps": [
+    {
+      "step_id": "s1",
+      "action_type": "navigate",
+      "target": null,
+      "value": "http://localhost:5051/find",
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 12000,
+        "retry_count": 3,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": [
+        {
+          "condition": "page contains 'Service temporarily unavailable'",
+          "classification": "recoverable",
+          "code": "SERVICE_UNAVAILABLE",
+          "handling": "the app returned its declared maintenance page (503); a known transient state, not a broken locator - stop cleanly as recoverable rather than failing hard",
+          "provenance": "curated"
+        }
+      ],
+      "ready_when": null,
+      "extract_contract": null
+    },
+    {
+      "step_id": "s2",
+      "action_type": "type",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "textbox",
+          "name": "Member ID or name"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Member ID or name"
+          }
+        ],
+        "reasoning": "the field has no <label for> - only aria-label='Member ID or name'. role='textbox' + that accessible name still resolves to exactly one element; class names (f f-q) and the unlinked 'Search' caption are ignored on purpose."
+      },
+      "value": {
+        "param_ref": "member_id"
+      },
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 12000,
+        "retry_count": 3,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": [
+        {
+          "condition": "page contains 'Service temporarily unavailable'",
+          "classification": "recoverable",
+          "code": "SERVICE_UNAVAILABLE",
+          "handling": "the entry navigation landed on the declared maintenance page (503); the field this step needs is not present because the app is in a known transient state - stop cleanly as recoverable rather than reporting a broken locator",
+          "provenance": "curated"
+        }
+      ],
+      "ready_when": null,
+      "extract_contract": null
+    },
+    {
+      "step_id": "s3",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "button",
+          "name": "Go"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Go"
+          }
+        ],
+        "reasoning": "'Go' is a <div role='button' tabindex='0'>, never a real <button>. The role attribute keeps it in the accessibility tree, so role='button' name='Go' still addresses it without depending on the div/class structure."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 12000,
+        "retry_count": 3,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": [
+        {
+          "condition": "page contains 'Service temporarily unavailable'",
+          "classification": "recoverable",
+          "code": "SERVICE_UNAVAILABLE",
+          "handling": "maintenance page mid-flow; stop cleanly as recoverable",
+          "provenance": "curated"
+        }
+      ],
+      "ready_when": null,
+      "extract_contract": null
+    },
+    {
+      "step_id": "s4",
+      "action_type": "click",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "link",
+          "name": "open"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "open"
+          }
+        ],
+        "reasoning": "the results 'table' is a grid of nested <div>s; the only stable anchor per row is the <a role='link'>open</a>. There is exactly one matching member row per valid member_id."
+      },
+      "value": null,
+      "extract_as": null,
+      "wait_policy": {
+        "timeout_ms": 12000,
+        "retry_count": 3,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": [
+        {
+          "condition": "page contains 'No matching member.'",
+          "classification": "business_outcome",
+          "code": "MEMBER_NOT_FOUND",
+          "handling": "search returned no row for this member_id; there is no 'open' link - treat as not found rather than a broken locator",
+          "provenance": "curated"
+        }
+      ],
+      "ready_when": null,
+      "extract_contract": null
+    },
+    {
+      "step_id": "s5",
+      "action_type": "extract",
+      "target": {
+        "strategy": "role_name",
+        "primary": {
+          "role": "status",
+          "name": "Current balance"
+        },
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "text": "Current balance"
+          }
+        ],
+        "reasoning": "the balance value is a bare <span> - its accessible name comes only from aria-labelledby pointing at the 'Current balance' caption span, and role='status'. Extract by that role+name; the nested div wrappers and class soup carry nothing stable."
+      },
+      "value": null,
+      "extract_as": "current_balance",
+      "wait_policy": {
+        "timeout_ms": 12000,
+        "retry_count": 3,
+        "retry_on": [
+          "transient_load"
+        ]
+      },
+      "expected_outcomes": [
+        {
+          "condition": "page contains 'This account is restricted'",
+          "classification": "business_outcome",
+          "code": "PERMISSION_DENIED",
+          "handling": "member exists but the account is locked; no balance is shown",
+          "provenance": "curated"
+        },
+        {
+          "condition": "page contains 'No member record found'",
+          "classification": "business_outcome",
+          "code": "MEMBER_NOT_FOUND",
+          "handling": "no member record at this URL",
+          "provenance": "curated"
+        }
+      ],
+      "ready_when": null,
+      "extract_contract": {
+        "pattern": "\\$[\\d,]+\\.\\d{2}",
+        "nonempty": true,
+        "placeholders": [
+          "",
+          "--",
+          "N/A",
+          "Not available"
+        ],
+        "reason": "a balance renders as a currency amount ($1,842.30). An empty value in this span means the page loaded and the status element is present, but the datum behind it did not resolve - that is data_unavailable, not a broken locator (this is exactly what ?inject=blank simulates).",
+        "provenance": "curated"
+      }
+    }
+  ]
+}

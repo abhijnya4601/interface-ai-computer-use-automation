@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
-  /* ============ Capability Foundry — a committed single-world "operator's terminal" ============ */
+  /* ============ Capability Foundry - a committed single-world "operator's terminal" ============ */
   :root{
-    --ground:#0e1418;        /* near-black, faint blue-green bias — the instrument ground */
+    --ground:#0e1418;        /* near-black, faint blue-green bias - the instrument ground */
     --ground-2:#131c22;      /* raised instrument surface */
     --ground-3:#1a262d;      /* inset well (console, code) */
     --hair:#26343d;          /* hairline dividers */
@@ -18,14 +18,14 @@
     --ink-1:#e8eef0;         /* primary text on ground */
     --ink-2:#9fb2ba;         /* secondary */
     --ink-3:#6c828c;         /* faint / captions */
-    --signal:#e8b23a;        /* brass amber — the one accent: current marker, the seam, key figures */
+    --signal:#e8b23a;        /* brass amber - the one accent: current marker, the seam, key figures */
     --signal-dim:#7a6224;
     --wire:#5fb3a3;          /* deterministic / verified / success semantic */
     --wire-dim:#2f5e57;
     --alarm:#d9694e;         /* hard failure / escalation pending */
     --alarm-dim:#6b3a30;
 
-    --paper:#f4f1e9;         /* the bank's document surface — a warm world inside the dark frame */
+    --paper:#f4f1e9;         /* the bank's document surface - a warm world inside the dark frame */
     --paper-line:#d9d2c2;
     --paper-ink:#1f2f3d;
     --paper-navy:#1b3a5c;
@@ -143,7 +143,7 @@
   .bank thead th{background:var(--paper-navy);color:#fff;font-size:10px;letter-spacing:.05em;text-transform:uppercase}
   .bank th[scope=row]{background:#f4f0e6;color:var(--paper-muted);width:150px;font-weight:600}
   .bank .bal{font-size:15px;font-weight:700;color:var(--paper-navy);font-variant-numeric:tabular-nums}
-  .bank .bal.empty::after{content:"— not returned —";font-size:11px;font-weight:500;color:var(--paper-muted)}
+  .bank .bal.empty::after{content:"- not returned -";font-size:11px;font-weight:500;color:var(--paper-muted)}
   .bank .msg{padding:9px 12px;border-radius:4px;border:1px solid;font-size:12.5px;margin:8px 0}
   .bank .msg.ok{background:var(--paper-ok-bg);color:var(--paper-ok-tx);border-color:var(--paper-ok-bd)}
   .bank .msg.no{background:var(--paper-no-bg);color:var(--paper-no-tx);border-color:var(--paper-no-bd)}
@@ -306,7 +306,7 @@
   <div class="wrap">
     <div class="lead">
       <span class="eyebrow">Give the agent a task</span>
-      <span class="hint">Pick one, or type your own — the agent explores a real (mock) core-banking app and casts a reusable capability.</span>
+      <span class="hint">Pick one, or type your own - the agent explores a real (mock) core-banking app and casts a reusable capability.</span>
     </div>
     <div class="chips" id="chips"></div>
     <form class="freeform" id="freeform" autocomplete="off">
@@ -367,12 +367,12 @@
     <div class="explore-intro">
       <span class="eyebrow">Everything else it produces</span>
       <h2>The parts you don't see in one run</h2>
-      <p>Every panel above is driven by real captured output from the repo. These are the other things the system does with a capability once it exists — safety, reuse, and the numbers a team watches in production.</p>
+      <p>Every panel above is driven by real captured output from the repo. These are the other things the system does with a capability once it exists - safety, reuse, and the numbers a team watches in production.</p>
     </div>
 
     <div class="seam-band">
       <div class="side left">
-        <h4>Left of the seam — runs once</h4>
+        <h4>Left of the seam - runs once</h4>
         <ul>
           <li>An LLM drives an observe → decide → act loop over the live page</li>
           <li>Every accepted action becomes a typed <code>Step</code> as it happens</li>
@@ -382,10 +382,10 @@
       </div>
       <div class="seam-col">the Capability artifact</div>
       <div class="side right">
-        <h4>Right of the seam — runs every time</h4>
+        <h4>Right of the seam - runs every time</h4>
         <ul>
           <li>A deterministic engine walks the recorded <code>Step</code>s</li>
-          <li>No model call — branches are decided by literal page checks</li>
+          <li>No model call - branches are decided by literal page checks</li>
           <li>Outcomes: success · business outcome · data unavailable · hard failure</li>
           <li>Same allowlist &amp; redaction as discovery; a lease can pause it for a human</li>
         </ul>
@@ -396,7 +396,7 @@
       <div class="card">
         <h3>Redaction knows where the data is going</h3>
         <div class="sub">guardrails/pii.py · sink-aware</div>
-        <p>“Redact names: yes/no” is the wrong question — a customer name in a capability's declared output is the point; the same name in a prompt sent to a third-party model is a leak. So the same observation is redacted differently per destination.</p>
+        <p>“Redact names: yes/no” is the wrong question - a customer name in a capability's declared output is the point; the same name in a prompt sent to a third-party model is a leak. So the same observation is redacted differently per destination.</p>
         <div class="sinktabs" id="sinktabs">
           <button data-sink="artifact" aria-pressed="true">artifact</button>
           <button data-sink="evidence" aria-pressed="false">evidence</button>
@@ -409,9 +409,9 @@
       <div class="card">
         <h3>One capability, many tenants</h3>
         <div class="sub">artifact/patch.py · base + per-tenant patch</div>
-        <p>Most tenants running the same product replay the base capability unchanged. A tenant whose UI differs gets a small patch applied over the base — not a separate artifact. Verified live against a variant that relabels one row header.</p>
+        <p>Most tenants running the same product replay the base capability unchanged. A tenant whose UI differs gets a small patch applied over the base - not a separate artifact. Verified live against a variant that relabels one row header.</p>
         <div class="cmp">
-          <div class="box"><div class="lbl">base capability</div><span class="status hard_failure">hard_failure</span><div style="color:var(--ink-3);margin-top:6px">s5 · locator “Savings Balance” — <span style="color:var(--alarm)">no element resolved</span></div></div>
+          <div class="box"><div class="lbl">base capability</div><span class="status hard_failure">hard_failure</span><div style="color:var(--ink-3);margin-top:6px">s5 · locator “Savings Balance” - <span style="color:var(--alarm)">no element resolved</span></div></div>
           <div class="box"><div class="lbl">base + acme.patch.json</div><span class="status success">success</span><div style="color:var(--ink-3);margin-top:6px">savings_balance = <span style="color:var(--signal)">$5.02</span></div></div>
         </div>
         <pre class="json" id="patchjson"></pre>
@@ -420,7 +420,7 @@
       <div class="card">
         <h3>What replay measured</h3>
         <div class="sub">replay/metrics.py · from the trace files</div>
-        <p>Every replay writes a per-step trace. Aggregated: outcome mix, p50/p95 latency, and the locator-fallback rate — the “free drift signal”, the fraction of steps that needed a weaker locator tier than <code>role+name</code>.</p>
+        <p>Every replay writes a per-step trace. Aggregated: outcome mix, p50/p95 latency, and the locator-fallback rate - the “free drift signal”, the fraction of steps that needed a weaker locator tier than <code>role+name</code>.</p>
         <table class="metrics">
           <thead><tr><th>capability</th><th>runs</th><th>healthy</th><th>hard&nbsp;fail</th><th>p50</th><th>p95</th><th>fallback</th></tr></thead>
           <tbody><tr><td>lookup_member_balance</td><td>10</td><td>70%</td><td>10%</td><td>1661&nbsp;ms</td><td>1773&nbsp;ms</td><td>14%</td></tr></tbody>
@@ -438,9 +438,9 @@
       <div class="card">
         <h3>When it stops for a human</h3>
         <div class="sub">escalation/ · a file-backed lease</div>
-        <p>A state-changing final step (open an account, file a dispute) is never taken by the agent. It fills and reviews the form, then flips a lease to <code>human</code> and blocks — the same live browser session a person takes over — until a real HTTP approve/decline comes back. Try the open-sub-account task above to see it in the run.</p>
+        <p>A state-changing final step (open an account, file a dispute) is never taken by the agent. It fills and reviews the form, then flips a lease to <code>human</code> and blocks - the same live browser session a person takes over - until a real HTTP approve/decline comes back. Try the open-sub-account task above to see it in the run.</p>
         <div class="operator" style="margin-top:0">
-          <h5>Operator console — waiting</h5>
+          <h5>Operator console - waiting</h5>
           <p><b>Reason:</b> Christmas Club sub-account for member 12345 (Dana Whitfield), $50.00 opening deposit is filled and reviewed. “Confirm and Open Account” creates a record, so per policy I'm escalating for confirmation.</p>
           <p><b>At:</b> localhost:5050/member/12345/new-subaccount</p>
           <div class="ops"><button class="approve" disabled>Approve &amp; resume</button><button class="decline" disabled>Decline</button></div>
@@ -452,7 +452,7 @@
 
 <footer>
   <div class="wrap">
-    <b>Capability Foundry</b> — an interactive view of the discover-once / replay-forever pipeline.
+    <b>Capability Foundry</b> - an interactive view of the discover-once / replay-forever pipeline.
     The console, the target app, the perception tree, the compiled artifacts and the replay outcomes are all
     played back from <b>real captured runs in the repository</b>. There is no backend here and nothing to install;
     the free-text box, when your viewer allows it, asks Claude to route your phrasing to one of the scenarios.
@@ -465,7 +465,7 @@
   var rm = window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches;
 
   /* -------------------------------------------------------------------------------------------
-     REAL DATA — members, perception snippets, discovery timelines, compiled capabilities and
+     REAL DATA - members, perception snippets, discovery timelines, compiled capabilities and
      replay results, transcribed from evidence/*.jsonl, capabilities/*.json and evidence/*.json.
   ------------------------------------------------------------------------------------------- */
   var M = {
@@ -520,7 +520,7 @@
     ];},
     newsub:function(m){return [
       ['document','',''],
-      ['  heading','Open New Sub-Account — Member '+m.id,''],
+      ['  heading','Open New Sub-Account - Member '+m.id,''],
       ['  combobox','Account Type','christmas_club'],
       ['  textbox','Nickname',''],
       ['  textbox','Opening Deposit ($)','0'],
@@ -544,23 +544,23 @@
     return [
       ev('nav',{url:'localhost:5050/search', screen:{s:'search'}, line:'navigate  → localhost:5050/search'}),
       ev('observe',{tree:TREE.search, screen:{s:'search'}, hot:null}),
-      ev('think',{text:'goal wants a balance for member 12345 — search by that id first'}),
+      ev('think',{text:'goal wants a balance for member 12345 - search by that id first'}),
       ev('act',{tool:'type', label:'type  <b>Search (ID / name)</b> ← "12345"  ·  param_name=member_id',
                 anim:{type:'type', el:'textbox|Search (ID / name)', text:'12345'}, screen:{s:'searchTyped',q:'12345'}}),
       ev('ok',{text:'typed "12345"'}),
       ev('rec',{step:{sid:'s2',act:'type',role:'textbox',name:'Search (ID / name)',value:'{param_ref: member_id}'}, text:'recorded step s2'}),
       ev('act',{tool:'click', label:'click  <b>button</b> "Go"',
                 anim:{type:'click', el:'button|Go'}, screen:{s:'results',m:m}, url:'localhost:5050/search'}),
-      ev('ok',{text:'clicked "Go" — 1 result'}),
-      ev('rec',{step:{sid:'s3',act:'click',role:'button',name:'Go',value:'—'}}),
+      ev('ok',{text:'clicked "Go" - 1 result'}),
+      ev('rec',{step:{sid:'s3',act:'click',role:'button',name:'Go',value:'-'}}),
       ev('observe',{tree:TREE.results(m), screen:{s:'results',m:m}, hot:'link|View'}),
-      ev('think',{text:'one matching row — follow its View link to the member page'}),
+      ev('think',{text:'one matching row - follow its View link to the member page'}),
       ev('act',{tool:'click', label:'click  <b>link</b> "View"',
                 anim:{type:'click', el:'link|View'}, screen:{s:'member',m:m}, url:'localhost:5050/member/12345'}),
       ev('ok',{text:'clicked "View" → /member/12345'}),
-      ev('rec',{step:{sid:'s4',act:'click',role:'link',name:'View',value:'—'}}),
+      ev('rec',{step:{sid:'s4',act:'click',role:'link',name:'View',value:'-'}}),
       ev('observe',{tree:TREE.member(m), screen:{s:'member',m:m}, hot:'rowheader|Savings Balance'}),
-      ev('think',{text:'balance is a labelled row — extract it by its row header'}),
+      ev('think',{text:'balance is a labelled row - extract it by its row header'}),
       ev('act',{tool:'extract', label:'extract  <b>rowheader</b> "Savings Balance" → savings_balance',
                 anim:{type:'read', el:'rowheader|Savings Balance'}, screen:{s:'member',m:m}}),
       ev('ok',{text:'extracted savings_balance = "$1,842.30"'}),
@@ -571,7 +571,7 @@
       ev('done',{text:'finish  ·  success  ·  {name: Dana Whitfield, status: active, savings_balance: $1,842.30}'}),
       ev('compile',{cap:{
         capability_id:'lookup_member_balance', version:'1.0.0', risk:'safe', lifecycle:'draft',
-        note:'2 proposed rules — need review before this leaves draft'
+        note:'2 proposed rules - need review before this leaves draft'
       }}),
       ev('replaySweep',{})
     ];
@@ -583,37 +583,37 @@
     return [
       ev('nav',{url:'localhost:5050/search', screen:{s:'search'}, line:'navigate  → localhost:5050/search'}),
       ev('observe',{tree:TREE.search, screen:{s:'search'}}),
-      ev('think',{text:'need to open a Christmas Club sub-account for member 12345 — find the member first'}),
+      ev('think',{text:'need to open a Christmas Club sub-account for member 12345 - find the member first'}),
       ev('act',{tool:'type', label:'type  <b>Search (ID / name)</b> ← "12345"  ·  param_name=member_id',
                 anim:{type:'type', el:'textbox|Search (ID / name)', text:'12345'}, screen:{s:'searchTyped',q:'12345'}}),
       ev('ok',{text:'typed "12345"'}),
       ev('rec',{step:{sid:'s2',act:'type',role:'textbox',name:'Search (ID / name)',value:'{param_ref: member_id}'}}),
       ev('act',{tool:'click', label:'click  <b>button</b> "Go"', anim:{type:'click', el:'button|Go'}, screen:{s:'results',m:m}}),
       ev('ok',{text:'1 result'}),
-      ev('rec',{step:{sid:'s3',act:'click',role:'button',name:'Go',value:'—'}}),
+      ev('rec',{step:{sid:'s3',act:'click',role:'button',name:'Go',value:'-'}}),
       ev('act',{tool:'click', label:'click  <b>link</b> "View"', anim:{type:'click', el:'link|View'}, screen:{s:'member',m:m}, url:'localhost:5050/member/12345'}),
       ev('ok',{text:'→ /member/12345'}),
-      ev('rec',{step:{sid:'s4',act:'click',role:'link',name:'View',value:'—'}}),
+      ev('rec',{step:{sid:'s4',act:'click',role:'link',name:'View',value:'-'}}),
       ev('act',{tool:'click', label:'click  <b>link</b> "Open sub-account"', anim:{type:'click', el:'link|Open sub-account'},
                 screen:{s:'newsub',m:m}, url:'localhost:5050/member/12345/new-subaccount'}),
       ev('ok',{text:'→ new sub-account form'}),
-      ev('rec',{step:{sid:'s5',act:'click',role:'link',name:'Open sub-account',value:'—'}}),
+      ev('rec',{step:{sid:'s5',act:'click',role:'link',name:'Open sub-account',value:'-'}}),
       ev('act',{tool:'type', label:'type  <b>Opening Deposit ($)</b> ← "50"',
                 anim:{type:'type', el:'textbox|Opening Deposit ($)', text:'50'}, screen:{s:'newsub',m:m,deposit:'50'}}),
       ev('ok',{text:'deposit set'}),
       ev('rec',{step:{sid:'s6',act:'type',role:'textbox',name:'Opening Deposit ($)',value:'"50"'}}),
       ev('act',{tool:'click', label:'click  <b>button</b> "Continue"', anim:{type:'click', el:'button|Continue'}, screen:{s:'review',m:m}}),
       ev('ok',{text:'review page ready'}),
-      ev('rec',{step:{sid:'s7',act:'click',role:'button',name:'Continue',value:'—'}}),
+      ev('rec',{step:{sid:'s7',act:'click',role:'button',name:'Continue',value:'-'}}),
       ev('escalate',{reason:'Review page is ready: Christmas Club sub-account for member 12345 (Dana Whitfield), $50.00 opening deposit. "Confirm and Open Account" is state-changing and hard to reverse, so per policy I am escalating for human confirmation before submitting.'}),
       ev('resumed',{decision:'approved', note:'operator approved via the console'}),
       ev('act',{tool:'click', label:'click  <b>button</b> "Confirm and Open Account"', anim:{type:'click', el:'button|Confirm and Open Account'},
                 screen:{s:'subok',m:m}, url:'localhost:5050/member/12345/new-subaccount/submit'}),
       ev('ok',{text:'Sub-account #4 (christmas_club) created for Dana Whitfield'}),
-      ev('rec',{step:{sid:'s8',act:'click',role:'button',name:'Confirm and Open Account',value:'—  (risky · needs confirm=true on replay)'}}),
+      ev('rec',{step:{sid:'s8',act:'click',role:'button',name:'Confirm and Open Account',value:'-  (risky · needs confirm=true on replay)'}}),
       ev('done',{text:'finish  ·  success  ·  a new Christmas Club sub-account, created after escalation approval'}),
       ev('compile',{cap:{capability_id:'open_subaccount', version:'1.0.0', risk:'risky', lifecycle:'draft',
-        note:'risky — replay refuses to execute past the confirm step without confirm=true'}}),
+        note:'risky - replay refuses to execute past the confirm step without confirm=true'}}),
       ev('replaySweep',{sub:true})
     ];
   };
@@ -639,7 +639,7 @@
         {screen:{s:'searchTyped',q:'99999'}, anim:{type:'type', el:'textbox|Search (ID / name)', text:'99999'}, note:'s2 type · role+name (tier 1)'},
         {screen:{s:'results',m:M["99999"]}, anim:{type:'click', el:'button|Go'}, note:'s3 click Go'},
         {screen:{s:'member',m:M["99999"]}, anim:{type:'click', el:'link|View'}, url:'localhost:5050/member/99999', note:'s4 click View'},
-        {screen:{s:'denied',m:M["99999"]}, note:'s5 extract — locator unresolved; page contains "Access denied…" → declared PERMISSION_DENIED', denied:true}
+        {screen:{s:'denied',m:M["99999"]}, note:'s5 extract - locator unresolved; page contains "Access denied…" → declared PERMISSION_DENIED', denied:true}
       ]
     )},
     replay_missing:{ chip:'Replay: an unknown member', kind:'replay', ...replayOnly(
@@ -649,21 +649,21 @@
       [
         {url:'localhost:5050/search', screen:{s:'search'}, note:'navigate → /search'},
         {screen:{s:'searchTyped',q:'88888'}, anim:{type:'type', el:'textbox|Search (ID / name)', text:'88888'}, note:'s2 type member_id'},
-        {screen:{s:'noResults'}, anim:{type:'click', el:'button|Go'}, note:'s3 click Go — no rows'},
-        {screen:{s:'noResults'}, note:'s4 click "View" — locator unresolved; page contains "No results." → declared MEMBER_NOT_FOUND', noresults:true}
+        {screen:{s:'noResults'}, anim:{type:'click', el:'button|Go'}, note:'s3 click Go - no rows'},
+        {screen:{s:'noResults'}, note:'s4 click "View" - locator unresolved; page contains "No results." → declared MEMBER_NOT_FOUND', noresults:true}
       ]
     )},
     replay_nodata:{ chip:'Replay: page loads, data missing', kind:'replay', ...replayOnly(
       'replay  lookup_member_balance  { member_id: "77777" }',
       {member_id:'77777'},
       {status:'data_unavailable', outputs:{}, business_outcome_code:null,
-       failure_detail:{step_id:'s5', extract_as:'savings_balance', observed:'', reason:'extracted value is empty — the element rendered but carried no data behind it'}},
+       failure_detail:{step_id:'s5', extract_as:'savings_balance', observed:'', reason:'extracted value is empty - the element rendered but carried no data behind it'}},
       [
         {url:'localhost:5050/search', screen:{s:'search'}, note:'navigate → /search'},
         {screen:{s:'searchTyped',q:'77777'}, anim:{type:'type', el:'textbox|Search (ID / name)', text:'77777'}, note:'s2 type member_id'},
         {screen:{s:'results',m:M["77777"]}, anim:{type:'click', el:'button|Go'}, note:'s3 click Go'},
         {screen:{s:'member',m:M["77777"]}, anim:{type:'click', el:'link|View'}, url:'localhost:5050/member/77777', note:'s4 click View'},
-        {screen:{s:'member',m:M["77777"]}, anim:{type:'read', el:'rowheader|Savings Balance'}, note:'s5 extract — element resolves, cell is empty → extract_contract fails → data_unavailable', empty:true}
+        {screen:{s:'member',m:M["77777"]}, anim:{type:'read', el:'rowheader|Savings Balance'}, note:'s5 extract - element resolves, cell is empty → extract_contract fails → data_unavailable', empty:true}
       ]
     )}
   };
@@ -683,7 +683,7 @@
   ];
 
   /* -------------------------------------------------------------------------------------------
-     BANK PANEL — faithful mini-renders of the mock core-banking screens
+     BANK PANEL - faithful mini-renders of the mock core-banking screens
   ------------------------------------------------------------------------------------------- */
   function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function bankHTML(st){
@@ -730,14 +730,14 @@
     }
     if(st.s==='newsub'){
       var dep = st.deposit || '0';
-      return '<h4>Open New Sub-Account — Member '+esc(m.id)+'</h4>'+
+      return '<h4>Open New Sub-Account - Member '+esc(m.id)+'</h4>'+
         '<div class="field"><label>Account Type</label><div class="inp" style="max-width:150px">Christmas Club</div></div>'+
         '<div class="field"><label>Nickname</label><div class="inp"></div></div>'+
         '<div class="field"><label>Opening Deposit ($)</label><div class="inp" data-el="textbox|Opening Deposit ($)">'+esc(dep)+'</div></div>'+
         '<button class="btn" data-el="button|Continue">Continue</button>';
     }
     if(st.s==='review'){
-      return '<h4>Review New Sub-Account — Member '+esc(m.id)+'</h4>'+
+      return '<h4>Review New Sub-Account - Member '+esc(m.id)+'</h4>'+
         '<table>'+
         '<tr><th scope="row">Member</th><td>'+esc(m.name)+'</td></tr>'+
         '<tr><th scope="row">Account Type</th><td>Christmas Club</td></tr>'+
@@ -772,7 +772,7 @@
     lastScreen:{s:'search'}, cap:null, sweepShown:false, escalated:false, resolvedEsc:false,
     token:0
   };
-  var INSTANT = false;   /* fast-forward: no waits, no typewriter — used to build the resting state */
+  var INSTANT = false;   /* fast-forward: no waits, no typewriter - used to build the resting state */
   var sleep = function(ms){return new Promise(function(r){setTimeout(r, rm?0:Math.max(0,ms));});};
   var wait = function(base){return sleep(INSTANT ? 0 : base * state.mult);};
 
@@ -834,7 +834,7 @@
     el.paneP.innerHTML = '<div class="tree">'+html+'</div>';
   }
   function perceptionResting(){
-    el.paneP.innerHTML = '<div class="result-empty">The accessibility tree the agent reasons over — role, accessible name and value for every element, iframe content merged in. Run a task to watch it update each turn; the element the agent is about to touch is highlighted.</div>';
+    el.paneP.innerHTML = '<div class="result-empty">The accessibility tree the agent reasons over - role, accessible name and value for every element, iframe content merged in. Run a task to watch it update each turn; the element the agent is about to touch is highlighted.</div>';
   }
 
   /* ---- capability ---- */
@@ -842,7 +842,7 @@
     var c = state.cap;
     var head;
     if(!c){
-      head = '<div class="cap-head">no capability yet — a discovery run compiles one from the recorded steps</div>';
+      head = '<div class="cap-head">no capability yet - a discovery run compiles one from the recorded steps</div>';
     } else {
       head = '<div class="cap-head"><b style="color:var(--ink-1)">'+esc(c.capability_id)+'</b> v'+esc(c.version)
         + ' <span class="pill '+c.risk+'">'+c.risk+'</span>'
@@ -871,7 +871,7 @@
     }).replace(/\b(-?\d+\.?\d*|true|false|null)\b/g, '<span class="n">$1</span>');
   }
   function resultResting(){
-    el.paneR.innerHTML = '<div class="result-empty">Replay runs <b style="color:var(--ink-2)">after</b> discovery compiles the capability — a deterministic walk of the recorded steps, no model call. It resolves to one of four outcomes: <span style="color:var(--wire)">success</span>, <span style="color:var(--signal)">business_outcome</span>, <span style="color:#c99bd6">data_unavailable</span>, or <span style="color:var(--alarm)">hard_failure</span>.</div>';
+    el.paneR.innerHTML = '<div class="result-empty">Replay runs <b style="color:var(--ink-2)">after</b> discovery compiles the capability - a deterministic walk of the recorded steps, no model call. It resolves to one of four outcomes: <span style="color:var(--wire)">success</span>, <span style="color:var(--signal)">business_outcome</span>, <span style="color:#c99bd6">data_unavailable</span>, or <span style="color:var(--alarm)">hard_failure</span>.</div>';
   }
   function renderSweep(sub){
     var rows = sub ? SWEEP_SUB : SWEEP;
@@ -906,8 +906,8 @@
   function renderRail(phase){
     var scn = SCN[state.key];
     var phases = scn.replayOnly
-      ? [{n:'01',t:'Load capability'},{n:'02',t:'Replay — deterministic'},{n:'03',t:'Outcome'}]
-      : [{n:'01',t:'Discovery — LLM loop'},{n:'02',t:'Compile → Capability'},{n:'03',t:'Replay — every time'}];
+      ? [{n:'01',t:'Load capability'},{n:'02',t:'Replay - deterministic'},{n:'03',t:'Outcome'}]
+      : [{n:'01',t:'Discovery - LLM loop'},{n:'02',t:'Compile → Capability'},{n:'03',t:'Replay - every time'}];
     var cell = function(p, cls){ return '<div class="ph '+cls+'"><span class="n">'+p.n+'</span>'+p.t+'</div>'; };
     var html;
     if(state.escalated){
@@ -927,7 +927,7 @@
   function showOperator(reason, onResolve){
     var card = document.createElement('div');
     card.className = 'operator';
-    card.innerHTML = '<h5>Operator console — action needs confirmation</h5>'
+    card.innerHTML = '<h5>Operator console - action needs confirmation</h5>'
       + '<p><b>Reason:</b> '+esc(reason)+'</p>'
       + '<p><b>Lease:</b> automation → <span style="color:var(--alarm)">human</span> · the run is blocked</p>'
       + '<div class="ops"><button class="approve">Approve &amp; resume</button><button class="decline">Decline</button></div>';
@@ -936,11 +936,11 @@
     switchTab('capability');
     return new Promise(function(resolve){
       card.querySelector('.approve').addEventListener('click', function(){
-        card.querySelector('.ops').innerHTML = '<span style="color:var(--wire)">✓ approved — resuming the same live session</span>';
+        card.querySelector('.ops').innerHTML = '<span style="color:var(--wire)">✓ approved - resuming the same live session</span>';
         resolve('approved');
       });
       card.querySelector('.decline').addEventListener('click', function(){
-        card.querySelector('.ops').innerHTML = '<span style="color:var(--alarm)">✕ declined — the agent will finish without the action</span>';
+        card.querySelector('.ops').innerHTML = '<span style="color:var(--alarm)">✕ declined - the agent will finish without the action</span>';
         resolve('declined');
       });
     });
@@ -998,16 +998,16 @@
     } else if(e.k==='note'){
       state.props.push({tag:e.tag, text:e.text});
       renderCap();
-      cline('rec', '● '+esc(e.tag)+' — proposal noted for review');
+      cline('rec', '● '+esc(e.tag)+' - proposal noted for review');
       await wait(420);
     } else if(e.k==='escalate'){
       state.escalated = true;
       renderRail(1);
-      cline('warn', '↯ escalate — '+esc(e.reason.slice(0,120))+'…');
+      cline('warn', '↯ escalate - '+esc(e.reason.slice(0,120))+'…');
       var decision = await showOperator(e.reason);
       state.resolvedEsc = true;
       renderRail(1);
-      cline(decision==='approved'?'ok':'warn', (decision==='approved'?'✓':'✕')+' human '+decision.toUpperCase()+' — lease → automation');
+      cline(decision==='approved'?'ok':'warn', (decision==='approved'?'✓':'✕')+' human '+decision.toUpperCase()+' - lease → automation');
       await wait(360);
     } else if(e.k==='resumed'){
       /* handled inline by escalate */
@@ -1027,7 +1027,7 @@
       state.sweepShown = true;
       renderSweep(!!e.sub);
       switchTab('result');
-      cline('done', '▸ capability ready — replay resolves it deterministically for any member_id');
+      cline('done', '▸ capability ready - replay resolves it deterministically for any member_id');
       renderRail(state.escalated?4:2);
       await wait(300);
     }
@@ -1038,7 +1038,7 @@
     renderRail(1);
     switchTab('result');
     cline('obs', 'replay  '+esc(scn.caption));
-    cline('think', '› deterministic — no model call; walking recorded steps, resolving each locator by role+name');
+    cline('think', '› deterministic - no model call; walking recorded steps, resolving each locator by role+name');
     await wait(500);
     for(var i=0;i<scn.walk.length;i++){
       if(state.token!==thisToken) return;
@@ -1084,11 +1084,11 @@
       el.url.textContent = 'localhost:5050/search';
       perceptionResting();
       renderCap();
-      el.paneC.innerHTML = '<div class="cap-head" style="color:var(--ink-2)"><b style="color:var(--ink-1)">lookup_member_balance</b> v1.0.0 <span class="pill safe">safe</span> <span class="pill verified">verified</span><span style="color:var(--ink-3);flex-basis:100%;margin-top:4px">an already-compiled capability — this scenario only replays it</span></div>';
+      el.paneC.innerHTML = '<div class="cap-head" style="color:var(--ink-2)"><b style="color:var(--ink-1)">lookup_member_balance</b> v1.0.0 <span class="pill safe">safe</span> <span class="pill verified">verified</span><span style="color:var(--ink-3);flex-basis:100%;margin-top:4px">an already-compiled capability - this scenario only replays it</span></div>';
       resultResting();
       el.btnRun.textContent = '▶ Replay';
       if(resting){
-        el.paneR.innerHTML = '<div class="result-empty">Press <b style="color:var(--ink-2)">▶ Replay</b> to walk this capability against <b style="color:var(--ink-2)">'+esc(JSON.stringify(scn.params))+'</b> — deterministic, no model, resolves to <span class="status '+scn.result.status+'">'+scn.result.status.replace('_',' ')+'</span>.</div>';
+        el.paneR.innerHTML = '<div class="result-empty">Press <b style="color:var(--ink-2)">▶ Replay</b> to walk this capability against <b style="color:var(--ink-2)">'+esc(JSON.stringify(scn.params))+'</b> - deterministic, no model, resolves to <span class="status '+scn.result.status+'">'+scn.result.status.replace('_',' ')+'</span>.</div>';
       }
       return;
     }
@@ -1098,14 +1098,14 @@
     renderBank({s:'search'}, false);
     el.url.textContent = 'localhost:5050/search';
     if(resting){
-      // Build the state a completed run leaves behind, instantly — so the page opens full, not
+      // Build the state a completed run leaves behind, instantly - so the page opens full, not
       // as an empty shell. `subacct` stops at the escalation (that pause IS the point).
       var stopAt = (key==='subacct') ? 'escalate' : null;
       var myTok = state.token;
       fastForward(stopAt).then(function(){
         if(myTok !== state.token) return;
         if(key==='subacct'){
-          cline('obs','■ paused at the escalation — the run is blocked until a human decides. Press ▶ Run.');
+          cline('obs','■ paused at the escalation - the run is blocked until a human decides. Press ▶ Run.');
           el.btnRun.textContent = '▶ Run';
         } else {
           cline('obs','■ this is the state a full discovery run leaves behind. Press ▶ Run to watch it happen, or ⏭ Step.');
@@ -1228,13 +1228,13 @@
   el.routenote.textContent = 'checking whether this viewer can ask Claude to route free-text…';
 
   (function initSample(){
-    if(!(window.claude && window.claude.use)){ el.routenote.textContent = 'free-text routing is off in this view — the preset tasks above run the same system.'; return; }
+    if(!(window.claude && window.claude.use)){ el.routenote.textContent = 'free-text routing is off in this view - the preset tasks above run the same system.'; return; }
     window.claude.use('sample').then(function(s){
-      if(!s){ el.routenote.textContent = 'free-text routing is off in this view — the preset tasks above run the same system.'; return; }
+      if(!s){ el.routenote.textContent = 'free-text routing is off in this view - the preset tasks above run the same system.'; return; }
       sampleFn = s;
       el.freetext.disabled = false; el.routebtn.disabled = false;
-      el.routenote.textContent = 'ready — type a task and Claude will route it to the closest scenario.';
-    }).catch(function(){ el.routenote.textContent = 'free-text routing is unavailable — use the preset tasks.'; });
+      el.routenote.textContent = 'ready - type a task and Claude will route it to the closest scenario.';
+    }).catch(function(){ el.routenote.textContent = 'free-text routing is unavailable - use the preset tasks.'; });
   })();
 
   $('#freeform').addEventListener('submit', function(ev2){
@@ -1258,14 +1258,14 @@
       setTimeout(play, 200);
     }).catch(function(err){
       el.routenote.textContent = (err && err.code==='not_granted')
-        ? 'Claude routing was declined — the preset tasks run the same system.'
-        : 'could not route that — try a preset above.';
+        ? 'Claude routing was declined - the preset tasks run the same system.'
+        : 'could not route that - try a preset above.';
       el.routebtn.disabled = false;
     });
   });
 
   /* -------------------------------------------------------------------------------------------
-     EXPLORE — redaction sinks
+     EXPLORE - redaction sinks
   ------------------------------------------------------------------------------------------- */
   var OBS_ROWS = [
     {l:'heading', v:'Member 12345', keep:'Member 12345'},
@@ -1276,9 +1276,9 @@
     {l:'row Savings Balance', a:'$1,842.30', keep:true}
   ];
   var SINK_NOTE = {
-    artifact:'the compiled capability on disk — gray-area PII passes through, because a declared output is the point. Byte-for-byte the original behaviour.',
-    evidence:'transcripts on disk — gray-area entities are tokenised (reversible under audit), so a reviewer can still follow the flow.',
-    llm_prompt:'anything sent to a third-party model — hard-masked. The one-way door. Bare numeric ids (member 12345) are flagged, not masked, so discovery still works.'
+    artifact:'the compiled capability on disk - gray-area PII passes through, because a declared output is the point. Byte-for-byte the original behaviour.',
+    evidence:'transcripts on disk - gray-area entities are tokenised (reversible under audit), so a reviewer can still follow the flow.',
+    llm_prompt:'anything sent to a third-party model - hard-masked. The one-way door. Bare numeric ids (member 12345) are flagged, not masked, so discovery still works.'
   };
   function renderSink(sink){
     var out = OBS_ROWS.map(function(r){
@@ -1290,7 +1290,7 @@
         shown = sink==='evidence'
           ? '<span class="tok">&lt;'+t+'_1&gt;</span>'
           : '<span class="red">&lt;'+t+':REDACTED&gt;</span>';
-        if(r.person && sink==='llm_prompt') shown = '<span class="keep">Dana Whitfield</span>  <span style="color:var(--ink-3)">(regex fallback can’t find names — needs Presidio)</span>';
+        if(r.person && sink==='llm_prompt') shown = '<span class="keep">Dana Whitfield</span>  <span style="color:var(--ink-3)">(regex fallback can’t find names - needs Presidio)</span>';
       } else if(r.keep){
         shown = '<span class="keep">'+esc(val)+'</span>';
       } else {
@@ -1299,7 +1299,7 @@
       return '<span style="color:var(--ink-3)">'+esc(r.l)+'</span>  '+shown;
     }).filter(Boolean).join('\n');
     $('#obsview').innerHTML = out;
-    $('#sinknote').textContent = 'sink = "'+sink+'"  —  '+SINK_NOTE[sink];
+    $('#sinknote').textContent = 'sink = "'+sink+'" - '+SINK_NOTE[sink];
   }
   [].forEach.call(document.querySelectorAll('#sinktabs button'), function(b){
     b.addEventListener('click', function(){
@@ -1319,7 +1319,7 @@
   });
 
   /* -------------------------------------------------------------------------------------------
-     BOOT — resting state: the flagship scenario, ready to run, everything visible.
+     BOOT - resting state: the flagship scenario, ready to run, everything visible.
   ------------------------------------------------------------------------------------------- */
   loadScenario('balance', true);
 

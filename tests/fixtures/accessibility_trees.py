@@ -1,7 +1,7 @@
 """
 Fixtures for offline (no-browser) perception tests.
 
-These are not invented — they are the literal `page.locator("html").aria_snapshot()` /
+These are not invented - they are the literal `page.locator("html").aria_snapshot()` /
 `frame.locator("html").aria_snapshot()` output captured from a real Chromium run against the
 real Flask app during development. Using real captured output rather than
 hand-guessed shapes means these tests would have caught the two real surprises this build hit
@@ -22,7 +22,7 @@ SEARCH_PAGE_ARIA_YAML = """\
           - button "Go"
 """
 
-# (b) search results with 2+ rows — real captured output for query "12345", trimmed to the
+# (b) search results with 2+ rows - real captured output for query "12345", trimmed to the
 # results table (the full page also wraps everything in an outer layout table, reproduced here
 # so the nested-table-layout stress case is represented).
 SEARCH_RESULTS_ARIA_YAML = """\
@@ -60,9 +60,9 @@ SEARCH_RESULTS_ARIA_YAML = """\
                     - /url: /member/23456
 """
 
-# (c) the confirm-frame content — real captured output from `frame.locator("html")
+# (c) the confirm-frame content - real captured output from `frame.locator("html")
 # .aria_snapshot()` on the sub-account confirmation iframe's own document. This is the fixture
-# that proves per-frame snapshotting reaches content the top-level snapshot does not — the
+# that proves per-frame snapshotting reaches content the top-level snapshot does not - the
 # top-level snapshot of the wrapper page around this iframe is CONFIRM_WRAPPER_TOP_LEVEL_YAML
 # below, which stops at a bare `iframe` leaf.
 CONFIRM_FRAME_ARIA_YAML = """\
@@ -84,7 +84,7 @@ CONFIRM_FRAME_ARIA_YAML = """\
   - button "Confirm and Open Account"
 """
 
-# The top-level wrapper page around the iframe above — real captured output, confirms the
+# The top-level wrapper page around the iframe above - real captured output, confirms the
 # iframe boundary: no "Confirm and Open Account" text reaches this snapshot at all.
 CONFIRM_WRAPPER_TOP_LEVEL_YAML = """\
 - document:

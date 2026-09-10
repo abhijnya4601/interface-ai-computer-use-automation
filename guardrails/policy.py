@@ -3,26 +3,26 @@ Safety & policy guardrails.
 
 Two independent responsibilities, both graded requirements:
 
-1. Allowlist enforcement (`guardrail_check`) — every action the discovery agent or the replay
+1. Allowlist enforcement (`guardrail_check`) - every action the discovery agent or the replay
    engine is about to take is checked against `allowlist.yaml` *before* it executes. A violation
    raises `GuardrailViolation` and halts the caller; it is never silently skipped or downgraded
    to a warning. This is deliberately loaded once at import time (module-level, process
-   lifetime) rather than re-read per action — the assignment's environment is "stable UIs," not
+   lifetime) rather than re-read per action - the assignment's environment is "stable UIs," not
    a live-reloading policy store, and re-reading a YAML file on every click would be the kind of
    premature-infrastructure the assignment explicitly says not to build.
 
-2. Redaction (`redact`) — applied to anything before it touches disk (evidence logs, discovery
+2. Redaction (`redact`) - applied to anything before it touches disk (evidence logs, discovery
    transcripts, the compiled artifact) and before page content is sent to the model. Two
    independent hard passes, then a sink-aware gray-area pass:
-     - by KEY (`ssn`, `account_number`, `password`, `token` — case-insensitive substring): catches
+     - by KEY (`ssn`, `account_number`, `password`, `token` - case-insensitive substring): catches
        a secret regardless of its shape, but only if the field is *named* like a secret.
      - by VALUE SHAPE (`_STRUCTURED_SECRET_PATTERNS`): catches an SSN or a card/routing number
        even sitting inside an innocuously-named field (a real observation payload, a free-text
-       log line) that the key-based pass would miss. Deliberately narrow — an SSN's `###-##-####`
+       log line) that the key-based pass would miss. Deliberately narrow - an SSN's `###-##-####`
        shape and a 13-19-digit run are distinctive enough to flag with very low false-positive
        risk.
 
-   Everything else — names, addresses, emails, phone numbers — is the GRAY AREA: sometimes a
+   Everything else - names, addresses, emails, phone numbers - is the GRAY AREA: sometimes a
    legitimate declared output, sometimes a leak, and the difference is *where the data is going*,
    not what it is. `redact(obj, sink=...)` routes that. `"artifact"` (the default) runs the two
    hard passes only and lets gray-area data through, because a capability's declared outputs are
@@ -62,7 +62,7 @@ def _load_allowlist() -> dict:
     return {
         "allowed_domains": allowed_domains,
         # Falls back to allowed_domains if discovery_allowed_domains isn't set, for backward
-        # compatibility with a bare allowlist.yaml — but a real deployment should always set
+        # compatibility with a bare allowlist.yaml - but a real deployment should always set
         # this explicitly and narrower than allowed_domains. See module docstring / D18.
         "discovery_allowed_domains": set(data.get("discovery_allowed_domains") or allowed_domains),
         "allowed_actions": set(data.get("allowed_actions") or []),
@@ -70,7 +70,7 @@ def _load_allowlist() -> dict:
     }
 
 
-# Loaded once at import time — see module docstring for why.
+# Loaded once at import time - see module docstring for why.
 ALLOWLIST = _load_allowlist()
 
 
@@ -84,7 +84,7 @@ def guardrail_check(
 ) -> None:
     """
     Check one proposed action against the allowlist. Raises GuardrailViolation and does not
-    return anything on failure — callers must let the exception propagate and halt, not catch
+    return anything on failure - callers must let the exception propagate and halt, not catch
     and continue.
 
     `action` is a small dict: {"type": "click"|"type"|"navigate"|..., "url": <optional, for
@@ -93,7 +93,7 @@ def guardrail_check(
     on whatever page is currently loaded).
 
     `phase` is `"discovery"` or `"replay"` (default). Discovery is checked against the stricter
-    `discovery_allowed_domains` — every discovery turn sends observed page content to a
+    `discovery_allowed_domains` - every discovery turn sends observed page content to a
     third-party LLM, so this is what technically enforces "discovery never touches a domain that
     isn't an approved non-production target," rather than leaving that as an unenforced
     convention. Replay never calls an LLM, so it's checked against the broader `allowed_domains`.
@@ -140,7 +140,7 @@ def _contains_structured_secret(value: str) -> bool:
 
 def _hard_redact(obj):
     """The two always-on passes: secret-shaped KEYS and structured-secret VALUE shapes. Sink
-    never changes this part — a password or an SSN is redacted everywhere, unconditionally."""
+    never changes this part - a password or an SSN is redacted everywhere, unconditionally."""
     if isinstance(obj, dict):
         result = {}
         for key, value in obj.items():
@@ -163,14 +163,14 @@ def redact(obj, sink: str = "artifact"):
 
       - always: keys named like a secret (ssn/account_number/password/token) and values shaped
         like an SSN or card/routing number are masked.
-      - sink="artifact" (default): nothing more — gray-area PII (names, addresses, emails) is
+      - sink="artifact" (default): nothing more - gray-area PII (names, addresses, emails) is
         left intact, because a capability's declared outputs are supposed to contain it. This is
         byte-for-byte the original redact() behavior.
       - sink="evidence": gray-area entities are tokenized (`<PERSON_1>`), reversibly.
       - sink="llm_prompt": gray-area entities plus ZIP / 6+ digit runs are hard-masked.
 
     Use `redact_with_report()` instead when you want the RedactionReport (counts, low-confidence
-    review list) — e.g. to log what left for the model on each discovery turn.
+    review list) - e.g. to log what left for the model on each discovery turn.
     """
     return redact_with_report(obj, sink)[0]
 

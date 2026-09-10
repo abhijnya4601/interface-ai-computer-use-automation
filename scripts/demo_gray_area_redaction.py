@@ -1,8 +1,8 @@
 """
 Evidence generator for the sink-aware gray-area redaction (guardrails/pii.py + policy.redact).
 
-Takes one realistic discovery observation — a member-detail page with a name, address, email
-and phone in it — and shows the SAME payload redacted three different ways depending on where
+Takes one realistic discovery observation - a member-detail page with a name, address, email
+and phone in it - and shows the SAME payload redacted three different ways depending on where
 it's headed:
 
   - artifact   : nothing removed (declared outputs are supposed to carry this)
@@ -65,7 +65,7 @@ def main() -> None:
     # the property that matters: the artifact keeps the balance (a declared output), the
     # llm_prompt sink still keeps it too (it's not gray-area PII) but drops the identifiers.
     _, _, _ = redact_with_report(OBSERVATION, sink="llm_prompt")
-    print("\nKey point: 'Savings Balance $1,842.30' survives every sink — it's a declared "
+    print("\nKey point: 'Savings Balance $1,842.30' survives every sink - it's a declared "
           "output, not an identifier. Only the who/where fields change by destination.")
 
 

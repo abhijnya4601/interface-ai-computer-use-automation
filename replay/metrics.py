@@ -1,6 +1,6 @@
 """
 Aggregate a directory of `replay_<run_id>_trace.jsonl` files (written by replay/engine.py) into
-per-capability operational metrics — the numbers a team actually watches once capabilities are
+per-capability operational metrics - the numbers a team actually watches once capabilities are
 running in production:
 
   - outcome mix: success / business_outcome / data_unavailable / recoverable / hard_failure rate

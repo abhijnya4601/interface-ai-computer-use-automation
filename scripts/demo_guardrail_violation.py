@@ -1,5 +1,5 @@
 """
-Phase 6 evidence generator — not a pytest test. Actually attempts an action outside the
+Phase 6 evidence generator - not a pytest test. Actually attempts an action outside the
 allowlist and captures the real GuardrailViolation, so /evidence/ has proof this halts the
 system rather than just an assertion in a unit test.
 
@@ -20,7 +20,7 @@ EVIDENCE_PATH = REPO_ROOT / "evidence" / "phase6_guardrail_violation.json"
 
 
 def main():
-    # Simulates a capability whose target was pointed at a domain outside the allowlist —
+    # Simulates a capability whose target was pointed at a domain outside the allowlist -
     # e.g. a tampered artifact, or a bug that let a step's target URL drift. This must be
     # caught and halted, not silently skipped.
     attempted_action = {"type": "navigate", "url": "https://not-our-bank.example.com/admin/wipe"}
@@ -33,7 +33,7 @@ def main():
 
     try:
         guardrail_check(attempted_action)
-        record["outcome"] = "NOT_RAISED — THIS IS A BUG, the action should have been blocked"
+        record["outcome"] = "NOT_RAISED - THIS IS A BUG, the action should have been blocked"
     except GuardrailViolation as exc:
         record["outcome"] = "GuardrailViolation raised and action halted, as required"
         record["exception_type"] = type(exc).__name__

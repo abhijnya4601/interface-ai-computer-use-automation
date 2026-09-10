@@ -1,7 +1,7 @@
 """
 Pre-flight smoke test for replay/engine.py, using a hand-authored Capability that matches
 exactly what agent/compiler.py would produce for lookup_member_balance (same steps, same
-expected_outcomes) — NOT the deliverable capability (that one must come from a real discovery
+expected_outcomes) - NOT the deliverable capability (that one must come from a real discovery
 run; see scripts/run_discovery.py). This exists purely to validate replay's mechanics for real,
 against the real app, before spending API credits, and to catch bugs early exactly like
 scripts/smoke_test_discovery.py did for the discovery loop.
@@ -94,7 +94,7 @@ def main():
           {"step_id", "expected", "observed"} <= set(result.failure_detail.keys()))
 
     print("\n=== scenario 5: member page renders but the balance datum is missing (77777) ===")
-    print("    'page access, no data access' — the member detail page loads fine, the Savings")
+    print("    'page access, no data access' - the member detail page loads fine, the Savings")
     print("    Balance cell is empty. Must be data_unavailable, NOT success with a blank value")
     print("    and NOT hard_failure (nothing is broken).")
     result = replay(cap, {"member_id": "77777"})

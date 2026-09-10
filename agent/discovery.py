@@ -4,10 +4,10 @@ guardrail_check -> execute the tool against the live page -> record it as a Step
 until the model calls finish() or escalate(), or a stopping condition fires.
 
 The model is whichever of Anthropic / OpenAI / Google backs the run (agent/llm.py, chosen by
-the caller's key/provider) — the prompt, tools and loop are identical across all three.
+the caller's key/provider) - the prompt, tools and loop are identical across all three.
 
 This is the one part of the system required to be genuinely non-deterministic and genuinely
-live — no step sequence is hand-written or hardcoded anywhere in this file; every action comes
+live - no step sequence is hand-written or hardcoded anywhere in this file; every action comes
 from an actual hosted-model tool-use response reasoning over an actual observation of the real
 running app. See scripts/run_discovery.py for how this gets invoked, and evidence/ for a real
 run's transcript.
@@ -68,28 +68,28 @@ def _system_prompt(goal: str, target_url: str) -> str:
     )
     return f"""You are a computer-use agent operating a legacy core-banking web application on
 behalf of an automated back-office system at a bank. You act only through the tools provided
-(click, type, navigate, extract, finish, escalate) — you have no direct DOM or API access.
+(click, type, navigate, extract, finish, escalate) - you have no direct DOM or API access.
 
 Your goal for this run:
     {goal}
 
-The application's entry point is {target_url} — you are already there.
+The application's entry point is {target_url} - you are already there.
 
 Each turn you are shown the current page as an accessibility tree (role, accessible name, and
-value for each element — this is what a screen reader would see, not raw HTML) and the result
+value for each element - this is what a screen reader would see, not raw HTML) and the result
 of your last action. Content inside iframes is merged into this tree under a node with
-role "Iframe" — treat it exactly like any other part of the page.
+role "Iframe" - treat it exactly like any other part of the page.
 
 Rules:
 - You may only act within this allowlist: {allowlist_summary}. Anything outside it will be
   rejected and the run halted.
 - If the goal is naturally read-only (e.g. looking something up), you may complete it directly.
 - If completing the goal requires a state-changing, hard-to-reverse action (e.g. actually
-  submitting a form that creates or modifies a record), do NOT take that final step yourself —
+  submitting a form that creates or modifies a record), do NOT take that final step yourself -
   call `escalate` with a clear reason instead, so a human can confirm it first. It is fine and
   expected to navigate, fill out, and review a form up to that point.
 - If you reach a definitive business outcome (e.g. "no member found for that ID", "access
-  denied for this account"), that is a valid, useful result, not a failure — call `finish` with
+  denied for this account"), that is a valid, useful result, not a failure - call `finish` with
   success=true and the matching business_outcome_code.
 - If the page stops changing in response to your actions, or you don't understand what's in
   front of you, call `escalate` with a clear reason rather than repeating actions blindly.
@@ -120,13 +120,13 @@ def run_discovery(
     on_event=None,
     capability_id: str | None = None,
 ) -> DiscoveryResult:
-    """`on_event(entry)` — if given, called with every transcript entry as it happens (the same
+    """`on_event(entry)` - if given, called with every transcript entry as it happens (the same
     dicts that end up in `DiscoveryResult.transcript`). Used by webconsole/ to stream the run
     live; never raises out of the loop. `capability_id` is only used to match escalation-policy
-    rules (escalation/policy.py) — the agent's own `escalate` tool still works independently.
+    rules (escalation/policy.py) - the agent's own `escalate` tool still works independently.
 
     `provider` (anthropic / openai / gemini / None=auto-detect from the key) and `model` pick
-    which model backs the loop — see agent/llm.py. The tools, prompt and loop are identical
+    which model backs the loop - see agent/llm.py. The tools, prompt and loop are identical
     across providers."""
     session = make_session(api_key=api_key, provider=provider, model=model)
     run_id = f"run_{uuid.uuid4().hex[:10]}"
@@ -143,7 +143,7 @@ def run_discovery(
             except Exception:
                 pass
 
-    # The entry point itself is user input, not a discovered path — establishing it deterministically
+    # The entry point itself is user input, not a discovered path - establishing it deterministically
     # doesn't hardcode any part of *how the goal gets accomplished*, which is what must come from the
     # live loop.
     page.goto(target_url, timeout=15000)
@@ -184,7 +184,7 @@ def run_discovery(
             escalation_started = time.monotonic()
             lease = trigger_escalation(reason, page, run_id=run_id)
             # A human can reasonably take minutes to review and decide; that thinking time must
-            # not burn the run's own wall-clock budget — shift start_time forward by however
+            # not burn the run's own wall-clock budget - shift start_time forward by however
             # long the wait actually took, so only real elapsed *working* time counts against
             # timeout_s.
             start_time += time.monotonic() - escalation_started
@@ -199,12 +199,12 @@ def run_discovery(
             _log({"type": "escalation_resumed", "human_note": human_note})
             recent_hashes.clear()
             last_action_result = (
-                "escalation resumed — re-observing current state. "
+                "escalation resumed - re-observing current state. "
                 f"Human note: {human_note or '(none)'}."
             )
             continue
 
-        # Every discovery turn ships page content to a third-party model — the one-way door.
+        # Every discovery turn ships page content to a third-party model - the one-way door.
         # `guardrail_check(phase="discovery")` already keeps this to approved non-prod targets;
         # this is defense in depth on the content itself: names / addresses / emails / phones in
         # the observation are masked before they leave, and the per-turn RedactionReport
@@ -247,7 +247,7 @@ def run_discovery(
         name, tool_input = primary.name, primary.input
         _log({"type": "tool_call", "name": name, "input": tool_input, "step": step_count})
 
-        # Escalation policy (escalation/rules.yaml) — the deterministic floor under the model's
+        # Escalation policy (escalation/rules.yaml) - the deterministic floor under the model's
         # own judgment. If a rule matches this action, force a human pause (or a hard stop),
         # even if the model did not choose to escalate itself.
         if name in ("click", "type", "select"):
@@ -268,7 +268,7 @@ def run_discovery(
                 step_count -= 1  # the pause itself is not a page step
                 name, tool_input = "escalate", {"reason": f"[policy:{_d.rule_id}] {_d.reason}"}
 
-        # finish/escalate/note_* are loop-control or metadata signals, not actions on the page —
+        # finish/escalate/note_* are loop-control or metadata signals, not actions on the page -
         # they carry no URL or page-interaction semantics, so they're exempt from the
         # page-action allowlist check.
         _META_TOOLS = ("finish", "escalate", "note_branch", "note_data_shape")
@@ -286,7 +286,7 @@ def run_discovery(
             # Record BEFORE executing in every branch below: build_locator must count matches
             # on the page as it looks *right now*, not after the action has already navigated
             # it somewhere else. If execution then fails, the speculative Step is popped back
-            # off — a failed action must never end up baked into the compiled artifact.
+            # off - a failed action must never end up baked into the compiled artifact.
             if name == "click":
                 recorder.record_click(tool_input["role"], tool_input["name"], page)
                 try:
@@ -390,20 +390,20 @@ def run_discovery(
                 recent_hashes.clear()
                 if decision == "approved":
                     last_action_result = (
-                        f"escalation resumed — a human APPROVED your request "
+                        f"escalation resumed - a human APPROVED your request "
                         f"({human_note or 'no additional note'}). You now have explicit "
                         "authorization to proceed with the action you paused on."
                     )
                 elif decision == "declined":
                     last_action_result = (
-                        f"escalation resumed — a human DECLINED your request "
+                        f"escalation resumed - a human DECLINED your request "
                         f"({human_note or 'no additional note'}). Do NOT take that action. "
                         "Call finish with success=false (or an appropriate business outcome) "
                         "explaining that a human declined."
                     )
                 else:
                     last_action_result = (
-                        f"escalation resumed — human note: {human_note or '(none)'}. "
+                        f"escalation resumed - human note: {human_note or '(none)'}. "
                         "Re-observe the current state before deciding what to do next."
                     )
                 tool_result_content = last_action_result

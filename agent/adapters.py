@@ -1,8 +1,8 @@
 """
-Surface adapters — the seam that makes "heterogeneous surfaces" (REPORT §4) a checkable claim
+Surface adapters - the seam that makes "heterogeneous surfaces" (REPORT §4) a checkable claim
 instead of a paragraph.
 
-Everything downstream of discovery — the recorder, the artifact schema, the replay engine —
+Everything downstream of discovery - the recorder, the artifact schema, the replay engine -
 only ever sees two things: a `{role, name, value, children}` accessibility tree, and
 role/name-addressed actions. Nothing in that path imports Playwright. These two Protocols write
 that contract down explicitly:
@@ -15,7 +15,7 @@ The **web** implementation already exists and is split exactly along this line:
 is the ActionExecutor, `handle` is a Playwright `Page`. The **desktop** implementation is real,
 not a stub: `agent/desktop_adapter.py:DesktopAdapter` runs against `desktop/mock_ax.py` (an
 in-process stand-in for Windows UIA / macOS AX) and produces the exact same
-`{role, name, value, children}` tree from a non-Playwright surface — nothing else in the system
+`{role, name, value, children}` tree from a non-Playwright surface - nothing else in the system
 changes: same `Step`, same 4-tier locator concept, same replay contract, same guardrails.
 
 `runtime_checkable` so a smoke test / CI can assert both the web functions and the desktop
@@ -35,7 +35,7 @@ class PerceptionAdapter(Protocol):
 
     def observe(self, handle: object, last_action_result: str = "") -> dict:
         """Return `{"url": str, "last_action_result": str, "accessibility_tree": {role, name,
-        value, children}}`. Iframe / child-window content must already be merged in — callers
+        value, children}}`. Iframe / child-window content must already be merged in - callers
         never reason about frame or window boundaries."""
         ...
 

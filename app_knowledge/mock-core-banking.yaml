@@ -1,12 +1,12 @@
 # Curated domain knowledge for the `mock-core-banking` target.
 #
-# This file is the ONLY place per-app knowledge lives — it used to be Python dicts keyed by
+# This file is the ONLY place per-app knowledge lives - it used to be Python dicts keyed by
 # capability_id inside agent/compiler.py and scripts/run_discovery.py, which meant a new target
 # app couldn't be onboarded without a code change by whoever explored it. Now: the discovery
-# agent PROPOSES these (from what it actually explored — see agent/tools.py's note_branch /
+# agent PROPOSES these (from what it actually explored - see agent/tools.py's note_branch /
 # note_data_shape tools), they land on the compiled artifact as `provenance: proposed`, and a
 # reviewer promotes the good ones into this file with `scripts/review_capability.py`. Everything
-# in here is `provenance: curated` — a human has signed off.
+# in here is `provenance: curated` - a human has signed off.
 #
 # `expected_outcomes`: branches replay must recognise deterministically. `match` selects the
 # step to attach the outcome to (by action_type / role / name). `condition` is the literal
@@ -24,7 +24,7 @@ expected_outcomes:
       code: MEMBER_NOT_FOUND
       handling: >-
         search returned no matching row for this member_id; there is no 'View' link to click
-        through — treat as not found rather than a broken locator
+        through - treat as not found rather than a broken locator
     - match: {action_type: extract}
       condition: "page contains 'Access denied. This account is restricted'"
       classification: business_outcome
@@ -122,7 +122,7 @@ capabilities:
   lookup_member_balance:
     risk_level: safe
     checkpoint: {type: element_present, locator: {role: rowheader, name: Savings Balance}, expected: present}
-    # every declared branch, replayed by replay.verify.verify_capability — a capability only
+    # every declared branch, replayed by replay.verify.verify_capability - a capability only
     # reaches lifecycle="verified" when all of these land where the artifact says they will.
     verify_scenarios:
       - {params: {member_id: "23456"}, expect: success}

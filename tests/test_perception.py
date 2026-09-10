@@ -1,7 +1,7 @@
 """
 Offline (no-browser) unit tests for agent/perception.py's pure functions:
 _parse_aria_snapshot (YAML text -> {role,name,value,children} tree) and
-prune_accessibility_tree (tree -> pruned tree). Neither needs Playwright — see
+prune_accessibility_tree (tree -> pruned tree). Neither needs Playwright - see
 scripts/verify_perception_live.py for the live half that does.
 """
 from agent.perception import _find_nodes_by_role, _parse_aria_snapshot, prune_accessibility_tree

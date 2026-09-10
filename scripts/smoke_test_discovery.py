@@ -1,5 +1,5 @@
 """
-Pre-flight smoke test for agent/discovery.py's loop mechanics — NOT the required real discovery
+Pre-flight smoke test for agent/discovery.py's loop mechanics - NOT the required real discovery
 run (that's scripts/run_discovery.py, with a real ANTHROPIC_API_KEY and a real Claude
 tool-use response each turn). This script fakes the Anthropic client with a scripted sequence
 of tool calls but drives everything else for real: a real Chromium, the real Flask app,
@@ -42,7 +42,7 @@ class FakeResponse:
 
 
 class ScriptedAnthropicClient:
-    """Stands in for anthropic.Anthropic — .messages.create() returns the next canned tool call."""
+    """Stands in for anthropic.Anthropic - .messages.create() returns the next canned tool call."""
 
     def __init__(self, script: list[dict]):
         self._script = list(script)
@@ -120,7 +120,7 @@ def main():
     finally:
         anthropic.Anthropic = original_ctor
 
-    print("\nAll discovery-loop smoke checks passed — plumbing is sound.")
+    print("\nAll discovery-loop smoke checks passed - plumbing is sound.")
 
 
 if __name__ == "__main__":

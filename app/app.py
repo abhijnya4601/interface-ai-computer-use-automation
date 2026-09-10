@@ -17,7 +17,7 @@ app = Flask(__name__)
 
 # BANK_VARIANT simulates a second tenant running the same product with a small UI difference
 # (here: the balance row header is relabelled). Used to demonstrate base + per-tenant patch
-# capability reuse — see artifact/patch.py and scripts/smoke_test_tenant_patch.py.
+# capability reuse - see artifact/patch.py and scripts/smoke_test_tenant_patch.py.
 app.jinja_env.globals["BANK_VARIANT"] = os.environ.get("BANK_VARIANT", "default")
 
 

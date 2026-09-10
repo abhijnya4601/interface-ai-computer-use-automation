@@ -1,7 +1,7 @@
 """
 Live smoke test for the table_position locator strategy. Uses
 `page.set_content()` with two versions of the same table shape (different data, same structure)
-so this doesn't need the Flask app running — a real browser is enough. Proves the exact scenario
+so this doesn't need the Flask app running - a real browser is enough. Proves the exact scenario
 that failed before this locator strategy existed: build a locator against one row's data, then successfully resolve the
 *analogous* cell on a page with completely different data (not the old value).
 

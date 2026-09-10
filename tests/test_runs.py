@@ -1,5 +1,5 @@
 """
-agent_interface/runs.py — the append-only run registry behind the console's History view.
+agent_interface/runs.py - the append-only run registry behind the console's History view.
 """
 import importlib
 import sys

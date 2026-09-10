@@ -94,7 +94,7 @@ def test_redact_recurses_into_nested_structures():
     raw = {"step": {"value": {"password": "hunter2"}, "notes": ["token=abc"]}}
     out = redact(raw)
     assert out["step"]["value"]["password"] == "***REDACTED***"
-    # "token=abc" isn't SSN/card-number-shaped, so the value pass leaves it alone — the key-based
+    # "token=abc" isn't SSN/card-number-shaped, so the value pass leaves it alone - the key-based
     # pass doesn't apply here either, since the key is "notes", not "token".
     assert out["step"]["notes"] == ["token=abc"]
 
@@ -135,7 +135,7 @@ def test_redact_does_not_flag_a_currency_formatted_balance():
 def test_redact_does_not_flag_a_customer_name():
     """Names aren't secret-shaped and legitimately belong in a capability's declared outputs
     (see guardrails/policy.py's module docstring). The DEFAULT sink ("artifact") still passes
-    them through untouched — the gray-area handling is opt-in per destination, below."""
+    them through untouched - the gray-area handling is opt-in per destination, below."""
     raw = {"member_name": "Dana Whitfield"}
     out = redact(raw)
     assert out["member_name"] == "Dana Whitfield"

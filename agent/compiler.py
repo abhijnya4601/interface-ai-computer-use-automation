@@ -3,21 +3,21 @@ Artifact compiler (Phase 4). On a successful discovery run, turns `Recorder.step
 versioned, serializable `Capability` and writes it to `capabilities/<capability_id>.v<major>.json`.
 
 Beyond repackaging the recorder's steps, this module attaches two kinds of domain knowledge the
-single happy-path discovery run doesn't observe on its own — the not-found / permission-denied
+single happy-path discovery run doesn't observe on its own - the not-found / permission-denied
 branches (`expected_outcomes`) and what a real extracted value looks like (`extract_contract`).
 
 That knowledge comes from two places, and every rule on the artifact is tagged with which:
 
-  - **curated** — `app_knowledge/<app_name>.yaml`, loaded by `target.app_name`. A human has
+  - **curated** - `app_knowledge/<app_name>.yaml`, loaded by `target.app_name`. A human has
     signed off. This used to be Python dicts keyed by capability_id right here in this file,
     which meant onboarding a new target app required a code change; now it's data, per app.
-  - **proposed** — the discovery agent's own `note_branch` / `note_data_shape` tool calls from
+  - **proposed** - the discovery agent's own `note_branch` / `note_data_shape` tool calls from
     what it explored this run (`Recorder.proposed_outcomes` / `.proposed_contracts`). Replay
     uses these (they're a real signal), but the capability's `lifecycle` stays `"draft"` and
     `Capability.unratified_rules()` is non-empty until a reviewer promotes them into the YAML
     with `scripts/review_capability.py`.
 
-Replay (Phase 5) evaluates these declared conditions against the live page deterministically —
+Replay (Phase 5) evaluates these declared conditions against the live page deterministically -
 it never guesses or calls an LLM to decide whether a business outcome occurred.
 """
 from __future__ import annotations
@@ -85,7 +85,7 @@ def _attach_expected_outcomes(
 ) -> list[Step]:
     """
     Attach curated (YAML) + proposed (this run's) expected-outcome rules to the steps they
-    match. Idempotent and dedup'd on `(condition, code)` — running twice, or re-running against
+    match. Idempotent and dedup'd on `(condition, code)` - running twice, or re-running against
     an already-compiled artifact, produces the same result. Curated wins a tie with proposed
     (so promoting a proposed rule into the YAML and recompiling flips its provenance without a
     duplicate).
@@ -169,7 +169,7 @@ def infer_output_schema(outputs: dict, steps: list[Step]) -> dict:
     """
     Declares only the output keys that have a recorded Step actually backing them: a
     discovery run's `finish()` can report values the LLM read directly off the observation
-    without ever calling `extract()` on them — declaring those in
+    without ever calling `extract()` on them - declaring those in
     `output_schema` anyway produces a schema-valid artifact whose promised outputs replay has no
     recorded way to reproduce. A key in `outputs` with no step whose `extract_as` matches it is
     dropped (with a printed warning, never silently) rather than promised and then missing.
@@ -225,19 +225,19 @@ def compile_capability(
     )
     # A fresh compile is always a draft; it only becomes `verified` after replay.verify runs
     # every declared branch clean (scripts/verify_capability.py), and only `published` when a
-    # human clears it — see scripts/review_capability.py.
+    # human clears it - see scripts/review_capability.py.
     capability.lifecycle = "draft"
     return capability
 
 
 def save_capability(capability: Capability, path: Path | None = None) -> Path:
     """
-    Serializes and writes the capability, running `redact()` only over `steps` — never over
+    Serializes and writes the capability, running `redact()` only over `steps` - never over
     `input_schema`/`output_schema`. Those two are pure type metadata (e.g. `{"type": "string"}`),
     never actual data, so there is nothing in them to redact; running redact() over the whole
     `model_dump()` corrupted a real artifact once: a field legitimately named
     `sub_account_number` matched the `account_number` secret-key marker, and redact() replaced
-    its entire schema-type dict with the string "***REDACTED***" — silently breaking the
+    its entire schema-type dict with the string "***REDACTED***" - silently breaking the
     artifact's structural validity, not protecting any actual secret. `steps` is the one place a
     literal, potentially-sensitive value could actually appear (a `Step.value` the LLM typed),
     so that's the only part that goes through redact().

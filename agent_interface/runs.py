@@ -1,5 +1,5 @@
 """
-Run registry — an append-only JSONL log of every discovery, replay and ask run, so the console's
+Run registry - an append-only JSONL log of every discovery, replay and ask run, so the console's
 History view has one queryable record. Deliberately a flat file, not a DB: the assignment
 penalises scaling infrastructure, and a demo's run count is tiny.
 

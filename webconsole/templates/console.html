@@ -25,8 +25,8 @@
   header .sub{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
   header .sub b{color:var(--wire);font-weight:500}
 
-  .app{display:grid;grid-template-columns:340px minmax(0,1fr) minmax(0,1fr);gap:14px;padding:16px 22px;align-items:start}
-  .col{background:var(--ground-2);border:1px solid var(--hair);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+  .app{display:grid;grid-template-columns:340px minmax(0,1fr) minmax(0,1fr);gap:14px;padding:16px 22px;align-items:start;align-content:start}
+  .col{background:var(--ground-2);border:1px solid var(--hair);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;align-self:start}
   .col > .cap{padding:9px 13px;border-bottom:1px solid var(--hair);background:var(--ground-3);font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);display:flex;justify-content:space-between;align-items:center}
   .col-body{padding:14px}
 
@@ -74,7 +74,7 @@
   .howbody b{color:var(--ink-1);font-weight:600}
 
   /* console */
-  .console{flex:1;min-height:420px;max-height:calc(100vh - 190px);overflow-y:auto;padding:12px 13px;font-family:var(--mono);font-size:11.8px;line-height:1.65;background:var(--ground-3)}
+  .console{flex:1;min-height:330px;max-height:64vh;overflow-y:auto;padding:12px 13px;font-family:var(--mono);font-size:11.8px;line-height:1.65;background:var(--ground-3)}
   .ln{display:flex;gap:9px;padding:1px 0;white-space:pre-wrap;word-break:break-word}
   .ln .t{color:var(--ink-3);flex:none;font-size:10.5px;padding-top:1px}
   .ln.nav .m,.ln.obs .m{color:var(--ink-3)}
@@ -88,13 +88,13 @@
   .empty{color:var(--ink-3);font-family:var(--mono);font-size:11.5px;padding:20px 4px}
 
   /* live browser */
-  .screenwrap{flex:1;display:flex;flex-direction:column;min-height:420px}
+  .screenwrap{flex:1;display:flex;flex-direction:column;min-height:330px}
   .screenbar{display:flex;align-items:center;gap:8px;padding:7px 11px;border-bottom:1px solid var(--hair);background:var(--ground-3);font-family:var(--mono);font-size:11px;color:var(--ink-2)}
   .screenbar .st{margin-left:auto;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--hair-b);border-radius:4px;padding:2px 7px;color:var(--ink-3)}
   .screenbar .st.live{color:var(--wire);border-color:var(--wire-dim)}
   .screenbar .st.done{color:var(--signal);border-color:var(--signal-dim)}
-  #screen{width:100%;display:block;background:#20323f;min-height:380px;object-fit:contain}
-  .noscreen{padding:60px 20px;text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:11.5px}
+  #screen{width:100%;display:block;background:#20323f;min-height:300px;max-height:66vh;object-fit:contain}
+  .noscreen{padding:40px 20px;text-align:center;color:var(--ink-3);font-family:var(--mono);font-size:11.5px}
 
   .escpanel{border-top:1px solid var(--alarm-dim);background:rgba(217,105,78,.07);padding:12px 14px}
   .escpanel h4{font-family:var(--sans);font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--alarm);margin:0 0 7px}
@@ -110,6 +110,7 @@
   .status-success{color:var(--wire);border-color:var(--wire-dim)}
   .status-business_outcome{color:var(--signal);border-color:var(--signal-dim)}
   .status-data_unavailable{color:#c99bd6;border-color:#5a3f63}
+  .status-recoverable_handled{color:var(--wire);border-color:var(--wire-dim)}
   .status-hard_failure,.status-error,.status-stopped{color:var(--alarm);border-color:var(--alarm-dim)}
   pre{white-space:pre-wrap;word-break:break-word;color:var(--ink-2);margin:8px 0 0;font-size:11px}
 
@@ -132,6 +133,7 @@
   .htable .k{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--hair-b);border-radius:4px;padding:1px 6px;color:var(--ink-3)}
   .htable .s-success{color:var(--wire)} .htable .s-business_outcome{color:var(--signal)}
   .htable .s-data_unavailable{color:#c99bd6} .htable .s-no_match{color:var(--ink-3)}
+  .htable .s-recoverable_handled{color:var(--wire)}
   .htable .s-hard_failure,.htable .s-error,.htable .s-stopped{color:var(--alarm)}
   .htable .esc{color:var(--alarm)}
   #hdetail{margin-top:12px;white-space:pre-wrap;word-break:break-word;background:var(--ground-3);border:1px solid var(--hair);border-radius:8px;padding:12px;font-family:var(--mono);font-size:11px;color:var(--ink-2);max-height:340px;overflow:auto}
@@ -143,7 +145,7 @@
 <body>
 <header>
   <h1>Live Console</h1>
-  <span class="sub">choose a target &amp; parameters &middot; <b>watch it run</b> — console and browser, same page, in real time</span>
+  <span class="sub">choose a target &amp; parameters &middot; <b>watch it run</b> - console and browser, same page, in real time</span>
   <div class="viewseg" id="viewseg">
     <button data-view="run" aria-pressed="true">Run</button>
     <button data-view="history" aria-pressed="false">History</button>
@@ -156,34 +158,47 @@
     <div class="cap"><span>Run</span><span id="busytag" class="eyebrow"></span></div>
     <div class="col-body">
 
-      <details class="rules" id="howBox" open>
-        <summary>How this works &amp; what the buttons do</summary>
-        <div class="howbody">
-          <p><b>Run a task.</b> Pick a capability (a task the system already learned), fill in the inputs, press <b>Run</b>. Middle panel = the agent's console. Right panel = the real browser it is driving. Both update live.</p>
-          <p><b>Three ways to run.</b> <b>Replay</b> — pick a known task, deterministic, no API key, never writes real data. <b>Ask</b> — type a request in plain English; the model picks one task the console already knows and fills its inputs (needs a key). <b>Discover</b> — give the model a goal and it works out a <em>new</em> task, saved as a replay (needs a key). Anthropic, OpenAI or Google (Gemini) for Ask and Discover.</p>
-          <p><b>Override recorded values.</b> Blank = use the value captured when the task was learned. Type something to use it for this one run only (for example a different amount).</p>
-          <p><b>Escalation — when a step needs a human.</b> Before any step that changes data, the run checks the <b>escalation rules</b> below. If a rule says <em>escalate</em> — or the model asks for a human itself — the run <b>pauses</b> and a panel appears on the right. <b>Approve</b> runs that step and continues; <b>Decline</b> stops the run. Nothing changes while it is paused.</p>
-          <p><b>History.</b> The <b>History</b> tab (top right) is every run this instance has done — kind, capability, status, outcome, escalations, duration — newest first, params and outputs redacted.</p>
-        </div>
-      </details>
-
       <div class="seg" id="mode">
         <button data-mode="replay" aria-pressed="true">Replay</button>
-        <button data-mode="ask" aria-pressed="false" {{ '' if (allow_byo_key or server_has_key) else 'disabled' }}>Ask</button>
+        <button data-mode="ask" aria-pressed="false" {{ '' if (allow_byo_key or server_has_key) else 'disabled' }}>Chatbot</button>
         <button data-mode="discovery" aria-pressed="false" {{ '' if (allow_byo_key or server_has_key) else 'disabled' }}>Discover</button>
       </div>
 
+      <details class="rules" id="howBox">
+        <summary>How this works &amp; what the buttons do</summary>
+        <div class="howbody">
+          <p><b>Run a task.</b> Pick a capability (a task the system already learned), fill in the inputs, press <b>Run</b>. Middle panel = the agent's console. Right panel = the real browser it is driving. Both update live.</p>
+          <p><b>Three ways to run.</b> <b>Replay</b> - pick a known task, deterministic, no API key, never writes real data. <b>Chatbot</b> - type a request in plain English; the model picks a task the console already knows, or, if none fits, learns a new one for it (a discovery run). <b>Discover</b> - give the model a goal and it works out a <em>new</em> task, saved as a replay. Chatbot and Discover need a key (Anthropic, OpenAI or Google Gemini).</p>
+          <p><b>Override recorded values.</b> Blank = use the value captured when the task was learned. Type something to use it for this one run only (for example a different amount).</p>
+          <p><b>Escalation - when a step needs a human.</b> Before any step that changes data, the run checks the <b>escalation rules</b> below. If a rule says <em>escalate</em> - or the model asks for a human itself - the run <b>pauses</b> and a panel appears on the right. <b>Approve</b> runs that step and continues; <b>Decline</b> stops the run. Nothing changes while it is paused.</p>
+          <p><b>History.</b> The <b>History</b> tab (top right) is every run this instance has done - kind, capability, status, outcome, escalations, duration - newest first, params and outputs redacted.</p>
+          <p><b>Two target apps.</b> <b>Mock core-banking</b> - semantic HTML, clean accessibility tree. <b>Hostile-DOM app</b> - div soup, no <code>&lt;label for&gt;</code>, values buried in nested spans (ARIA roles kept, so role+name still resolves). The hostile app also has a <b>fault-injection</b> switch: <code>maintenance</code> (503 &rarr; <code>recoverable_handled</code>), <code>slow</code> (latency), <code>blank</code> (balance renders empty &rarr; <code>data_unavailable</code>).</p>
+          <p><b>Data handling.</b> Every run shows its redaction passes inline (<span style="color:#c99bd6">&#8856; redaction</span> lines) - what was masked, for which sink, and anything flagged for review. The <b>Data handling &amp; guarantees</b> panel below explains the model.</p>
+        </div>
+      </details>
+
       <label class="f">Target</label>
       <select id="target">
-        {% for k,t in targets.items() %}<option value="{{k}}">{{t.label}}</option>{% endfor %}
+        {% for k,t in targets.items() %}<option value="{{k}}" data-app="{{t.app_name}}" data-inject="{{ '1' if t.supports_inject else '' }}">{{t.label}}</option>{% endfor %}
       </select>
-      <div class="hint">Targets are limited to the approved non-prod app (guardrails/allowlist.yaml).</div>
+      <div class="hint">Targets are limited to the approved non-prod apps (guardrails/allowlist.yaml).</div>
+
+      <div id="f-inject" hidden>
+        <label class="f">Fault injection <span style="text-transform:none;letter-spacing:0;color:var(--ink-3)">- hostile-DOM app only</span></label>
+        <select id="inject">
+          <option value="">none - normal run</option>
+          <option value="maintenance">maintenance - every request 503s &rarr; recoverable_handled</option>
+          <option value="slow">slow - ~4s per request &rarr; completes under latency</option>
+          <option value="blank">blank - balance renders empty &rarr; data_unavailable</option>
+        </select>
+        <div class="hint">Appended as <code>?inject=</code> to the entry navigation; the app carries it through the whole flow. Each maps to a distinct real replay-engine outcome.</div>
+      </div>
 
       <!-- replay fields -->
       <div id="f-replay">
         <label class="f">Capability</label>
         <select id="capability">
-          {% for c in capabilities %}<option value="{{c.path}}" data-inputs="{{ c.inputs|join(',') }}" data-risk="{{c.risk}}">{{c.id}} &nbsp;·&nbsp; {{c.risk}} &nbsp;·&nbsp; {{c.lifecycle}}</option>{% endfor %}
+          {% for c in capabilities %}<option value="{{c.path}}" data-inputs="{{ c.inputs|join(',') }}" data-risk="{{c.risk}}" data-app="{{c.app}}">{{c.id}} &nbsp;·&nbsp; {{c.risk}} &nbsp;·&nbsp; {{c.lifecycle}}</option>{% endfor %}
         </select>
         <div id="params"></div>
         <label class="check"><input type="checkbox" id="confirm"> <span>confirm = true (required for a <code>risky</code> capability)</span></label>
@@ -197,11 +212,11 @@
         <input type="text" id="capid" value="discovered" placeholder="what to call the replay this produces">
       </div>
 
-      <!-- ask fields -->
+      <!-- chatbot fields -->
       <div id="f-ask" hidden>
         <label class="f">What do you want done?</label>
         <textarea id="askreq" placeholder="What's the savings balance for member 12345?"></textarea>
-        <div class="hint">The model picks <b>one capability the console already knows</b> and fills its inputs — it does not learn anything new (that's Discover). A risky pick still pauses for a human.</div>
+        <div class="hint">The model picks <b>a capability the console already knows</b> and fills its inputs. If nothing fits, it <b>learns a new one</b> for your request (a discovery run) - which then shows up in Replay. A risky step still pauses for a human.</div>
       </div>
 
       <!-- shared model credentials (Ask + Discover) -->
@@ -209,14 +224,14 @@
         <label class="f">Model provider</label>
         <select id="provider">
           <option value="auto">Auto-detect from the key</option>
-          <option value="anthropic">Anthropic — Claude</option>
-          <option value="openai">OpenAI — GPT</option>
-          <option value="gemini">Google — Gemini</option>
+          <option value="anthropic">Anthropic - Claude</option>
+          <option value="openai">OpenAI - GPT</option>
+          <option value="gemini">Google - Gemini</option>
         </select>
         {% if allow_byo_key %}
-        <label class="f">API key{% if server_has_key %} <span style="text-transform:none;letter-spacing:0;color:var(--ink-3)">— optional, the server has one</span>{% endif %}</label>
+        <label class="f">API key{% if server_has_key %} <span style="text-transform:none;letter-spacing:0;color:var(--ink-3)">- optional, the server has one</span>{% endif %}</label>
         <input type="password" id="apikey" placeholder="sk-ant-…  /  sk-…  /  AIza…   (used for this run, never stored)" autocomplete="off">
-        <div class="hint">Anthropic, OpenAI or Google key — the provider is picked from the key prefix unless you set it above. Sent straight to that provider through this server for the run and <b>never written to disk or logged</b>. Kept in this browser tab only. <a href="#" id="forgetkey">forget it</a></div>
+        <div class="hint">Anthropic, OpenAI or Google key - the provider is picked from the key prefix unless you set it above. Sent straight to that provider through this server for the run and <b>never written to disk or logged</b>. Kept in this browser tab only. <a href="#" id="forgetkey">forget it</a></div>
         {% elif not server_has_key %}
         <div class="warnbox">Ask and Discover need an API key (<code>ANTHROPIC_API_KEY</code>, <code>OPENAI_API_KEY</code> or <code>GEMINI_API_KEY</code>) on the server. Replay runs fully without one.</div>
         {% endif %}
@@ -231,7 +246,7 @@
       <details class="rules" id="rulesBox">
         <summary>Escalation rules <span id="rulesCount" class="eyebrow"></span></summary>
         <p class="hint">Each rule reads <b>when</b> … <b>then</b> …, checked top-to-bottom before every step that changes data (replay, ask <em>and</em> discovery). First match wins; no match = the step just runs.</p>
-        <p class="hint"><b>escalate</b> = pause and wait for a human · <b>block</b> = stop the run now · <b>allow</b> = let it through (put one above a broader rule to carve an exception). The model can also escalate on its own — rules are the floor under that. Edits apply to the next run.</p>
+        <p class="hint"><b>escalate</b> = pause and wait for a human · <b>block</b> = stop the run now · <b>allow</b> = let it through (put one above a broader rule to carve an exception). The model can also escalate on its own - rules are the floor under that. Edits apply to the next run.</p>
         <ul id="rulesList"></ul>
         <div class="addrule">
           <div class="rr"><span>when</span></div>
@@ -240,9 +255,25 @@
           <input type="text" id="r-name" placeholder="step name contains… e.g. Confirm">
           <select id="r-act"><option value="">action: any</option><option value="click">click</option><option value="type">type</option></select>
           <div class="rr"><span>then</span>
-            <select id="r-then"><option value="escalate">escalate — pause for a human</option><option value="block">block — stop the run</option><option value="allow">allow — proceed</option></select>
+            <select id="r-then"><option value="escalate">escalate - pause for a human</option><option value="block">block - stop the run</option><option value="allow">allow - proceed</option></select>
           </div>
           <button id="r-add">Add rule</button>
+        </div>
+      </details>
+
+      <details class="rules" id="guardBox">
+        <summary>Data handling &amp; guarantees <span class="eyebrow">for reviewers</span></summary>
+        <div class="howbody">
+          <p><b>Sink-aware redaction.</b> Every value is redacted for <em>where it is going</em>, not just what it is (<code>guardrails/policy.py</code>). Three sinks:</p>
+          <p style="margin:6px 0 6px 8px">
+            &middot; <b>artifact</b> - a compiled capability's declared outputs. Hard secrets only: SSN / card / routing shapes, and any field <em>named</em> like a secret. A name in <code>output_schema</code> is the point of the capability, not a leak.<br>
+            &middot; <b>evidence</b> - anything written to logs, transcripts, screenshots, or the History record. Also tokenises names / emails / phones / addresses as <code>&lt;PERSON_1&gt;</code>, reversibly under audit.<br>
+            &middot; <b>llm_prompt</b> - page content on its way to a third-party model (a one-way door). Everything the evidence sink does, <em>plus</em> hard-masks ZIP- and long-digit shapes.
+          </p>
+          <p><b>The gray area.</b> A bare number - <code>member 12345</code>, an amount, a 5-digit code - could be an id you must keep or a ZIP you must drop. Masking it would break an agent that navigates by exactly those strings; passing it silently is a risk. So ambiguous numerics are <b>flagged and left intact</b>, and low-confidence entity matches are <b>flagged for review</b> - both land on the per-run <code>RedactionReport</code> shown on the <span style="color:#c99bd6">&#8856; redaction</span> lines in the console and in every History record.</p>
+          <p><b>Backend.</b> Microsoft Presidio (NER) when installed, a deterministic regex pass otherwise - redaction never silently no-ops. The backend in effect is printed on each redaction line.</p>
+          <p><b>Keys never persist.</b> A bring-your-own API key is held in memory for one run, sent only to the chosen provider, and never written to disk or logged.</p>
+          <p><b>Other guarantees.</b> Targets are limited to an allowlist (<code>guardrails/allowlist.yaml</code>), checked before every action. Discover &rarr; compile &rarr; deterministic <b>replay never calls a model</b>. Every state-changing step passes the escalation policy above. Missing data degrades to a <code>data_unavailable</code> outcome - never a crash or a made-up value.</p>
         </div>
       </details>
     </div>
@@ -256,15 +287,15 @@
 
   <!-- live browser -->
   <div class="col">
-    <div class="cap"><span>Target — live</span></div>
+    <div class="cap"><span>Target - live</span></div>
     <div class="screenwrap">
-      <div class="screenbar"><span class="mono" id="scr-url">—</span><span class="st" id="scr-st">idle</span></div>
+      <div class="screenbar"><span class="mono" id="scr-url">-</span><span class="st" id="scr-st">idle</span></div>
       <img id="screen" alt="live view of the target browser" hidden>
       <div class="noscreen" id="noscreen">the target browser appears here once a run starts</div>
       <div class="escpanel" id="escpanel" hidden>
-        <h4>This step needs a human — the run is paused</h4>
+        <h4>This step needs a human - the run is paused</h4>
         <p id="esc-reason"></p>
-        <p class="why">A rule matched this step, or the agent asked for a human. The browser is frozen exactly here — nothing changes until you choose.</p>
+        <p class="why">A rule matched this step, or the agent asked for a human. The browser is frozen exactly here - nothing changes until you choose.</p>
         <div class="ops"><button class="ap" id="escApprove">Approve &amp; resume</button><button class="de" id="escDecline">Decline</button></div>
         <p class="why">Approve = run this step, then carry on. Decline = stop the run here.</p>
       </div>
@@ -277,7 +308,7 @@
   <div class="hcol">
     <div class="cap"><span>Run history</span><span id="hcount" class="eyebrow"></span></div>
     <div class="hbody">
-      <p class="hint">Every replay, ask and discovery run on this instance — newest first, params &amp; outputs redacted. Click a row for the full record. <a href="#" id="hrefresh">refresh</a></p>
+      <p class="hint">Every replay, ask and discovery run on this instance - newest first, params &amp; outputs redacted. Click a row for the full record. <a href="#" id="hrefresh">refresh</a></p>
       <div style="overflow-x:auto">
       <table class="htable">
         <thead><tr><th>when</th><th>kind</th><th>capability</th><th>status</th><th>outcome</th><th>esc</th><th>dur</th></tr></thead>
@@ -348,6 +379,17 @@
     return '';
   }
   function capFor(path){ for(var i=0;i<caps.length;i++){ if(caps[i].path===path) return caps[i]; } return null; }
+  function currentApp(){ var o=$('#target').selectedOptions[0]; return o?(o.dataset.app||''):''; }
+
+  /* ---- target: filter capabilities to the selected app + toggle fault injection ---- */
+  function applyTarget(){
+    var t=$('#target').selectedOptions[0];
+    if($('#f-inject')) $('#f-inject').hidden = !(t && t.dataset.inject);
+    if(!(t && t.dataset.inject) && $('#inject')) $('#inject').value='';
+    rebuildCapSelect(caps);
+  }
+  $('#target') && $('#target').addEventListener('change', applyTarget);
+
   function renderParams(){
     var opt = $('#capability').selectedOptions[0];
     var names = (opt && opt.dataset.inputs ? opt.dataset.inputs.split(',') : []).filter(Boolean);
@@ -359,7 +401,7 @@
     var cap = opt ? capFor(opt.value) : null;
     var ov = (cap && cap.overridable) || [];
     if(ov.length){
-      html += '<label class="f" style="margin-top:16px">Override recorded values <span style="text-transform:none;letter-spacing:0;color:var(--ink-3)">— optional, blank = use recorded</span></label>';
+      html += '<label class="f" style="margin-top:16px">Override recorded values <span style="text-transform:none;letter-spacing:0;color:var(--ink-3)">- optional, blank = use recorded</span></label>';
       html += ov.map(function(o){
         return '<label class="f" style="margin-top:8px">'+esc(o.field)+'</label>'
           + '<input type="text" data-override="'+esc(o.step_id)+'" placeholder="'+esc(String(o.value))+'">';
@@ -368,18 +410,20 @@
     $('#params').innerHTML = html;
   }
   $('#capability') && $('#capability').addEventListener('change', renderParams);
-  renderParams();
 
-  /* ---- rebuild the replay capability list (after a discovery, without a page reload) ---- */
+  /* ---- rebuild the replay capability list - filtered to the selected target's app ---- */
   function rebuildCapSelect(list, selectPath){
     var sel = $('#capability'); if(!sel) return;
+    var app = currentApp();
+    var rows = list.filter(function(c){ return !app || c.app===app; });
     var cur = selectPath || sel.value;
-    sel.innerHTML = list.map(function(c){
-      return '<option value="'+c.path+'" data-inputs="'+(c.inputs||[]).join(',')+'" data-risk="'+c.risk+'"'
+    sel.innerHTML = rows.length ? rows.map(function(c){
+      return '<option value="'+c.path+'" data-inputs="'+(c.inputs||[]).join(',')+'" data-risk="'+c.risk+'" data-app="'+c.app+'"'
         + (c.path===cur?' selected':'') + '>'+c.id+'  ·  '+c.risk+'  ·  '+c.lifecycle+'</option>';
-    }).join('');
+    }).join('') : '<option value="">- no capabilities for this app yet -</option>';
     renderParams();
   }
+  applyTarget();  // initial filter + inject visibility
   function refreshCatalog(selectPath){
     return fetch('/catalog').then(function(r){return r.json();}).then(function(j){
       caps = j.capabilities; rebuildCapSelect(caps, selectPath); return j.capabilities;
@@ -407,21 +451,31 @@
       line('model','‹ model'+(tu?'  →  '+esc(tu.name)+' '+esc(jshort(tu.input)):'  (stop: '+esc(e.stop_reason)+')'));
     }
     else if(tp==='tool_call') line('act','→ <b>'+esc(e.name)+'</b>  '+esc(jshort(e.input)));
-    else if(tp==='redaction') line('red','⊘ redaction ['+esc(e.sink||e.phase)+']  '+esc(jshort(e.by_type||{}))+(e.low_confidence_for_review&&e.low_confidence_for_review.length?'  · '+e.low_confidence_for_review.length+' flagged':''));
-    else if(tp==='note_branch'||tp==='note_data_shape') line('act','● '+esc(tp)+' — proposal noted for review');
-    else if(tp==='escalate_requested'){ line('esc','↯ escalate — '+esc((e.reason||'').slice(0,140))+'…'); showEsc(e.reason); }
-    else if(tp==='dead_end') line('esc','↯ dead-end — '+esc(e.reason));
-    else if(tp==='escalation_resumed'){ line('done','✓ resumed — decision='+esc(e.decision)); hideEsc(); }
-    else if(tp==='guardrail_violation') line('err','✕ guardrail — '+esc(e.detail));
+    else if(tp==='redaction'){
+      var bt=e.by_type||{}, masked=Object.keys(bt).map(function(k){return bt[k]+' '+k.toLowerCase().replace(/_/g,' ');});
+      var lc=(e.low_confidence_for_review||[]).length, fl=(e.flagged_not_masked||[]).length;
+      var msg='⊘ redaction · '+esc(e.sink||e.phase||'evidence')+' sink';
+      msg += masked.length ? ' · masked '+esc(masked.join(', ')) : ' · nothing to mask';
+      if(lc) msg+=' · '+lc+' low-confidence flagged for review';
+      if(fl) msg+=' · '+fl+' ambiguous number'+(fl>1?'s':'')+' left intact (flagged)';
+      if(e.backend) msg+='  ['+esc(e.backend)+']';
+      line('red', msg);
+    }
+    else if(tp==='note_branch'||tp==='note_data_shape') line('act','● '+esc(tp)+' - proposal noted for review');
+    else if(tp==='escalate_requested'){ line('esc','↯ escalate - '+esc((e.reason||'').slice(0,140))+'…'); showEsc(e.reason); }
+    else if(tp==='dead_end') line('esc','↯ dead-end - '+esc(e.reason));
+    else if(tp==='escalation_resumed'){ line('done','✓ resumed - decision='+esc(e.decision)); hideEsc(); }
+    else if(tp==='guardrail_violation') line('err','✕ guardrail - '+esc(e.detail));
     else if(tp==='provider') line('model','◇ provider · '+esc(e.provider)+'  ·  model '+esc(e.model));
+    else if(tp==='inject') line('esc','⚡ fault injection · '+esc(e.kind)+'  →  '+esc(e.url));
     else if(tp==='answer') line('answer','▷ '+esc(e.text));
     else if(tp==='token_usage') line('obs','tokens  in '+e.input+'  out '+e.output);
-    else if(tp==='finish') line('done','■ finish — '+esc((e.input&&e.input.summary)||''));
-    else if(tp==='stop') line('obs','· stop — '+esc(e.reason));
-    else if(tp==='precheck_block') line('err','✕ blocked — '+esc(jshort(e.detail)));
+    else if(tp==='finish') line('done','■ finish - '+esc((e.input&&e.input.summary)||''));
+    else if(tp==='stop') line('obs','· stop - '+esc(e.reason));
+    else if(tp==='precheck_block') line('err','✕ blocked - '+esc(jshort(e.detail)));
     else if(tp==='replay_start') line('act','▶ replay  '+esc(e.capability_id)+'  '+esc(jshort(e.params)));
-    else if(tp==='step') line('step','● <b>'+esc(e.step_id)+'</b> '+esc(e.action_type)+'  · tier '+esc(e.tier||'—')+'  · '+e.ms+'ms  → '+esc(e.outcome));
-    else if(tp==='policy_check') line('policy','⚖ policy · '+esc(e.step_id)+' → <b>'+esc(e.decision)+'</b>'+(e.rule?'  (rule: '+esc(e.rule)+')':'')+'  — '+esc(e.reason));
+    else if(tp==='step') line('step','● <b>'+esc(e.step_id)+'</b> '+esc(e.action_type)+'  · tier '+esc(e.tier||'-')+'  · '+e.ms+'ms  → '+esc(e.outcome));
+    else if(tp==='policy_check') line('policy','⚖ policy · '+esc(e.step_id)+' → <b>'+esc(e.decision)+'</b>'+(e.rule?'  (rule: '+esc(e.rule)+')':'')+' - '+esc(e.reason));
     else if(tp==='override_applied') line('act','✎ override · '+esc(e.step_id)+' '+esc(e.field||'')+' = <b>'+esc(e.value)+'</b>  (recorded value replaced for this run)');
     else if(tp==='result'){ /* handled by done */ }
     else line('obs','· '+esc(tp)+'  '+esc(jshort(e)));
@@ -448,7 +502,7 @@
   /* ---- result ---- */
   function showResult(d){
     var r=$('#result'); r.hidden=false;
-    var st=d.status||'—';
+    var st=d.status||'-';
     r.innerHTML='<span class="status status-'+esc(st)+'">'+esc(st.replace('_',' '))+'</span>'
       +(d.code?' <b style="color:var(--signal)">'+esc(d.code)+'</b>':'')
       +(d.detail?'<pre>'+esc(d.detail)+'</pre>':'')
@@ -472,6 +526,7 @@
     if(running) return;
     $('#err').textContent=''; $('#result').hidden=true; hideEsc();
     var body={mode:mode, target:$('#target').value};
+    if($('#inject') && $('#inject').value) body.inject=$('#inject').value;
     if(mode==='replay'){
       body.capability=$('#capability').value;
       body.confirm=$('#confirm').checked;
@@ -526,7 +581,7 @@
               var on = x.dataset.mode==='replay'; x.setAttribute('aria-pressed', on?'true':'false');
             });
             mode='replay'; applyMode();
-            line('done','▸ saved as a replay — '+esc(ev.capability_path.split('/').pop())+' is now in the Replay list. Set params and Run it.');
+            line('done','▸ saved as a replay - '+esc(ev.capability_path.split('/').pop())+' is now in the Replay list. Set params and Run it.');
           });
         }
       }
@@ -535,18 +590,18 @@
   }
 
   /* ---- History view ---- */
-  function fmtTime(ts){ if(!ts) return '—'; var d=new Date(ts*1000);
+  function fmtTime(ts){ if(!ts) return '-'; var d=new Date(ts*1000);
     return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2); }
   function historyRow(r){
-    var st=r.status||'—';
+    var st=r.status||'-';
     return '<tr data-id="'+esc(r.run_id)+'">'
       + '<td>'+esc(fmtTime(r.finished_at||r.started_at))+'</td>'
       + '<td><span class="k">'+esc(r.kind||'')+'</span></td>'
-      + '<td>'+esc(r.capability_id||'—')+'</td>'
+      + '<td>'+esc(r.capability_id||'-')+'</td>'
       + '<td class="s-'+esc(st)+'">'+esc(st.replace(/_/g,' '))+'</td>'
       + '<td>'+esc(r.business_outcome_code||'')+'</td>'
       + '<td class="'+(r.escalations?'esc':'')+'">'+(r.escalations||0)+'</td>'
-      + '<td>'+(r.duration_s!=null?r.duration_s+'s':'—')+'</td>'
+      + '<td>'+(r.duration_s!=null?r.duration_s+'s':'-')+'</td>'
       + '</tr>';
   }
   function loadHistory(){
@@ -556,7 +611,7 @@
       $('#hcount').textContent = rows.length ? rows.length+' runs' : 'none yet';
       $('#hrows').innerHTML = rows.length
         ? rows.map(historyRow).join('')
-        : '<tr><td colspan="7" style="color:var(--ink-3)">no runs yet — start one from the Run tab</td></tr>';
+        : '<tr><td colspan="7" style="color:var(--ink-3)">no runs yet - start one from the Run tab</td></tr>';
       [].forEach.call($('#hrows').querySelectorAll('tr[data-id]'), function(tr){
         tr.addEventListener('click', function(){
           fetch('/runs?id='+encodeURIComponent(tr.dataset.id)).then(function(r){return r.json();})
@@ -577,7 +632,7 @@
     if(w.step_name_contains) bits.push('step name ~ '+[].concat(w.step_name_contains).join('/'));
     if(w.param) bits.push('param '+w.param.name+' '+(w.param.op||'eq')+' '+w.param.value);
     if(w.target_app) bits.push('app '+w.target_app);
-    return (r.description? r.description+' — ' : '') + 'when ' + (bits.join(', ') || 'anything');
+    return (r.description? r.description+' - ' : '') + 'when ' + (bits.join(', ') || 'anything');
   }
   function renderRules(list){
     $('#rulesCount').textContent = list.length ? list.length+' active' : 'none';
@@ -585,7 +640,7 @@
       return '<li><span class="then '+esc(r.then)+'">'+esc(r.then)+'</span>'
         + '<span class="body">'+esc(ruleSummary(r))+'</span>'
         + '<button class="del" data-id="'+esc(r.id)+'" title="delete">✕</button></li>';
-    }).join('') || '<li style="color:var(--ink-3)">no rules — every step proceeds</li>';
+    }).join('') || '<li style="color:var(--ink-3)">no rules - every step proceeds</li>';
     [].forEach.call($('#rulesList').querySelectorAll('.del'), function(b){
       b.addEventListener('click', function(){
         fetch('/rules?id='+encodeURIComponent(b.dataset.id),{method:'DELETE'})

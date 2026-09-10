@@ -110,7 +110,7 @@ ul.plain li{margin:.45em 0}
   <p class="sub">Take-home core, then adapted against MERIDIAN CORE.</p>
   <ol>
     <li><a href="#title">Title / pitch</a></li>
-    <li class="grp">Act 1 — the take-home core</li>
+    <li class="grp">Act 1 - the take-home core</li>
     <li class="nest"><a href="#access">How the model reaches the site</a></li>
     <li class="nest"><a href="#perception">Perception</a></li>
     <li class="nest"><a href="#discovery">Discovery loop</a></li>
@@ -121,7 +121,7 @@ ul.plain li{margin:.45em 0}
     <li class="nest"><a href="#guardrails">Guardrails</a></li>
     <li class="nest"><a href="#escalation">Escalation</a></li>
     <li><a href="#demo1">▶ Live demo 1</a></li>
-    <li class="grp">Act 2 — the MERIDIAN adaptation</li>
+    <li class="grp">Act 2 - the MERIDIAN adaptation</li>
     <li class="nest"><a href="#blocker">The blocker</a></li>
     <li class="nest"><a href="#tiers">New locator tiers</a></li>
     <li class="nest"><a href="#sessions">Sessions</a></li>
@@ -140,7 +140,7 @@ ul.plain li{margin:.45em 0}
 <!-- ============ TITLE ============ -->
 <section id="title">
   <h1 class="title">Discover once, replay forever</h1>
-  <p class="lead">An AI learns a banking task once, by actually doing it — then the system replays
+  <p class="lead">An AI learns a banking task once, by actually doing it - then the system replays
   that exact recipe forever, deterministically, with zero AI involved after that first run.</p>
   <p>The take-home core, then adapted live against MERIDIAN CORE.</p>
 </section>
@@ -149,8 +149,8 @@ ul.plain li{margin:.45em 0}
 <section id="act1">
   <p class="act">Act 1</p>
   <h2>The take-home core</h2>
-  <p>Eight modules. Each is a short write-up — what it is, the tool it uses, why that tool and not
-  the obvious alternative — followed by a flowchart of its control flow, the scripts that exercise
+  <p>Eight modules. Each is a short write-up - what it is, the tool it uses, why that tool and not
+  the obvious alternative - followed by a flowchart of its control flow, the scripts that exercise
   it, and, where there was one, a real bug found while building it. First, the boundary the whole
   system sits behind.</p>
 </section>
@@ -165,14 +165,14 @@ ul.plain li{margin:.45em 0}
 
   <p>Each turn, the harness renders the page, serialises it to text with <code>aria_snapshot()</code>,
   and hands that to the model as the observation. The model replies with exactly one call from a
-  small fixed set — <code>navigate</code>, <code>click</code>, <code>type</code>,
+  small fixed set - <code>navigate</code>, <code>click</code>, <code>type</code>,
   <code>extract</code>, <code>finish</code> (<code>agent/tools.py</code>). The harness runs the
   guardrail check, then executes that call in the real browser, and the loop repeats. The model
   cannot run arbitrary JavaScript, make HTTP requests, or see screenshots, raw HTML, cookies, or
-  the filesystem — that small surface is a deliberate security property.</p>
+  the filesystem - that small surface is a deliberate security property.</p>
 
   <p>Discovery and replay use this identical path; the only difference is who supplies the tool
-  calls — the LLM in discovery, a fixed recipe with no LLM in replay. Authentication is the
+  calls - the LLM in discovery, a fixed recipe with no LLM in replay. Authentication is the
   harness's job: it replays sign-on first on the same page and injects credentials as typed
   parameters, so the model never sees them.</p>
 
@@ -192,7 +192,7 @@ flowchart LR
 <section id="perception">
   <h2>Perception</h2>
 
-  <p>Perception turns the live page into something the agent can reason about — not a screenshot,
+  <p>Perception turns the live page into something the agent can reason about - not a screenshot,
   but the browser's own accessibility tree. It returns YAML: every element's role, its accessible
   name, its current value, and its children, in document order. This is a standard Playwright
   capability, not something the project built.</p>
@@ -200,21 +200,21 @@ flowchart LR
   <div class="fn">
     <span class="sig">page.locator("html").aria_snapshot()</span>
     Walks the same structured accessibility tree a screen reader exposes to a blind user, and
-    serialises it. A live, synchronous call — it reflects dynamic and JS-rendered content at the
+    serialises it. A live, synchronous call - it reflects dynamic and JS-rendered content at the
     moment it runs.
   </div>
 
   <p>A screenshot plus a vision model was the obvious alternative, and was rejected: pixel
   coordinates break the instant a page reflows or restyles, and a vision model has to
   <em>infer</em> what a shape means rather than read a declared identity. A raw DOM query with
-  custom heuristics was rejected too — it reinvents what the browser's accessibility engine
+  custom heuristics was rejected too - it reinvents what the browser's accessibility engine
   already resolves correctly, ARIA overrides included. Fixed-coordinate record-and-replay tools
   have no resilience to visual change at all.</p>
 
   <p>The approach also degrades well on messy markup: an element with no explicit ARIA role still
   gets an implicit one from its HTML tag, so ordinary semantic-but-untidy HTML is handled far
   better than a CSS-selector scraper would manage. Its real limit is an element with
-  <strong>no accessible name at all</strong> — which is exactly where Act 2 begins.</p>
+  <strong>no accessible name at all</strong> - which is exactly where Act 2 begins.</p>
 
   <pre class="mermaid">
 flowchart TD
@@ -230,7 +230,7 @@ flowchart TD
   <table>
     <tr><th>Script</th><th>What it does</th></tr>
     <tr><td><code>scripts/verify_perception_live.py</code></td>
-        <td>Snapshots a real page and checks specific elements are actually visible — this is how
+        <td>Snapshots a real page and checks specific elements are actually visible - this is how
         the iframe gap was caught.</td></tr>
   </table>
 
@@ -238,7 +238,7 @@ flowchart TD
     <span class="lbl">Real bug found here</span>
     <p>The spec called for <code>page.accessibility.snapshot()</code>; it no longer exists in the
     Playwright version used. Its replacement, <code>aria_snapshot()</code>, was verified against a
-    live page and found to <em>not reach inside iframes at all</em> — confirmed by testing, not
+    live page and found to <em>not reach inside iframes at all</em> - confirmed by testing, not
     assumed. Fixed by snapshotting each iframe separately and grafting the result in under a node
     deliberately capitalised (<code>Iframe</code>) so nothing downstream mistakes it for a real
     accessibility role the page declared.</p>
@@ -249,17 +249,16 @@ flowchart TD
 <section id="discovery">
   <h2>Discovery loop</h2>
 
-  <p>The discovery loop is where a task is actually learned. Given a goal in plain English, Claude
-  — via the Anthropic API — drives a perceive / decide / act cycle: read the current observation,
+  <p>The discovery loop is where a task is actually learned. Given a goal in plain English, Claude - via the Anthropic API - drives a perceive / decide / act cycle: read the current observation,
   choose the next action, run a guardrail check before anything executes, let the recorder log the
   accepted step, and repeat, until the goal is met, a step or time limit is hit, or the agent is
   stuck.</p>
 
-  <p>An LLM is used here, and only here, because this is the one place that needs judgment —
+  <p>An LLM is used here, and only here, because this is the one place that needs judgment -
   "there are two Continue buttons, which one" is not something you can hardcode. Hand-writing the
   steps instead would mean rewriting them per task and breaking on any page change; letting the
   agent discover them is what lets it handle a page it has never seen. When it can't make
-  progress, it doesn't loop or hallucinate — it detects repeated identical observations and
+  progress, it doesn't loop or hallucinate - it detects repeated identical observations and
   escalates to a human.</p>
 
   <pre class="mermaid">
@@ -296,12 +295,12 @@ flowchart TD
 <section id="recorder">
   <h2>Recorder</h2>
 
-  <p>The recorder runs inline during discovery, writing each accepted action as a precise step —
+  <p>The recorder runs inline during discovery, writing each accepted action as a precise step -
   and, crucially, recording <em>how</em> the element was found, not just what was done to it. It's
   plain Python: a four-tier fallback locator builder that tries a unique role-plus-name match
   first, then first-of-many, then raw text, then position within a table.</p>
 
-  <p>Four tiers exist because real pages aren't uniformly labelled — a single rigid strategy fails
+  <p>Four tiers exist because real pages aren't uniformly labelled - a single rigid strategy fails
   outright on the cases the weaker tiers are there for. Always using the strongest match isn't an
   option, because it doesn't always exist. Every step records which tier produced it, and that log
   is the drift signal used later.</p>
@@ -324,7 +323,7 @@ flowchart TD
 
   <div class="bug">
     <span class="lbl">Real bug found here</span>
-    <p>Parameter detection originally used substring matching against the goal text — this once
+    <p>Parameter detection originally used substring matching against the goal text - this once
     caused a $50 deposit amount to be mistaken for a member ID, because "50" also appeared
     elsewhere in the goal string. Fixed by requiring an exact match.</p>
   </div>
@@ -334,7 +333,7 @@ flowchart TD
 <section id="schema">
   <h2>Capability schema</h2>
 
-  <p>A saved recipe is a typed, versioned JSON document — built and validated with Pydantic, not
+  <p>A saved recipe is a typed, versioned JSON document - built and validated with Pydantic, not
   written as code. Each step carries its locator strategy and a human-readable reason; the
   capability carries its expected outcomes, a risk level, and input/output schemas.</p>
 
@@ -360,11 +359,11 @@ flowchart TD
   <h2>Compiler</h2>
 
   <p>The compiler finalises a raw recording into that schema and attaches the known business
-  outcomes for each step — drawn from actually exploring the app, not from whatever a single
+  outcomes for each step - drawn from actually exploring the app, not from whatever a single
   discovery run happened to encounter.</p>
 
   <p>Outcomes are declared here, at build time, rather than guessed at replay time, so that replay
-  never has to interpret a page live — it already knows what each result means.</p>
+  never has to interpret a page live - it already knows what each result means.</p>
 
   <pre class="mermaid">
 flowchart TD
@@ -374,7 +373,7 @@ flowchart TD
 
   <div class="bug">
     <span class="lbl">Real bug found here</span>
-    <p>An outcome was originally declared on the wrong step — it assumed a locked-member denial
+    <p>An outcome was originally declared on the wrong step - it assumed a locked-member denial
     happened at the "Continue" click, when the app actually never renders that link at all for a
     locked member, one click earlier. Found by replaying every declared outcome against the real
     app, not by trusting the original assumption.</p>
@@ -390,7 +389,7 @@ flowchart TD
   order, executes the action, then checks the step's declared outcomes.</p>
 
   <p>This is the core of the architecture: the same input produces the same steps and the same
-  checks every time — fast, and free of AI cost or variance. A matched outcome resolves to a
+  checks every time - fast, and free of AI cost or variance. A matched outcome resolves to a
   business result or a recoverable one; an unmatched result is a success only if a checkpoint
   verified, otherwise a hard failure with a screenshot. Nothing is guessed.</p>
 
@@ -430,7 +429,7 @@ flowchart TD
   by value shape), and encryption at rest.</p>
 
   <p>The encryption uses the audited <code>cryptography</code> library rather than anything
-  hand-rolled — writing your own crypto primitives is one of the most common serious mistakes in
+  hand-rolled - writing your own crypto primitives is one of the most common serious mistakes in
   security. The allowlist and redaction pass are the project's own code, deliberately small.</p>
 
   <pre class="mermaid">
@@ -470,8 +469,7 @@ flowchart TD
   <h2>Escalation</h2>
 
   <p>Escalation is the hand-off: a risky checkpoint or a stuck agent pauses and waits for a human
-  to approve or decline before anything irreversible happens. The mechanism is a shared lease file
-  — exactly one of {automation, human} holds control — plus a separate Flask console, behind auth,
+  to approve or decline before anything irreversible happens. The mechanism is a shared lease file - exactly one of {automation, human} holds control - plus a separate Flask console, behind auth,
   where the reviewer sees the saved screenshot and context.</p>
 
   <p>An approval flips the lease back and resumes the same browser session; a decline ends the run
@@ -507,10 +505,10 @@ flowchart TD
 <section id="demo1" class="demo">
   <span class="lbl">LIVE DEMO 1</span>
   <h2>The take-home core, live</h2>
-  <pre><code class="language-bash"># Terminal 1 — mock bank, left running
+  <pre><code class="language-bash"># Terminal 1 - mock bank, left running
 cd app &amp;&amp; python3 -c "import models; models.init_db(); models.seed()" &amp;&amp; python3 app.py
 
-# Terminal 2 — a fresh, never-tried goal, live
+# Terminal 2 - a fresh, never-tried goal, live
 python3 scripts/run_discovery.py \
   --goal "Look up member 56789 and tell me their current savings balance." \
   --target "http://localhost:5050/search" \
@@ -525,21 +523,21 @@ python3 scripts/run_replay.py \
   <ol class="plain">
     <li><strong>Seed &amp; start the mock bank.</strong> Rebuilds the SQLite database from scratch,
     inserts the demo members, and starts the Flask app on <code>localhost:5050</code>. Leave this
-    terminal running — you'll see its request log during the demo.</li>
+    terminal running - you'll see its request log during the demo.</li>
     <li><strong>Discovery run (headed browser, ~30–60s, a handful of LLM calls).</strong> A
     Chromium window opens and drives itself: the model reads the search page, types
     <code>56789</code>, submits, reads the results table, and calls <code>finish()</code>. The
     terminal shows the turn-by-turn log. At the end it compiles a capability.</li>
     <li><strong>Deterministic replay (no browser drama, sub-second, zero LLM).</strong> Runs a
-    saved recipe against member <code>23456</code> — never seen during the discovery run above —
+    saved recipe against member <code>23456</code> - never seen during the discovery run above -
     and prints <code>status: success</code> with the extracted balance.</li>
   </ol>
   <p style="font-size:14px;color:#6b5417">Note: the replay deliberately loads the committed
   <code>lookup_member_balance.v1.json</code> (same shape, known-good on stage), not the
-  throwaway <code>demo_live_lookup</code> just discovered — the discovery step proves the learning
+  throwaway <code>demo_live_lookup</code> just discovered - the discovery step proves the learning
   half, the replay step proves the deterministic half.</p>
 
-  <p class="cue">"No LLM call happened in that replay — that's the entire thesis of this project
+  <p class="cue">"No LLM call happened in that replay - that's the entire thesis of this project
   in one command."</p>
 </section>
 
@@ -547,8 +545,7 @@ python3 scripts/run_replay.py \
 <section id="act2">
   <p class="act">Act 2</p>
   <h2>The MERIDIAN adaptation</h2>
-  <p>Point the same core at a real, messy legacy target — <code>legacy-app.example.com</code>
-  — cover its full function surface, and wrap it as a callable API a chatbot drives and a
+  <p>Point the same core at a real, messy legacy target - <code>legacy-app.example.com</code> - cover its full function surface, and wrap it as a callable API a chatbot drives and a
   dashboard shows. The schema didn't change. Six modules, same shape as Act 1.</p>
 </section>
 
@@ -556,21 +553,20 @@ python3 scripts/run_replay.py \
 <section id="blocker">
   <h2>The blocker</h2>
 
-  <p><code>aria_snapshot()</code> still runs fine against MERIDIAN — it's a standard browser API
+  <p><code>aria_snapshot()</code> still runs fine against MERIDIAN - it's a standard browser API
   and nothing about the target breaks it. What breaks is what it <em>returns</em>. MERIDIAN's
-  forms put the label in a neighbouring table cell —
-  <code>&lt;td class="lbl"&gt;Amount:&lt;/td&gt;&lt;td&gt;&lt;input name="amt"&gt;&lt;/td&gt;</code>
-  — with no programmatic association (<code>&lt;label for&gt;</code>, <code>aria-label</code>,
+  forms put the label in a neighbouring table cell -
+  <code>&lt;td class="lbl"&gt;Amount:&lt;/td&gt;&lt;td&gt;&lt;input name="amt"&gt;&lt;/td&gt;</code> - with no programmatic association (<code>&lt;label for&gt;</code>, <code>aria-label</code>,
   <code>aria-labelledby</code>) to the input. The accessibility engine has nothing to name the
   field from, so the snapshot honestly reports an unnamed textbox.</p>
 
   <p>Perception itself didn't change. What broke is one layer down: locator tiers 1–2, which
-  assume role-plus-name resolves to something. This was confirmed live, not assumed — a query for
+  assume role-plus-name resolves to something. This was confirmed live, not assumed - a query for
   a textbox named "Operator ID" on the sign-on page returned zero matches, on a field a human
   reads instantly.</p>
 
   <p>Three obvious escapes were rejected. Screenshots plus a vision model reintroduce exactly the
-  fragility Act 1 chose the accessibility tree to avoid — pixel coordinates on a table-based
+  fragility Act 1 chose the accessibility tree to avoid - pixel coordinates on a table-based
   legacy layout are the worst case, not a reasonable exception. Hardcoded CSS selectors per field
   are brittle and defeat the "discover it, don't hand-write it" premise. Asking MERIDIAN's
   maintainers to add labels isn't an option against a fixed target you don't control.</p>
@@ -587,26 +583,25 @@ flowchart TD
 
 <!-- ---- New locator tiers ---- -->
 <section id="tiers">
-  <h2>New locator tiers — <code>legacy_locate.py</code></h2>
+  <h2>New locator tiers - <code>legacy_locate.py</code></h2>
 
   <p>The fix is two functions added to the existing ladder as tiers 3 and 4. Nothing in tiers
-  1–2, the schema, or the replay engine's control flow was rewritten — it's strictly additive.</p>
+  1–2, the schema, or the replay engine's control flow was rewritten - it's strictly additive.</p>
 
   <p><strong>Tier 3</strong> (<code>derive_unnamed_field_labels()</code> +
   <code>locate_labeled_field()</code>) runs a small JavaScript snippet in the page via
-  <code>page.evaluate()</code>. For each unnamed control it looks at what's physically next to it
-  — a labelled cell in the same row first, then a preceding cell's text, then a loose
-  <code>&lt;label&gt;</code> — normalises whitespace, strips a leading <code>*</code> or trailing
+  <code>page.evaluate()</code>. For each unnamed control it looks at what's physically next to it - a labelled cell in the same row first, then a preceding cell's text, then a loose
+  <code>&lt;label&gt;</code> - normalises whitespace, strips a leading <code>*</code> or trailing
   <code>:</code>, and matches the derived label back to exactly one control. It runs in-page
   rather than parsing a serialised tree in Python because it needs live DOM relationships
   (<code>closest()</code>, <code>previousElementSibling</code>) the way a human eye tracks across a
   row. A model trained to guess labels from layout was rejected as non-deterministic and
-  unnecessary — the structure already holds the answer. It runs fresh on every observation, so it
+  unnecessary - the structure already holds the answer. It runs fresh on every observation, so it
   tracks the row currently on screen, and it refuses to guess: a label matching more than one
   control is dropped for a looser candidate.</p>
 
   <p><strong>Tier 4</strong> (<code>locate_field_name()</code>) resolves a control by its raw HTML
-  <code>name=</code> attribute — the actual HTTP form contract the server needs, so it's
+  <code>name=</code> attribute - the actual HTTP form contract the server needs, so it's
   load-bearing, not a hack. It's ranked last despite arguably being the most stable of the four,
   because <code>name="amt"</code> is opaque to a human reviewer and reviewability is a principle
   worth keeping.</p>
@@ -630,9 +625,9 @@ flowchart TD
 
 <!-- ---- Sessions ---- -->
 <section id="sessions">
-  <h2>Sessions — <code>session.py</code></h2>
+  <h2>Sessions - <code>session.py</code></h2>
 
-  <p>MERIDIAN needs a sign-on, and its sessions idle-timeout — neither of which the take-home
+  <p>MERIDIAN needs a sign-on, and its sessions idle-timeout - neither of which the take-home
   needed. Sign-on is handled as just another recorded capability: no special path, credentials
   passed as typed parameters, never baked into the artifact.</p>
 
@@ -662,17 +657,17 @@ flowchart TD
 
 <!-- ---- Outcome taxonomy ---- -->
 <section id="taxonomy">
-  <h2>Outcome taxonomy — <code>outcomes.py</code></h2>
+  <h2>Outcome taxonomy - <code>outcomes.py</code></h2>
 
   <p>The take-home classified outcomes with <code>_KNOWN_OUTCOMES</code>, a dict hand-keyed per
-  <code>capability_id</code>. That doesn't scale to covering a target's whole function surface —
+  <code>capability_id</code>. That doesn't scale to covering a target's whole function surface -
   every new capability would need its own hand-written entries.</p>
 
   <p>It's replaced by a per-<em>target</em> profile (<code>classify()</code>, reading
   <code>meridian_outcomes.yaml</code>) applied automatically to every step of every capability
   whose target matches. It uses two signals captured live during replay: the main document's HTTP
   status (from a <code>page.on("response")</code> listener on the real network response), and a
-  substring match against the rendered HTML — checked <em>first</em>, because MERIDIAN returns an
+  substring match against the rendered HTML - checked <em>first</em>, because MERIDIAN returns an
   identical 400 for two different business meanings ("source share on hold" versus "insufficient
   funds") and the status code alone would collapse them.</p>
 
@@ -694,7 +689,7 @@ flowchart TD
   <div class="bug">
     <span class="lbl">A real find here</span>
     <p>One match condition deliberately avoids the exact phrase "SUPERVISOR OVERRIDE REQUIRED",
-    because that string is also a static warning shown to authorised supervisors — matching it
+    because that string is also a static warning shown to authorised supervisors - matching it
     would have wrongly denied an authorised action. Caught by reading the real page, not by
     assuming.</p>
   </div>
@@ -702,10 +697,10 @@ flowchart TD
 
 <!-- ---- Generalize ---- -->
 <section id="generalize">
-  <h2>Generalize — <code>meridian_flows.py</code></h2>
+  <h2>Generalize - <code>meridian_flows.py</code></h2>
 
   <p>A scripted pass turns one concrete discovery recording into a reusable, parameterised
-  capability — the member ID in the URL becomes a template, recorded literals become typed
+  capability - the member ID in the URL becomes a template, recorded literals become typed
   parameters, and risk level, required role, and checkpoint are set.</p>
 
   <p>Honest limit: two of the seven capabilities needed one hand-added step each. Two
@@ -731,7 +726,7 @@ flowchart TD
   plus arguments, and a run-history dashboard. In the live console these are the <strong>Ask</strong>
   and <strong>History</strong> tabs; the model behind Ask is Anthropic, OpenAI or Google (Gemini).</p>
 
-  <p>The catalog deliberately exposes no <code>confirm</code> parameter — the chatbot has no way
+  <p>The catalog deliberately exposes no <code>confirm</code> parameter - the chatbot has no way
   to self-approve an irreversible action. A risky pick runs to its confirmation checkpoint,
   pauses, and shows the Approve / Decline panel on the page; every run is written to
   <code>runs.jsonl</code>, redacted, and shown in History.</p>
@@ -787,19 +782,19 @@ python -m chatbot.cli</code></pre>
     reasons unrelated to the system.</li>
     <li><strong>Discovery run against the real legacy target (headless, ~1–2 min).</strong> No
     visible window. The model signs on, searches by member number, clicks Select, and extracts the
-    first SHARES/BALANCES row — finding fields that have <em>no accessible name</em> via the new
+    first SHARES/BALANCES row - finding fields that have <em>no accessible name</em> via the new
     label-proximity locator tiers. Compiles a capability at the end.</li>
     <li><strong>Session-aware replay with a fault injected.</strong> Replays a committed capability
     on an authenticated session, but <code>--inject maintenance</code> forces the target to return
     a 503. You'll see it recognise that as a <em>declared</em> transient state, retry up to 3×
-    with backoff, then report a clean recoverable outcome — no stack trace, no crash.</li>
+    with backoff, then report a clean recoverable outcome - no stack trace, no crash.</li>
     <li><strong>API + chatbot + dashboard.</strong> Terminal A starts the Flask API and the
-    dashboard; terminal B is a plain-English REPL. Type a request — the chatbot maps it to a
+    dashboard; terminal B is a plain-English REPL. Type a request - the chatbot maps it to a
     capability, invokes it through the API, and the run appears on the dashboard (redacted). A
     risky capability pauses and routes to the operator console instead of completing.</li>
   </ol>
 
-  <p class="cue">"That maintenance fault is a declared, recognized transient state, not a crash —
+  <p class="cue">"That maintenance fault is a declared, recognized transient state, not a crash -
   it retries a bounded number of times, then reports honestly if it never clears."</p>
 </section>
 
@@ -811,7 +806,7 @@ python -m chatbot.cli</code></pre>
     <li>Two of seven MERIDIAN capabilities needed one hand-added step each (ambiguous dropdown
     forms confused the discovery loop).</li>
     <li>Only one task runs at a time; concurrent requests queue.</li>
-    <li>No promotion gate yet on locator drift — the signal is recorded, nothing acts on it
+    <li>No promotion gate yet on locator drift - the signal is recorded, nothing acts on it
     automatically.</li>
     <li>Sensitive values are redacted before disk but not yet before being sent to the LLM during
     discovery.</li>
@@ -819,93 +814,93 @@ python -m chatbot.cli</code></pre>
     instead of a full-file scan.</li>
     <li>Encryption at rest is built and tested but not wired into the evidence write path; the
     dashboard has no auth (synthetic data only).</li>
-    <li>The perception seam is proven across two web targets, not beyond the browser — no desktop
+    <li>The perception seam is proven across two web targets, not beyond the browser - no desktop
     / OS-level adapter exists yet.</li>
   </ul>
 </section>
 
 <!-- ============ APPENDIX ============ -->
 <section id="appendix">
-  <h2>Appendix — full script reference</h2>
-  <p>Not narrated top to bottom. Reference only — jump here if asked "what scripts do you have."
+  <h2>Appendix - full script reference</h2>
+  <p>Not narrated top to bottom. Reference only - jump here if asked "what scripts do you have."
   Each card is written to be read aloud if grilled on a specific script.</p>
 
   <details class="card">
-    <summary><code>scripts/run_discovery.py</code> <span class="one">— the live "teach it a new task" entry point.</span></summary>
+    <summary><code>scripts/run_discovery.py</code> <span class="one">- the live "teach it a new task" entry point.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> takes a goal string and a target URL as CLI
-      args, nothing more — no config file, no separate goal-authoring format. Keeps the barrier to
+      args, nothing more - no config file, no separate goal-authoring format. Keeps the barrier to
       trying a new task at zero.</p>
       <p><span class="k">Defend:</span> a thin CLI wrapper around <code>run_discovery()</code>
       means the actual logic lives in one testable function, not scattered across argument-parsing
-      code — the script itself is almost entirely plumbing.</p>
+      code - the script itself is almost entirely plumbing.</p>
       <p><span class="k">Honest limitation:</span> no validation of the goal string's quality
-      before spending real API calls on it — a vague or contradictory goal just runs until
+      before spending real API calls on it - a vague or contradictory goal just runs until
       <code>max_steps</code> or <code>timeout</code> and reports a non-obvious failure. A
       production version would want a cheap pre-flight check.</p>
     </div>
   </details>
 
   <details class="card">
-    <summary><code>scripts/run_replay.py</code> <span class="one">— the "run it in production" entry point.</span></summary>
+    <summary><code>scripts/run_replay.py</code> <span class="one">- the "run it in production" entry point.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> mirrors <code>run_discovery.py</code>'s CLI
-      shape deliberately — capability path in, params in, result out — so the two commands feel
+      shape deliberately - capability path in, params in, result out - so the two commands feel
       like the same tool used at two different points in a task's life, not two unrelated pieces
       of software.</p>
       <p><span class="k">Defend:</span> takes params as a raw JSON string on the command line
-      rather than a config file — for a demo/CLI context this is the fastest path from "I have an
+      rather than a config file - for a demo/CLI context this is the fastest path from "I have an
       idea" to "it ran," and matches how the API layer's <code>invoke</code> endpoint accepts
       args too, so the mental model transfers.</p>
       <p><span class="k">Honest limitation:</span> a malformed JSON param string fails with a
-      fairly raw Python traceback, not a friendly error — fine for a demo, not fine for a real
+      fairly raw Python traceback, not a friendly error - fine for a demo, not fine for a real
       operator-facing tool.</p>
     </div>
   </details>
 
   <details class="card">
-    <summary><code>scripts/demo_guardrail_violation.py</code> <span class="one">— deliberately triggers the allowlist to prove it blocks.</span></summary>
+    <summary><code>scripts/demo_guardrail_violation.py</code> <span class="one">- deliberately triggers the allowlist to prove it blocks.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> rather than just asserting "the allowlist
       works" in prose, this actually attempts a disallowed action and shows
-      <code>GuardrailViolation</code> firing — the difference between a claim and a
+      <code>GuardrailViolation</code> firing - the difference between a claim and a
       demonstration.</p>
       <p><span class="k">Defend:</span> this is the fastest, lowest-risk way to prove a negative
-      (something <em>doesn't</em> happen) — running it takes seconds, no browser, no API key
+      (something <em>doesn't</em> happen) - running it takes seconds, no browser, no API key
       needed.</p>
       <p><span class="k">Honest limitation:</span> it only proves the allowlist blocks <em>one
-      specific</em> disallowed thing — it's a targeted proof, not a fuzz test across every
+      specific</em> disallowed thing - it's a targeted proof, not a fuzz test across every
       possible disallowed action.</p>
     </div>
   </details>
 
   <details class="card">
-    <summary><code>scripts/demo_encryption_at_rest.py</code> <span class="one">— encrypts a fake sensitive record, proves round-trip.</span></summary>
+    <summary><code>scripts/demo_encryption_at_rest.py</code> <span class="one">- encrypts a fake sensitive record, proves round-trip.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> writes a customer-shaped fake record to a real
       file, shows it's unreadable garbage without the key, then decrypts it back byte-for-byte
-      identical — proves both directions, not just "encryption ran."</p>
+      identical - proves both directions, not just "encryption ran."</p>
       <p><span class="k">Defend:</span> this is what justifies claiming the encryption module is
-      "proven independently" even though it's not wired into the actual evidence-writing paths —
+      "proven independently" even though it's not wired into the actual evidence-writing paths -
       the module itself is genuinely tested, the <em>integration point</em> is the separate,
       honestly-named cut.</p>
       <p><span class="k">Honest limitation:</span> uses one static key from an environment
-      variable — this script proves the crypto is correct, not that the key-management story is
+      variable - this script proves the crypto is correct, not that the key-management story is
       production-ready. Say that distinction out loud if asked, don't let "proven" imply more than
       it does.</p>
     </div>
   </details>
 
   <details class="card">
-    <summary><code>scripts/demo_escalation.py</code> <span class="one">— runs a task designed to trigger human hand-off.</span></summary>
+    <summary><code>scripts/demo_escalation.py</code> <span class="one">- runs a task designed to trigger human hand-off.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> deliberately picks a goal that's expected to
       hit a risky checkpoint, so the escalation path is exercised on demand rather than hoping a
       random discovery run happens to need it.</p>
-      <p><span class="k">Defend:</span> walks through both branches — approve and decline — so it's
+      <p><span class="k">Defend:</span> walks through both branches - approve and decline - so it's
       a complete proof of the mechanism, not just the happy path.</p>
       <p><span class="k">Honest limitation:</span> this is a <em>scripted</em> trigger of
-      escalation, not a proof that escalation fires correctly on every possible risky scenario —
+      escalation, not a proof that escalation fires correctly on every possible risky scenario -
       the risk-detection logic itself is tested more broadly elsewhere (the discovery loop's own
       dead-end/risk checks); this script proves the hand-off <em>mechanism</em> works once it's
       triggered.</p>
@@ -913,108 +908,108 @@ python -m chatbot.cli</code></pre>
   </details>
 
   <details class="card">
-    <summary><code>scripts/verify_perception_live.py</code> <span class="one">— snapshots a real page, checks specific things are visible.</span></summary>
+    <summary><code>scripts/verify_perception_live.py</code> <span class="one">- snapshots a real page, checks specific things are visible.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> this is the actual script that caught the
-      iframe gap — it exists specifically to check assumptions against reality rather than
+      iframe gap - it exists specifically to check assumptions against reality rather than
       trusting documentation or memory of how an API used to behave.</p>
       <p><span class="k">Defend:</span> this is the single best answer to "how do you know your
-      perception layer actually works" — not "I tested it once," but "here's a script that
+      perception layer actually works" - not "I tested it once," but "here's a script that
       re-verifies it against the live page any time I need to check."</p>
       <p><span class="k">Honest limitation:</span> it checks specific, hand-picked assertions (does
-      this string appear, is this role present) — it's not a general perception correctness test,
+      this string appear, is this role present) - it's not a general perception correctness test,
       it's a targeted regression check for the specific gaps that were once found.</p>
     </div>
   </details>
 
   <details class="card">
-    <summary><code>scripts/smoke_test_table_position.py</code> <span class="one">— targeted test for the 4th, most unusual locator tier.</span></summary>
+    <summary><code>scripts/smoke_test_table_position.py</code> <span class="one">- targeted test for the 4th, most unusual locator tier.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> the table-position tier is the least like the
       other three (it addresses by row/column index instead of identity), so it gets its own
       dedicated test rather than being folded into a general locator test.</p>
       <p><span class="k">Honest limitation:</span> only covers the specific table shape (headers
-      present, no per-row label) the take-home's transaction list actually has — a
+      present, no per-row label) the take-home's transaction list actually has - a
       differently-structured data table might need a different addressing scheme entirely,
       untested here.</p>
     </div>
   </details>
 
   <details class="card">
-    <summary><code>scripts/discover_all_meridian.py</code> <span class="one">— real LLM discovery run for every MERIDIAN function.</span></summary>
+    <summary><code>scripts/discover_all_meridian.py</code> <span class="one">- real LLM discovery run for every MERIDIAN function.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> one script, one dict (<code>RUNS</code>)
-      mapping each of the 7 functions to its target URL and goal — running
+      mapping each of the 7 functions to its target URL and goal - running
       <code>python scripts/discover_all_meridian.py</code> with no args does all 7 in sequence;
       passing specific flow names runs a subset, useful when re-discovering just one after a
       change.</p>
       <p><span class="k">Defend:</span> backs up existing capabilities to <code>/tmp</code> before
       overwriting, and a dead-ended or timed-out run leaves the current capability in place rather
-      than clobbering a working one with a failed attempt — a small but real safety net around the
+      than clobbering a working one with a failed attempt - a small but real safety net around the
       exact <code>save_capability()</code> overwrite gap named elsewhere as an open issue.</p>
       <p><span class="k">Honest limitation:</span> the backup is to <code>/tmp</code>, not version
-      control — it protects against a single bad re-run, not against needing to roll back after
+      control - it protects against a single bad re-run, not against needing to roll back after
       the fact once something else has already run.</p>
     </div>
   </details>
 
   <details class="card">
-    <summary><code>scripts/run_meridian.py</code> <span class="one">— the MERIDIAN version of run_replay.py, session-aware.</span></summary>
+    <summary><code>scripts/run_meridian.py</code> <span class="one">- the MERIDIAN version of run_replay.py, session-aware.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> wraps <code>run_with_session()</code> instead
       of calling <code>replay()</code> directly, plus an <code>--inject</code> flag most other
-      replay scripts don't have — because MERIDIAN specifically needs both a live session and a
+      replay scripts don't have - because MERIDIAN specifically needs both a live session and a
       live way to force a runtime fault for demo purposes.</p>
       <p><span class="k">Honest limitation:</span> <code>--inject</code> talks to MERIDIAN's own
-      fault-injection query parameter — it only works against this specific target's testing
+      fault-injection query parameter - it only works against this specific target's testing
       feature, it's not a general fault-injection mechanism this project built.</p>
     </div>
   </details>
 
   <details class="card">
-    <summary><code>scripts/meridian_scout.py</code> <span class="one">— checks which member/share IDs are safe to use right now.</span></summary>
+    <summary><code>scripts/meridian_scout.py</code> <span class="one">- checks which member/share IDs are safe to use right now.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> the hosted target is stateful in memory and
       only resets on redeploy, so running a risky demo command against stale assumptions (a share
       that's since gone on hold, a balance that's already too low) would fail for reasons that
       have nothing to do with the system being demoed.</p>
       <p><span class="k">Defend:</span> this is operational awareness of a target you don't
-      control, built as a real tool rather than "hope the demo data is still fine" — worth
+      control, built as a real tool rather than "hope the demo data is still fine" - worth
       explicitly calling out as a deliberate, non-obvious addition in the interview, since it
       wasn't asked for by the brief.</p>
-      <p><span class="k">Honest limitation:</span> only as current as the moment it's run — if the
+      <p><span class="k">Honest limitation:</span> only as current as the moment it's run - if the
       state changes between scouting and demoing (another candidate using the same shared hosted
       target, for instance), it can go stale within the same session.</p>
     </div>
   </details>
 
   <details class="card">
-    <summary><code>scripts/meridian_inject.py</code> <span class="one">— out-of-band control of MERIDIAN's fault-injection settings.</span></summary>
+    <summary><code>scripts/meridian_inject.py</code> <span class="one">- out-of-band control of MERIDIAN's fault-injection settings.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> explicitly test/demo infrastructure, not
-      something any capability itself does — kept as a separate script specifically so it's
+      something any capability itself does - kept as a separate script specifically so it's
       obvious this isn't part of the production automation surface.</p>
       <p><span class="k">Defend:</span> the allowlist's <code>/settings</code> block (guardrails)
-      means the <em>automation</em> can never reach this control panel — this script bypasses that
+      means the <em>automation</em> can never reach this control panel - this script bypasses that
       only because it's a human-run operator tool, not because the guardrail has a hole in it.
-      Worth stating precisely if asked "wait, doesn't this contradict your blocked-route claim" —
+      Worth stating precisely if asked "wait, doesn't this contradict your blocked-route claim" -
       it doesn't, because this script isn't part of any capability's replay path.</p>
     </div>
   </details>
 
   <details class="card">
-    <summary><code>record_meridian_signon.py</code>, <code>record_meridian_flow.py</code>, <code>record_meridian_transfer.py</code> <span class="one">— scripted (non-LLM) recorder fallbacks.</span></summary>
+    <summary><code>record_meridian_signon.py</code>, <code>record_meridian_flow.py</code>, <code>record_meridian_transfer.py</code> <span class="one">- scripted (non-LLM) recorder fallbacks.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> for fixed, non-branching forms (a form →
       review → post, no decision to discover), the position was that spending a real LLM discovery
-      run on it — including risking a real irreversible POST during recording — was a poor trade
+      run on it - including risking a real irreversible POST during recording - was a poor trade
       once the discovery loop was already proven on
       <code>meridian_check_member_balance</code>.</p>
       <p><span class="k">Defend:</span> the brief itself explicitly allows this: <em>"if you can't
       get live LLM or browser access working for part of the flow, mock that boundary cleanly and
       document it."</em> This is exactly that seam, and it's documented, not hidden.</p>
       <p><span class="k">Honest limitation, be precise if asked:</span> the currently-committed
-      capability files were NOT actually produced by these scripts — verified directly, every
+      capability files were NOT actually produced by these scripts - verified directly, every
       committed <code>meridian_*.v1.json</code> has a <code>created_from_run_id</code> pointing to
       a real <code>discovery_run_*.jsonl</code> transcript. These scripts are a real, working
       fallback path that exists and could be used again, but they are not what generated what's in
@@ -1023,23 +1018,23 @@ python -m chatbot.cli</code></pre>
   </details>
 
   <details class="card">
-    <summary><code>scripts/smoke_meridian_signon.py</code> <span class="one">— live proof the label-based locator works end to end.</span></summary>
+    <summary><code>scripts/smoke_meridian_signon.py</code> <span class="one">- live proof the label-based locator works end to end.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> proves the whole new-tier mechanism in one
-      script — perception derives a name, the recorder builds a <code>labeled_field</code> step,
+      script - perception derives a name, the recorder builds a <code>labeled_field</code> step,
       execution actually logs in, and replaying the compiled capability reaches the menu again,
       deterministically.</p>
       <p><span class="k">Honest limitation:</span> proves it works for the sign-on form
-      specifically — it's the strongest single proof available, but it's one form, not a proof
+      specifically - it's the strongest single proof available, but it's one form, not a proof
       across every MERIDIAN form's label layout.</p>
     </div>
   </details>
 
   <details class="card">
-    <summary><code>scripts/smoke_meridian_session.py</code> <span class="one">— live proof a session carries over between two capabilities.</span></summary>
+    <summary><code>scripts/smoke_meridian_session.py</code> <span class="one">- live proof a session carries over between two capabilities.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> specifically tests the thing that could subtly
-      fail silently — that the <code>MC_SID</code> cookie genuinely persists across two separate
+      fail silently - that the <code>MC_SID</code> cookie genuinely persists across two separate
       <code>replay()</code> calls on the same Playwright page object, with no re-login in
       between.</p>
       <p><span class="k">Honest limitation:</span> tests the successful case; the reauth-on-expiry
@@ -1048,13 +1043,13 @@ python -m chatbot.cli</code></pre>
   </details>
 
   <details class="card">
-    <summary><code>scripts/demo_meridian_escalation.py</code> <span class="one">— fully scripted, real-browser MERIDIAN escalation proof.</span></summary>
+    <summary><code>scripts/demo_meridian_escalation.py</code> <span class="one">- fully scripted, real-browser MERIDIAN escalation proof.</span></summary>
     <div class="body">
       <p><span class="k">Why built this way:</span> real browser, real separate operator process,
-      real HTTP between them — no mocking, matching the same "verify against reality" discipline as
+      real HTTP between them - no mocking, matching the same "verify against reality" discipline as
       everything else in this project.</p>
       <p><span class="k">Honest limitation:</span> scripted means the specific escalation trigger
-      is chosen in advance, not discovered live — it proves the mechanism works, not that every
+      is chosen in advance, not discovered live - it proves the mechanism works, not that every
       real risky MERIDIAN action would organically trigger it during a live, undirected discovery
       run.</p>
     </div>

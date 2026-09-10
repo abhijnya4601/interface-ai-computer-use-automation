@@ -1,6 +1,6 @@
 """
-Offline tests for scripts/run_discovery.py's pure helper logic — _inferred_checkpoint,
-_infer_risk_level, and _console_watcher_step — none need a browser or API key.
+Offline tests for scripts/run_discovery.py's pure helper logic - _inferred_checkpoint,
+_infer_risk_level, and _console_watcher_step - none need a browser or API key.
 """
 import socket
 import sys
@@ -77,7 +77,7 @@ def test_infer_risk_level_defaults_to_safe_when_no_escalation_occurred():
 
 def test_infer_risk_level_defaults_to_risky_when_capability_is_uncurated_but_it_escalated():
     """A capability with no curated risk_level whose own discovery run needed a human sign-off
-    has no business defaulting to safe — that default is what would let replay execute it later
+    has no business defaulting to safe - that default is what would let replay execute it later
     with zero --confirm gate."""
     transcript = [
         {"type": "navigate"},

@@ -5,7 +5,7 @@ CLI entrypoint for the deterministic replay path:
         --capability capabilities/lookup_member_balance.v1.json \\
         --params '{"member_id": "23456"}'
 
-No LLM in the loop — replay() just walks the saved Capability's Steps. Add --confirm for a
+No LLM in the loop - replay() just walks the saved Capability's Steps. Add --confirm for a
 risk_level=risky capability (e.g. open_subaccount) to actually execute past its confirmation
 step; without it, a risky capability is rejected with a hard_failure before touching the page.
 Add --headed to watch it run non-headless (useful for the Phase 7 escalation demo).

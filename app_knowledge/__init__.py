@@ -4,7 +4,7 @@ Per-app curated domain knowledge, loaded by `target.app_name`, not hardcoded by 
 `app_knowledge/<app_name>.yaml` holds the expected-outcome branches, extract contracts, and
 per-capability replay config (risk level + success checkpoint) for one target application.
 Onboarding a new app is: point discovery at it, let the agent propose rules
-(`provenance: proposed` on the artifact), review, and promote the good ones into a new YAML —
+(`provenance: proposed` on the artifact), review, and promote the good ones into a new YAML -
 no code change. See REPORT.md §2.
 """
 from __future__ import annotations
@@ -76,7 +76,7 @@ def _parse_checkpoint(raw: dict | None) -> Checkpoint | None:
 
 
 def load(app_name: str) -> AppKnowledge:
-    """Load `app_knowledge/<app_name>.yaml`. A missing file is not an error — it just means no
+    """Load `app_knowledge/<app_name>.yaml`. A missing file is not an error - it just means no
     curated knowledge yet (a brand-new target), so everything comes from the agent's proposals
     until a reviewer writes the YAML."""
     # app_name is used as a filename component; keep it to a safe charset.

@@ -18,7 +18,7 @@ evidence/_encryption_demo/
 evidence/redaction_review.jsonl
 evidence/replay_ledger.jsonl
 
-# capabilities discovered through the live web console (webconsole/) — the 5 curated ones have
+# capabilities discovered through the live web console (webconsole/) - the 5 curated ones have
 # no "__" and don't match; a local console run shouldn't clutter git status
 capabilities/discovered*.json
 capabilities/*__*.json

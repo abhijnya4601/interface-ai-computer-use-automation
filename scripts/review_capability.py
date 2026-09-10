@@ -8,7 +8,7 @@ curated knowledge file, so a new target app is onboarded by review, not by editi
 
 `--promote-all` appends every `provenance="proposed"` rule to
 `app_knowledge/<app>.yaml`, then recompiles the artifact so those rules come back as
-`provenance="curated"` (no duplication — the compiler dedups on condition/code). Review the
+`provenance="curated"` (no duplication - the compiler dedups on condition/code). Review the
 YAML diff before committing it.
 """
 import argparse
@@ -67,7 +67,7 @@ def _promote(capability: Capability, path: Path) -> None:
     steps = _attach_extract_contracts(capability.capability_id, steps, app_name=app)
     recompiled = capability.model_copy(update={"steps": steps})
     save_capability(recompiled, path=path)
-    print(f"recompiled {path} — remaining unratified: {recompiled.unratified_rules() or 'none'}")
+    print(f"recompiled {path} - remaining unratified: {recompiled.unratified_rules() or 'none'}")
 
 
 def main() -> int:

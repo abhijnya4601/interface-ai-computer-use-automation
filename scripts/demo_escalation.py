@@ -9,7 +9,7 @@ real Flask operator app, real lease file, real blocking-poll-then-resume.
 The goal below is deliberately impossible with the tools/UI available (no wire-transfer feature
 exists) AND framed as risky/irreversible, so the discovery system prompt's own instruction
 ("do not take that final step yourself, call escalate") should make the model escalate itself
-rather than hunt for a nonexistent button until the dead-end detector fires — both are legitimate
+rather than hunt for a nonexistent button until the dead-end detector fires - both are legitimate
 "real escalation" triggers per the assignment (dead-end is only the *example* given, not the only
 valid path), and letting the model choose is more honest than scripting which one happens.
 
@@ -106,7 +106,7 @@ def main():
     else:
         thread.join(timeout=5)
         operator_proc.terminate()
-        raise SystemExit("discovery run did not escalate within 90s — see result: "
+        raise SystemExit("discovery run did not escalate within 90s - see result: "
                           f"{result_holder.get('result')}")
 
     log("escalation_triggered", lease_state=lease.state, context=lease.context)

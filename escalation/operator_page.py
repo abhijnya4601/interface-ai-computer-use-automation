@@ -1,11 +1,11 @@
 """
-Minimal, deliberately bare/ugly operator console — the assignment's scope note explicitly
+Minimal, deliberately bare/ugly operator console - the assignment's scope note explicitly
 allows this UI to be minimal as long as the mechanism underneath (the lease flip, the
 non-headless persistent Playwright session) is real. Shows the current escalation context and
 screenshot, and a Resume button that writes the resume signal controller.py is polling for.
 
 Requires HTTP Basic Auth: whoever can reach this page can approve an irreversible
-financial action, so "no auth at all" is a genuine safety gap, not a cosmetic one — the
+financial action, so "no auth at all" is a genuine safety gap, not a cosmetic one - the
 assignment's "operator UI can be bare" allowance is about polish, not about access control.
 Credentials come from OPERATOR_USERNAME / OPERATOR_PASSWORD env vars; if OPERATOR_PASSWORD isn't
 set, a random one is generated and printed to the console for this run only (fail-secure: never
@@ -32,7 +32,7 @@ OPERATOR_USERNAME = os.environ.get("OPERATOR_USERNAME", "banker")
 OPERATOR_PASSWORD = os.environ.get("OPERATOR_PASSWORD")
 if not OPERATOR_PASSWORD:
     OPERATOR_PASSWORD = secrets.token_urlsafe(16)
-    print("[operator_page] OPERATOR_PASSWORD not set — generated a one-time credential for this run:")
+    print("[operator_page] OPERATOR_PASSWORD not set - generated a one-time credential for this run:")
     print(f"[operator_page]   username: {OPERATOR_USERNAME}")
     print(f"[operator_page]   password: {OPERATOR_PASSWORD}")
     print("[operator_page] Set OPERATOR_USERNAME/OPERATOR_PASSWORD env vars for a stable credential.")
@@ -78,14 +78,14 @@ TEMPLATE = """
     it up within a second or two and continue on its own.</p>
 {% endif %}
 {% if lease.state == 'human' %}
-  <p><b>Status:</b> escalated — waiting for a human operator</p>
+  <p><b>Status:</b> escalated - waiting for a human operator</p>
   <p><b>Reason:</b> {{ lease.context.get('reason') }}</p>
   <p><b>Current URL:</b> {{ lease.context.get('current_url') }}</p>
   <p><b>Run ID:</b> {{ lease.context.get('run_id') }}</p>
   {% if lease.context.get('screenshot_path') %}
     <p><img src="/screenshot" style="max-width: 900px; border: 1px solid #999"></p>
   {% endif %}
-  <p>Take over the live browser window now (it is still open — this is the same session the
+  <p>Take over the live browser window now (it is still open - this is the same session the
      automation was driving, not a new one) if you need to. Then record what you decided and
      resume: Approve if the agent should go ahead with the risky action it paused on, Decline if
      it should not, or plain Resume if this was a stuck/dead-end recovery where approve/decline

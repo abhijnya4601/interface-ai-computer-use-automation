@@ -1,7 +1,7 @@
 """
 Drive a full discovery-like sequence and a replay-like extraction against the mock desktop
 (AX) surface. If this passes, the perception normalisation + role/name-addressed action
-contract genuinely holds for a non-Playwright surface — which is REPORT §4's whole claim.
+contract genuinely holds for a non-Playwright surface - which is REPORT §4's whole claim.
 """
 from agent.desktop_adapter import DesktopAdapter
 from desktop.mock_ax import MockDesktopApp

@@ -1,6 +1,6 @@
 """
 A REAL implementation of the perception + action Protocols (agent/adapters.py) for a desktop
-surface — not the stub `DesktopAdapter` that used to live in adapters.py. It runs against
+surface - not the stub `DesktopAdapter` that used to live in adapters.py. It runs against
 `desktop/mock_ax.py`, an in-process stand-in for an OS accessibility API, which is enough to
 prove the load-bearing claim: perception normalisation and role/name-addressed actions work
 unchanged on a non-Playwright surface, so `Step` / `Capability` / the replay contract are

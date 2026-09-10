@@ -1,4 +1,4 @@
-# Escalation policy — see escalation/policy.py. First matching rule wins; no match = allow.
+# Escalation policy - see escalation/policy.py. First matching rule wins; no match = allow.
 # Editable at runtime from the live console's "Escalation rules" panel (which rewrites this file
 # via yaml.safe_dump, so hand-edits and comments are only preserved until the next UI edit).
 rules:

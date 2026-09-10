@@ -1,13 +1,13 @@
 """
-Declarative escalation policy — the rules that decide, before a step runs, whether to proceed,
+Declarative escalation policy - the rules that decide, before a step runs, whether to proceed,
 pause for a human, or block.
 
 Two things ask "should this stop for a person?":
 
   * In **discovery** the model can voluntarily call `escalate()` (its system prompt tells it not
     to take irreversible actions itself). That is the agent's own judgment.
-  * This engine is the **floor under that judgment**, and in **replay** — where there is no
-    model — it is the *only* gate. It runs against `(capability, params, step)` before every
+  * This engine is the **floor under that judgment**, and in **replay** - where there is no
+    model - it is the *only* gate. It runs against `(capability, params, step)` before every
     state-changing step and returns `allow` / `escalate` / `block`.
 
 Rules live in `escalation/rules.yaml` and are editable at runtime (the web console writes the

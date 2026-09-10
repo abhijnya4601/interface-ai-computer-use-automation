@@ -58,7 +58,7 @@
             "text": "Search (ID / name)"
           }
         ],
-        "reasoning": "role='textbox' name='Search (ID / name)' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='textbox' name='Search (ID / name)' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": {
         "param_ref": "member_id"
@@ -90,7 +90,7 @@
             "text": "Go"
           }
         ],
-        "reasoning": "role='button' name='Go' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='button' name='Go' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": null,
@@ -120,7 +120,7 @@
             "text": "View"
           }
         ],
-        "reasoning": "role='link' name='View' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='link' name='View' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": null,
@@ -158,7 +158,7 @@
             "text": "Update Mailing Address"
           }
         ],
-        "reasoning": "role='link' name='Update Mailing Address' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='link' name='Update Mailing Address' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": null,
@@ -196,7 +196,7 @@
             "text": "Street Address"
           }
         ],
-        "reasoning": "role='textbox' name='Street Address' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='textbox' name='Street Address' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": "500 Riverbend Rd",
       "extract_as": null,
@@ -226,7 +226,7 @@
             "text": "City"
           }
         ],
-        "reasoning": "role='textbox' name='City' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='textbox' name='City' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": "Denver",
       "extract_as": null,
@@ -256,7 +256,7 @@
             "text": "State"
           }
         ],
-        "reasoning": "role='textbox' name='State' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='textbox' name='State' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": "CO",
       "extract_as": null,
@@ -286,7 +286,7 @@
             "text": "ZIP Code"
           }
         ],
-        "reasoning": "role='textbox' name='ZIP Code' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='textbox' name='ZIP Code' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": "80202",
       "extract_as": null,
@@ -316,7 +316,7 @@
             "text": "Save Address"
           }
         ],
-        "reasoning": "role='button' name='Save Address' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='button' name='Save Address' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": null,

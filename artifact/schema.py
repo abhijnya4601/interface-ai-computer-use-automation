@@ -1,16 +1,16 @@
 """
-Artifact schema — the typed, versioned, agent-invocable "capability" contract.
+Artifact schema - the typed, versioned, agent-invocable "capability" contract.
 
 This is the seam the whole system is built around: the discovery agent (LLM-driven,
 non-deterministic) produces a Capability; the replay engine (deterministic, no LLM) consumes
-one. Everything downstream of a successful discovery run — human review, replay, an AI agent
-invoking this as a tool — only ever sees this schema, never the raw model transcript.
+one. Everything downstream of a successful discovery run - human review, replay, an AI agent
+invoking this as a tool - only ever sees this schema, never the raw model transcript.
 
 Design notes (see REPORT.md "Artifact schema" for the full write-up):
   - LocatorTarget carries `reasoning` so a human reviewer can judge robustness, not just
-    correctness — a capability with a text-match-only locator and no reasoning is a red flag.
+    correctness - a capability with a text-match-only locator and no reasoning is a red flag.
   - ExpectedOutcome.classification is authored onto the Step at *recording* time, from what
-    discovery actually observed — replay never guesses whether a condition is a business
+    discovery actually observed - replay never guesses whether a condition is a business
     outcome vs. a hard failure, it only branches on what was declared.
   - `value: str | dict | None` on Step lets a literal ("christmas_club") and a parameterized
     reference ({"param_ref": "member_id"}) share one field rather than needing two, so replay
@@ -35,7 +35,7 @@ class LocatorTarget(BaseModel):
         ...,
         description=(
             'e.g. {"role": "button", "name": "Go"}, or for strategy="table_position" '
-            '{"table_headers": [...], "row_index": 0, "column_index": 2} — a data-table '
+            '{"table_headers": [...], "row_index": 0, "column_index": 2} - a data-table '
             "cell with no per-row label has nothing stable to anchor on except its own value, "
             "which is exactly what changes between replays, so it's addressed by position "
             "(which table, by its column headers; which row; which column) instead."
@@ -49,7 +49,7 @@ Provenance = Literal["curated", "proposed"]
 """Where a rule came from. `curated` = ratified domain knowledge loaded from
 `app_knowledge/<app>.yaml` (a human has signed off). `proposed` = the discovery agent suggested
 it from what it explored this run; replay uses it (it's a real signal), but the capability's
-`lifecycle` stays `draft` until a reviewer promotes it — see scripts/review_capability.py."""
+`lifecycle` stays `draft` until a reviewer promotes it - see scripts/review_capability.py."""
 
 
 class ExpectedOutcome(BaseModel):
@@ -67,10 +67,10 @@ class ExtractContract(BaseModel):
     The shape an `extract` step's value must have to count as real data. Checked
     deterministically by replay right after the extraction: a resolved locator that pulls an
     empty string, a placeholder ("--", "N/A"), or a value that doesn't match `pattern` means the
-    page rendered but the data behind it did not — replay returns `data_unavailable`, not
+    page rendered but the data behind it did not - replay returns `data_unavailable`, not
     `success` with a junk value and not `hard_failure` (nothing is broken; the datum just isn't
     there). Authored at compile time from domain knowledge of the target app, same as
-    `ExpectedOutcome` — curated in app_knowledge/<app>.yaml or proposed by discovery (see
+    `ExpectedOutcome` - curated in app_knowledge/<app>.yaml or proposed by discovery (see
     `provenance`).
     """
     pattern: str | None = Field(
@@ -86,7 +86,7 @@ class ExtractContract(BaseModel):
     )
     reason: str = Field(
         default="",
-        description="why this contract — for the human reviewer, same spirit as LocatorTarget.reasoning",
+        description="why this contract - for the human reviewer, same spirit as LocatorTarget.reasoning",
     )
     provenance: Provenance = "curated"
 
@@ -112,7 +112,7 @@ class Step(BaseModel):
     ready_when: str | None = Field(
         default=None,
         description=(
-            'optional readiness gate, same literal form as ExpectedOutcome.condition — e.g. '
+            'optional readiness gate, same literal form as ExpectedOutcome.condition - e.g. '
             '"page contains \'Savings Balance\'". The step waits for this marker to appear '
             "before acting; if it never does within wait_policy.timeout_ms, replay returns "
             "`data_unavailable` (the shell loaded, the data region never populated) rather than "
@@ -164,7 +164,7 @@ class Capability(BaseModel):
     description: str = Field(
         default="",
         description=(
-            "human/agent-readable summary of what this capability does — the discovery goal it "
+            "human/agent-readable summary of what this capability does - the discovery goal it "
             "was recorded from, verbatim. This plus input_schema is what an AI agent sees when "
             "choosing which capability to call (agent_interface/catalog.py), so it needs to be "
             "a real natural-language description, not a slug."
@@ -211,7 +211,7 @@ class Result(BaseModel):
     idempotent_replay: bool = Field(
         default=False,
         description="True when this Result was replayed from the idempotency ledger rather than "
-        "re-executed — a risky capability called twice with the same idempotency_key returns "
+        "re-executed - a risky capability called twice with the same idempotency_key returns "
         "the first run's outcome instead of, e.g., opening a second sub-account.",
     )
     trace: list[dict] = Field(

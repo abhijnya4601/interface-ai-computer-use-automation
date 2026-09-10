@@ -1,5 +1,5 @@
 """
-Recorder — runs alongside the discovery loop (called from discovery.py right after each tool
+Recorder - runs alongside the discovery loop (called from discovery.py right after each tool
 call is accepted and executed, not as a post-hoc pass over a transcript) and turns each action
 into an artifact/schema.py `Step`, accumulating `list[Step]` for the compiler to turn into a
 `Capability` once the run finishes.
@@ -9,7 +9,7 @@ Two things worth understanding about the design:
 1. **3-tier locator fallback**, always attempted in this order and logged (`self.tier_log`):
    tier 1 (`role_name`) if role+name resolves to exactly one element anywhere on the page/in its
    frames; tier 2 (`structural`) if it resolves to more than one (falls back to "the first match,
-   in DOM order" — a real position-relative-to-anchor description, e.g. "2nd row of results
+   in DOM order" - a real position-relative-to-anchor description, e.g. "2nd row of results
    table," would need more page-structure context than a single tool call carries, so this is a
    deliberately simple version of tier 2, documented as a cut in REPORT.md); tier 3 (`text`) if
    role+name resolves to nothing. `tier_log` is also the drift-detection signal the assignment
@@ -20,22 +20,22 @@ Two things worth understanding about the design:
    take an optional `param_name`, and when the agent sets it the recorder stores
    `{"param_ref": param_name}` (plus a `url_template` for a partly-parameterized navigation),
    which flows straight into `Capability.input_schema` at compile time. This is the general
-   slot-filler — any number of inputs, any names, chosen by the model that just used the value.
+   slot-filler - any number of inputs, any names, chosen by the model that just used the value.
 
    The old fixed `member <digits>` goal-text regex (`_maybe_param_ref`) is kept as a *fallback*
-   for a model that forgets to tag a value — it still only fires on an *exact* match against
+   for a model that forgets to tag a value - it still only fires on an *exact* match against
    the ID pulled from the goal. That exactness matters: an earlier blind-substring version
    tagged a "$50" deposit as `member_id` because "50" appeared in the goal text, and replaying
    with a different member_id would have typed it into the deposit field.
 
 3. **`table_position` locator, for cells with no per-row label**:
    `extract`ing a labeled value (`<th scope="row">Savings Balance</th><td>$1,842.30</td>`)
-   anchors on the label — stable, since the label doesn't depend on the data. A plain data-table
+   anchors on the label - stable, since the label doesn't depend on the data. A plain data-table
    row (`<td>2026-08-15</td><td>Grocery Store Purchase</td>...`, no per-row label) has nothing
    like that to anchor on; the only thing distinguishing "the date cell" from any other cell was
    its own value, which is exactly what's different on every replay. `_try_table_position_locator`
    detects this shape (a `<td>` inside a table whose row has no `<th>`, but the table itself has
-   `<th scope="col">` column headers) and addresses the cell by position instead — which table
+   `<th scope="col">` column headers) and addresses the cell by position instead - which table
    (identified by its column headers, since those don't depend on data), which row, which column.
 """
 from __future__ import annotations
@@ -44,7 +44,7 @@ import re
 
 from artifact.schema import LocatorTarget, Step
 
-_PARAM_NAME = "member_id"  # see module docstring — the only varying input across both capabilities
+_PARAM_NAME = "member_id"  # see module docstring - the only varying input across both capabilities
 _MEMBER_ID_RE = re.compile(r"member\s+(\d+)", re.IGNORECASE)
 
 
@@ -129,7 +129,7 @@ class Recorder:
                 reasoning=(
                     f"role={role_norm!r} name={name!r} resolves to exactly one element across "
                     "the page and its frames. Backed by real semantic HTML (a real <button>, "
-                    "<label for>, or <th scope=row> — see app/templates), not any CSS class or "
+                    "<label for>, or <th scope=row> - see app/templates), not any CSS class or "
                     "test ID, so it survives markup/styling churn and only breaks if the visible "
                     "label text or the element's semantic role itself changes."
                 ),
@@ -141,7 +141,7 @@ class Recorder:
                 primary={"role": role_norm, "name": name, "nth": 0},
                 fallbacks=[{"strategy": "text", "text": name}],
                 reasoning=(
-                    f"role={role_norm!r} name={name!r} matched {total} elements — not unique. "
+                    f"role={role_norm!r} name={name!r} matched {total} elements - not unique. "
                     "Resolved structurally as the first (index 0) match in DOM order, since that "
                     "is what the discovery agent actually acted on. Weaker than tier 1: only "
                     "reliable if replay's runtime page produces matches in the same order."
@@ -156,7 +156,7 @@ class Recorder:
                 reasoning=(
                     f"no element matched role={role_norm!r} name={name!r} via the accessibility "
                     "tree at record time; falling back to a raw text-content match. This is the "
-                    "most brittle tier — it breaks on any copy change — and is logged as a "
+                    "most brittle tier - it breaks on any copy change - and is logged as a "
                     "warning below for exactly that reason."
                 ),
             )
@@ -164,7 +164,7 @@ class Recorder:
         self.tier_log.append({"step_id": step_id, "role": role_norm, "name": name, "tier": tier})
         if tier == "text":
             print(f"[recorder] WARNING: step {step_id} ({role_norm} '{name}') fell back to "
-                  "tier-3 text locator — most brittle, watch this in future replays")
+                  "tier-3 text locator - most brittle, watch this in future replays")
         return target
 
     # ---- table_position locator -------------------------------------------------------------
@@ -173,7 +173,7 @@ class Recorder:
         """
         If (role, name) resolves to a single <td> cell sitting in a data-table row with no
         per-row label (<th>), but the table itself has column headers (<th scope="col">), build
-        a position-based locator instead of the normal role_name-by-value tier — see module
+        a position-based locator instead of the normal role_name-by-value tier - see module
         docstring point 3. Returns None (caller falls back to the normal
         tiers) if the shape doesn't match; never raises.
         """
@@ -221,7 +221,7 @@ class Recorder:
                     fallbacks=[{"strategy": "text", "text": name}],
                     reasoning=(
                         f"role='cell' name={name!r} sits in a data table (columns {headers}) with "
-                        "no per-row label — anchoring on the cell's own value would break the "
+                        "no per-row label - anchoring on the cell's own value would break the "
                         "moment the underlying data changes, since "
                         "that value is exactly what's different on every replay. Addressed by "
                         f"position instead: row {row_index} (0-indexed among data rows), column "
@@ -237,7 +237,7 @@ class Recorder:
     def _maybe_param_ref(self, value: str) -> dict | str:
         """Fallback slot-filler: tag a typed value as `{"param_ref": "member_id"}` iff it
         exactly equals the ID pulled from the goal text. Only used when the discovery agent
-        did NOT name the parameter itself (`param_name` on the `type` tool) — that explicit
+        did NOT name the parameter itself (`param_name` on the `type` tool) - that explicit
         signal always wins, so this regex is a safety net for a model that forgets to tag."""
         if self._member_id_value and str(value) == self._member_id_value:
             return {"param_ref": _PARAM_NAME}
@@ -273,7 +273,7 @@ class Recorder:
     def record_type(
         self, role: str, name: str, text: str, page, param_name: str | None = None
     ) -> Step:
-        """`param_name` (from the agent, via the `type` tool) is how a run input gets named —
+        """`param_name` (from the agent, via the `type` tool) is how a run input gets named -
         the general slot-filler. `{"param_ref": param_name}` flows straight into
         `Capability.input_schema` at compile time. Falls back to the goal-text ID regex only
         when the agent didn't name it."""

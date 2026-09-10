@@ -1,6 +1,6 @@
 # Conservative first pass: the rules that catch real mistakes (undefined names, unused imports,
 # obviously-wrong code) plus import sorting and pyupgrade. Deliberately NOT enabling
-# flake8-bandit (S) or flake8-blind-except (BLE) yet — the perception and replay code swallows
+# flake8-bandit (S) or flake8-blind-except (BLE) yet - the perception and replay code swallows
 # exceptions on purpose while probing the DOM across frames, and that's a design decision to
 # revisit rule-by-rule, not something to mass-"fix".
 target-version = "py312"
@@ -18,7 +18,7 @@ ignore = [
     "B905",    # zip() without strict=: one call in perception.py, frames are known equal-length
     "SIM105",  # contextlib.suppress vs try/except/pass: 2 spots in escalation/controller.py
     "RUF005",  # iterable unpacking vs concatenation: one test helper
-    "UP047",   # PEP 695 `def f[T]()` generics — style preference, not adopting repo-wide yet
+    "UP047",   # PEP 695 `def f[T]()` generics - style preference, not adopting repo-wide yet
 ]
 
 [lint.per-file-ignores]

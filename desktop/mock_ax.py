@@ -2,7 +2,7 @@
 A tiny in-process stand-in for an OS accessibility API (Windows UIA / macOS AX): a control
 tree of {role, name, value, children} elements with `Invoke` / `SetValue` actions and window
 navigation. It exists so the desktop adapter (`agent/desktop_adapter.py`) can be exercised for
-real — proving the perception/action seam holds for a non-Playwright surface — without OS
+real - proving the perception/action seam holds for a non-Playwright surface - without OS
 accessibility permissions or a real native app.
 
 The modelled app mirrors the mock bank at a small scale: a Search window (a text field + a Go
@@ -54,7 +54,7 @@ class MockDesktopApp:
         self._query = ""
         self._member_id: str | None = None
 
-    # navigation is 'open this window/screen' — the desktop analogue of a URL
+    # navigation is 'open this window/screen' - the desktop analogue of a URL
     def activate(self, window: str) -> str:
         if window == "search":
             self.window = "search"

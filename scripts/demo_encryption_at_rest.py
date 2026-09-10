@@ -1,6 +1,6 @@
 """
 Evidence generator: proves guardrails/encryption.py actually works end to end against
-a real file on disk — not just unit-tested in memory. Deliberately does NOT touch /evidence/ or
+a real file on disk - not just unit-tested in memory. Deliberately does NOT touch /evidence/ or
 /capabilities/ (those must stay human-readable for reviewers per the assignment's requirement);
 this writes to a throwaway file instead, encrypts realistic customer-shaped data, confirms the
 file on disk is genuinely unreadable without the key, then decrypts it back and confirms it

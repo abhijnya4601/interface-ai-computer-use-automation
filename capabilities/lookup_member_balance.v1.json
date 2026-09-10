@@ -65,7 +65,7 @@
             "text": "Search (ID / name)"
           }
         ],
-        "reasoning": "role='textbox' name='Search (ID / name)' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='textbox' name='Search (ID / name)' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": {
         "param_ref": "member_id"
@@ -97,7 +97,7 @@
             "text": "Go"
           }
         ],
-        "reasoning": "role='button' name='Go' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='button' name='Go' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": null,
@@ -127,7 +127,7 @@
             "text": "View"
           }
         ],
-        "reasoning": "role='link' name='View' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='link' name='View' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": null,
@@ -143,7 +143,7 @@
           "condition": "page contains 'No results.'",
           "classification": "business_outcome",
           "code": "MEMBER_NOT_FOUND",
-          "handling": "search returned no matching row for this member_id; there is no 'View' link to click through \u2014 treat as not found rather than a broken locator",
+          "handling": "search returned no matching row for this member_id; there is no 'View' link to click through - treat as not found rather than a broken locator",
           "provenance": "curated"
         }
       ],
@@ -165,7 +165,7 @@
             "text": "Savings Balance"
           }
         ],
-        "reasoning": "role='rowheader' name='Savings Balance' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='rowheader' name='Savings Balance' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": "savings_balance",

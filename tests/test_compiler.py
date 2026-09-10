@@ -231,7 +231,7 @@ def test_save_capability_does_not_corrupt_output_schema_with_a_secret_like_field
 
 
 def test_save_capability_still_redacts_secret_like_values_inside_steps(tmp_path):
-    # redact() matches by dict KEY, not by inspecting string contents — so the value has to be
+    # redact() matches by dict KEY, not by inspecting string contents - so the value has to be
     # shaped as a dict with a secret-like key (e.g. a hypothetical {"param_ref": ...}-style
     # value carrying a literal under a "password" key) to actually exercise the redaction path.
     recorder = FakeRecorder([

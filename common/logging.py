@@ -76,7 +76,7 @@ _configured = False
 
 
 def _configure() -> None:
-    """Attach a single JSON handler to the `agentconsole` logger — NOT the root logger, so this
+    """Attach a single JSON handler to the `agentconsole` logger - NOT the root logger, so this
     never fights pytest's caplog or an application's own logging config. Records still propagate
     to root for anything else that wants them."""
     global _configured

@@ -2,35 +2,34 @@
 
 A small, real end-to-end "hands for AI agents" system: an LLM drives a
 live legacy banking web app to accomplish a goal, the successful run is compiled into a typed,
-versioned, reusable **capability** artifact, and that artifact is replayed **deterministically**
-— no LLM in the loop — with real runtime-error and business-outcome handling, safety guardrails,
+versioned, reusable **capability** artifact, and that artifact is replayed **deterministically** - no LLM in the loop - with real runtime-error and business-outcome handling, safety guardrails,
 and a human-in-the-loop escalation/handoff path.
 
 See [`REPORT.md`](REPORT.md) for the design write-up, including the trade-offs made and several
-real bugs found while building this — what broke and how they were fixed.
+real bugs found while building this - what broke and how they were fixed.
 
 **A note for Windows users:** every terminal command block below that needs a different form on
-Windows has a collapsed **Windows (PowerShell)** toggle directly underneath it — click it to
+Windows has a collapsed **Windows (PowerShell)** toggle directly underneath it - click it to
 expand instead of translating bash yourself.
 
 ## Terms used in this README
 
-- **Member** — this mock bank's word for a customer / account holder. Every member has a
-  `member_id` (a 5-digit string like `12345`) — that's the one input most goals below need.
-- **Capability** — a single task the agent has learned to do (e.g. "look up a balance"), saved as
+- **Member** - this mock bank's word for a customer / account holder. Every member has a
+  `member_id` (a 5-digit string like `12345`) - that's the one input most goals below need.
+- **Capability** - a single task the agent has learned to do (e.g. "look up a balance"), saved as
   a versioned JSON file in `capabilities/`. Recorded once by a real LLM-driven **discovery** run,
   then **replayed** afterward with no LLM involved at all.
-- **Discovery** — the one-time run where Claude actually looks at the live app and figures out,
+- **Discovery** - the one-time run where Claude actually looks at the live app and figures out,
   step by step, how to complete a goal. Slow, costs API credits, needs a real Anthropic key.
-- **Replay** — running an already-recorded capability again, deterministically, against new input
+- **Replay** - running an already-recorded capability again, deterministically, against new input
   (e.g. a different member_id). Fast, free, no LLM involved.
-- **Business outcome** — not a crash. A real, expected result the app itself produces — "this
+- **Business outcome** - not a crash. A real, expected result the app itself produces - "this
   member doesn't exist," "this account is locked," "no transactions on file." Reported as
   `status=business_outcome` with a `business_outcome_code` like `MEMBER_NOT_FOUND`, distinct from
   `hard_failure` (something actually broke) and plain `success`.
-- **Escalation** — when the agent stops mid-run and asks a human to approve a state-changing
+- **Escalation** - when the agent stops mid-run and asks a human to approve a state-changing
   action (e.g. actually opening an account) before doing it.
-- **Risk level** (`safe` / `risky`) — whether a capability is allowed to replay without a human
+- **Risk level** (`safe` / `risky`) - whether a capability is allowed to replay without a human
   explicitly confirming first. `risky` capabilities always need `--confirm`.
 
 ## 1. Setup
@@ -70,7 +69,7 @@ playwright install chromium
 
 </details>
 
-**Operator console credentials:** `escalation/operator_page.py` requires HTTP Basic Auth —
+**Operator console credentials:** `escalation/operator_page.py` requires HTTP Basic Auth -
 whoever can reach it can approve an irreversible financial action, so it never serves
 unauthenticated. Set a stable credential in `.env`:
 
@@ -90,16 +89,16 @@ echo "OPERATOR_PASSWORD=$(python3 -c 'import secrets; print(secrets.token_urlsaf
 </details>
 
 If you skip this, the console generates and prints a one-time random password to its own
-terminal at startup instead of ever running open — it never silently serves without auth.
+terminal at startup instead of ever running open - it never silently serves without auth.
 
 **A note on port 5000:** the mock app runs on **5050**, not 5000. macOS's built-in AirPlay
-Receiver squats on port 5000 and answers HTTP requests before Flask ever sees them — every
+Receiver squats on port 5000 and answers HTTP requests before Flask ever sees them - every
 `localhost:5000` reference you might expect from a typical Flask tutorial is `localhost:5050`
 throughout this repo instead.
 
 **A note on conda:** if you have conda/Anaconda installed and your shell auto-activates a `(base)`
 environment, `source .venv/bin/activate` can silently fail to actually put this project's `.venv`
-first on `PATH`, and `python3 scripts/...` will run against `(base)`'s Python instead — which
+first on `PATH`, and `python3 scripts/...` will run against `(base)`'s Python instead - which
 doesn't have Playwright installed, so you'll hit `ModuleNotFoundError: No module named
 'playwright'`. Check `which python3` after activating; it should print a path ending in
 `.venv/bin/python3`. If it doesn't, run `conda deactivate` first, then `source .venv/bin/activate`
@@ -109,7 +108,7 @@ again.
 
 The parts that need a real browser and/or a real LLM:
 
-- **Offline (no browser, no API key):** `pytest tests/` — 135 unit tests covering the schema,
+- **Offline (no browser, no API key):** `pytest tests/` - 135 unit tests covering the schema,
   guardrails, perception parsing, the recorder's 3-/4-tier locator logic, the compiler, the replay
   engine's pure helpers, the escalation lease mechanism, the CLI's pure helper logic (default
   checkpoint, risk-level inference, the auto-open-console watcher), and the agent-facing
@@ -117,7 +116,7 @@ The parts that need a real browser and/or a real LLM:
   stand-ins. Runs in under 2 seconds, no network. Identical command on Windows.
 - **Needs a real browser, no API key:** `scripts/verify_perception_live.py`,
   `scripts/smoke_test_discovery.py` (scripted fake LLM), `scripts/smoke_test_replay.py`,
-  `scripts/smoke_test_escalation_timeout.py` (regression test for a real timing bug — a
+  `scripts/smoke_test_escalation_timeout.py` (regression test for a real timing bug - a
   human's escalation-review time was being counted against the run's own wall-clock budget),
   `scripts/smoke_test_operator_auth.py` (live integration test for the operator console's
   authentication), `scripts/smoke_test_dead_end_human_note.py` (regression test for a human's
@@ -125,21 +124,21 @@ The parts that need a real browser and/or a real LLM:
   mechanics without spending API credits.
 - **No browser, no API key:** `python3 scripts/demo_encryption_at_rest.py` proves the
   encryption-at-rest module (`guardrails/encryption.py`) works end to end against a real
-  file on disk — generates a throwaway key if `EVIDENCE_ENCRYPTION_KEY` isn't set in `.env`.
+  file on disk - generates a throwaway key if `EVIDENCE_ENCRYPTION_KEY` isn't set in `.env`.
 - **Needs a real browser AND a real API key:** `scripts/run_discovery.py` and anything under
-  "demo path" below. This is the one part of the system that has to be real — see `REPORT.md`.
+  "demo path" below. This is the one part of the system that has to be real - see `REPORT.md`.
 
 ## 3. Demo path
 
 Two things to know before running anything below: whether you'll see a browser window, and how
 a risky action gets approved.
 
-**Headless vs. headed — where the browser goes.**
+**Headless vs. headed - where the browser goes.**
 
 | Command | Default | To switch it |
 |---|---|---|
-| `run_discovery.py` | headed unless `--headless` is passed — no window means faster runs, but nothing to watch | add `--headless` |
-| `run_replay.py` | headless — no flag needed | add `--headed` |
+| `run_discovery.py` | headed unless `--headless` is passed - no window means faster runs, but nothing to watch | add `--headless` |
+| `run_replay.py` | headless - no flag needed | add `--headed` |
 
 The very first `run_discovery.py` example below leaves `--headless` off on purpose, so you can
 watch the real Chromium window click through the mock bank the first time. Every example after
@@ -147,8 +146,8 @@ that adds `--headless` back, since by then you already know what it looks like a
 faster. Whenever a headed run finishes, the browser window stays open for 5 more seconds before
 it closes, so you have time to actually look at the final page.
 
-**The operator console — what it is, and when you need it.** A few goals change real data (open
-an account, file a dispute) — the agent stops and waits for a human to approve before it commits
+**The operator console - what it is, and when you need it.** A few goals change real data (open
+an account, file a dispute) - the agent stops and waits for a human to approve before it commits
 that step. The **operator console** is the local page a human uses to see the pending action and
 click Approve or Decline: `http://localhost:5001`. It only matters for runs that actually
 escalate; most goals below never touch it.
@@ -157,23 +156,23 @@ Pick one of these three per run:
 
 | Flag | What happens |
 |---|---|
-| `--auto-approve-escalation` | Fully unattended — a background process approves it for you after a short delay. No console needed. |
-| `--open-console-on-escalation` (recommended, to try this yourself) | The console starts and pops open in your browser the instant the run escalates — nothing to set up. |
+| `--auto-approve-escalation` | Fully unattended - a background process approves it for you after a short delay. No console needed. |
+| `--open-console-on-escalation` (recommended, to try this yourself) | The console starts and pops open in your browser the instant the run escalates - nothing to set up. |
 | *(neither flag)* | The run just blocks and waits. Start it yourself first: `python3 escalation/operator_page.py` in a separate terminal, then open `http://localhost:5001` by hand once it escalates. |
 
 **Seeded members you can use for testing.** The mock bank starts with these members already in
-it — every example below uses one of these IDs, and you can swap in any other one from this list:
+it - every example below uses one of these IDs, and you can swap in any other one from this list:
 
 | Member ID | Name | Status | Savings balance | Transactions |
 |---|---|---|---|---|
 | `12345` | Dana Whitfield | active | $1,842.30 | 4 |
 | `23456` | Marcus Oyelaran | active | $5.02 | 2 |
-| `34567` | Priya Ramaswamy | active | $9,901.00 | 0 — triggers `NO_TRANSACTIONS` |
+| `34567` | Priya Ramaswamy | active | $9,901.00 | 0 - triggers `NO_TRANSACTIONS` |
 | `45678` | Wei Chen | active | $0.00 | 2 |
 | `56789` | Sofia Alvarez | active | $127.50 | 3 |
-| `77777` | Nadia Farouk | active | *(none — ledger returned nothing)* | — page renders, balance datum is missing → triggers `data_unavailable` |
-| `99999` | Restricted Account | **locked** | — | any action here triggers `PERMISSION_DENIED` |
-| `88888` (or any ID not above) | — not a real member — | — | — | triggers `MEMBER_NOT_FOUND` |
+| `77777` | Nadia Farouk | active | *(none - ledger returned nothing)* | - page renders, balance datum is missing → triggers `data_unavailable` |
+| `99999` | Restricted Account | **locked** | - | any action here triggers `PERMISSION_DENIED` |
+| `88888` (or any ID not above) | - not a real member - | - | - | triggers `MEMBER_NOT_FOUND` |
 
 ### Run it with Docker (no local Python/Playwright)
 
@@ -193,7 +192,7 @@ on every push.
 | Command | What it does |
 |---|---|
 | `make test` / `make lint` | `pytest -q` / `ruff check .` (config in `ruff.toml`) |
-| `make patch-check` | fails if `capabilities/*.json` drifted from `app_knowledge/<app>.yaml` — run `python scripts/patch_capabilities.py` to fix |
+| `make patch-check` | fails if `capabilities/*.json` drifted from `app_knowledge/<app>.yaml` - run `python scripts/patch_capabilities.py` to fix |
 | `python scripts/verify_capability.py <artifact> --write` | replays every declared branch (`verify_scenarios` in the app YAML); on a clean sweep, promotes the artifact `draft → verified` and stamps a `VerificationRecord` |
 | `python scripts/review_capability.py <artifact> [--promote-all] [--publish]` | lists the discovery agent's un-ratified proposed rules; `--promote-all` moves them into the app YAML as curated; `--publish` flips `verified → published` |
 | `python scripts/replay_metrics.py` | per-capability outcome mix, p50/p95 latency, and locator-fallback (drift) rate from `evidence/replay_*_trace.jsonl` |
@@ -213,24 +212,32 @@ tools; the compiled artifact carries them as `provenance: proposed` and stays `l
 agent console **and** a live view of the browser side by side, streamed from the real run.
 
 ```bash
-make app        # terminal 1 — the mock bank on :5050
-make console    # terminal 2 — prints  http://localhost:5055/?key=<token>
-#   or: docker compose up --build bank console
+make app        # terminal 1 - the mock bank on :5050
+make app2       # terminal 2 - the hostile-DOM target on :5051 (optional)
+make console    # terminal 3 - prints  http://localhost:5055/?key=<token>
+#   or: docker compose up --build bank hostile console
 ```
 
-- **Replay mode** works with no API key — pick a compiled capability, set `member_id`
+- **Two target apps.** *Mock core-banking* (`app/`, :5050) - legacy layout but semantic HTML,
+  clean accessibility tree. *Hostile-DOM app* (`app2/`, :5051) - div soup, no `<label for>`,
+  values buried in nested spans (ARIA roles kept, so role+name still resolves) - plus a
+  **fault-injection** switch (`?inject=`): `maintenance` (503 → `recoverable_handled`), `slow`
+  (latency), `blank` (balance renders empty → `data_unavailable`). Capabilities:
+  `hostile_check_balance` (safe) and `hostile_move_funds` (risky). The capability list filters
+  to the selected target.
+- **Replay mode** works with no API key - pick a compiled capability, set `member_id`
   (`12345` ok · `88888` not found · `99999` locked · `77777` data missing), Run.
-- **Ask mode** — type a request in plain English; the model picks **one capability the console
+- **Ask mode** - type a request in plain English; the model picks **one capability the console
   already knows** from the tool catalog (`agent_interface/catalog.py`), fills its typed inputs,
   and runs it deterministically with the same escalation gate. Nothing new is learned (that's
   Discover). Needs a key.
-- **Discover mode** — type a goal, watch the model loop. Ask and Discover both run on
-  **Anthropic, OpenAI, or Google (Gemini)** — auto-detected from the key prefix (`sk-ant-` /
+- **Discover mode** - type a goal, watch the model loop. Ask and Discover both run on
+  **Anthropic, OpenAI, or Google (Gemini)** - auto-detected from the key prefix (`sk-ant-` /
   `sk-` / `AIza`) or picked in the UI; same prompt, tools and loop for all three. The key comes
   from `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` on the server, or each viewer
-  **pastes their own** in the UI (`CONSOLE_ALLOW_BYO_KEY=1`, the default) — passed straight to
+  **pastes their own** in the UI (`CONSOLE_ALLOW_BYO_KEY=1`, the default) - passed straight to
   that provider for that run, never written to disk or logged.
-- **History tab** — every replay, ask and discovery run on the instance
+- **History tab** - every replay, ask and discovery run on the instance
   (`agent_interface/runs.py` → `runs.jsonl`): kind, capability, status, business outcome,
   escalation count, duration. Newest first, params and outputs redacted. `CONSOLE_RUNS_PATH`
   points it at the data volume so it survives a redeploy.
@@ -248,10 +255,10 @@ make console    # terminal 2 — prints  http://localhost:5055/?key=<token>
   in `guardrails/allowlist.yaml`.
 ### Deploy the live console
 
-The repo is deploy-ready — `Dockerfile` (default command = `webconsole/serve.sh`, which starts
+The repo is deploy-ready - `Dockerfile` (default command = `webconsole/serve.sh`, which starts
 the mock bank + the console in one container), container-safe Chromium flags, `/data` for
 discovered capabilities. It needs a host that runs a **Docker container with ~1 GB RAM**
-(Playwright + Chromium). Full walkthrough — Render, Cloudflare tunnel, Fly, VPS — in
+(Playwright + Chromium). Full walkthrough - Render, Cloudflare tunnel, Fly, VPS - in
 [DEPLOY.md](DEPLOY.md).
 
 The free options at a glance:
@@ -263,10 +270,10 @@ The free options at a glance:
 | **GitHub Pages** hosting `docs/live-demo.html` | yes, zero maintenance | free | this is the *simulation* (replays captured runs), not the live agent |
 | Fly.io 1 GB / a $4 VPS | yes, reliable | **needs a card** | see DEPLOY.md |
 
-Wherever you host it, set one secret — **`CONSOLE_ACCESS_KEY`** (any random string) — or the
+Wherever you host it, set one secret - **`CONSOLE_ACCESS_KEY`** (any random string) - or the
 console generates a new link token on every restart.
 
-**Terminal 1 — start the mock bank app:**
+**Terminal 1 - start the mock bank app:**
 
 ```bash
 source .venv/bin/activate
@@ -287,7 +294,7 @@ python app.py    # http://localhost:5050 -- blocks this terminal, leave it runni
 
 </details>
 
-**Terminal 2 — run the agent on a goal, for real:**
+**Terminal 2 - run the agent on a goal, for real:**
 
 ```bash
 source .venv/bin/activate
@@ -322,7 +329,7 @@ against Claude, and on success:
 - saves the full structured transcript to `evidence/discovery_<run_id>.jsonl`
 - compiles and saves `capabilities/lookup_member_balance.v1.json`
 
-**Then replay the resulting artifact — no LLM involved:**
+**Then replay the resulting artifact - no LLM involved:**
 
 ```bash
 # a NEW member_id, never seen during discovery -- proves real parameterization
@@ -366,12 +373,12 @@ Each replay prints and saves a structured `Result` (`status`, `outputs`,
 
 ### Running a different task entirely
 
-Every command above follows one fixed shape — nothing here is hardcoded to these specific
+Every command above follows one fixed shape - nothing here is hardcoded to these specific
 examples, so swap in whatever you actually want the agent to try:
 
 ```bash
 python3 scripts/run_discovery.py \
-  --goal "<a real, plain-English instruction — this is the only thing the model reads>" \
+  --goal "<a real, plain-English instruction - this is the only thing the model reads>" \
   --target "http://localhost:5050/search" \
   --capability-id <a_short_name_for_this_task> \
   --headless
@@ -390,11 +397,11 @@ python scripts/run_discovery.py `
 
 </details>
 
-- **`--goal`** isn't matched against a fixed list or a menu of known intents — it's the literal
+- **`--goal`** isn't matched against a fixed list or a menu of known intents - it's the literal
   text the model reasons over each turn, so a genuinely different goal produces genuinely
   different behavior. This is what "Teach it something it's never seen" below actually
   demonstrates: two goals that were never scripted in advance, run for the first time, live.
-- **`--capability-id`** just names the output file (`capabilities/<capability-id>.v1.json`) — pick
+- **`--capability-id`** just names the output file (`capabilities/<capability-id>.v1.json`) - pick
   anything unused and it won't overwrite one of the 5 real capabilities already in this repo.
 - **`--target`** stays `http://localhost:5050/search` unless you've pointed the mock app at a
   different entry route yourself.
@@ -402,9 +409,9 @@ python scripts/run_discovery.py `
   task might need a state-changing action confirmed (see "Testing human-in-the-loop escalation yourself"
   below for what that looks like end to end).
 
-**The goal text itself is unrestricted — but what it can accomplish isn't.** You can type any
+**The goal text itself is unrestricted - but what it can accomplish isn't.** You can type any
 plain-English instruction; the model isn't matched against a preset menu of allowed intents. What
-actually *happens* is still bounded by what this particular mock bank UI supports — there's no
+actually *happens* is still bounded by what this particular mock bank UI supports - there's no
 page, button, or form for anything outside the six things below, so a goal asking for something
 the app has no route for (e.g. "close this account," "transfer money between two members," "email
 me a statement") will make the model genuinely try, fail to find a way to do it, and report that
@@ -419,12 +426,12 @@ honestly rather than fabricate a result. Everything the app can actually do:
 | View a member's transaction history | `/member/<id>/transactions` |
 | Dispute a posted transaction | `/member/<id>/transactions/<id>/dispute` |
 
-That's the whole app — no login/auth flow, no fund transfers, no account closure, no statements or
+That's the whole app - no login/auth flow, no fund transfers, no account closure, no statements or
 documents, no card management. A goal outside this list is still worth trying on purpose: the
 model will explore, fail to find a page or button that does what you asked, and eventually either
-hit `--max-steps` or call `finish(success=False)` on its own (both report as `status=max_steps` —
+hit `--max-steps` or call `finish(success=False)` on its own (both report as `status=max_steps` -
 see `agent/discovery.py`'s `DiscoveryResult.status`) rather than fabricate a result. Either way, no
-capability gets compiled from a run like that — `run_discovery.py` prints "run did not reach
+capability gets compiled from a run like that - `run_discovery.py` prints "run did not reach
 success/business_outcome; no capability compiled" and exits without writing to `capabilities/`.
 
 Whatever gets compiled replays exactly like any other capability:
@@ -474,7 +481,7 @@ python scripts/run_discovery.py `
 
 </details>
 
-Replaying it requires explicit confirmation — without `--confirm` it's rejected before touching
+Replaying it requires explicit confirmation - without `--confirm` it's rejected before touching
 the page:
 
 ```bash
@@ -544,15 +551,15 @@ python scripts/run_replay.py `
 
 ### Testing human-in-the-loop escalation yourself
 
-**Why this happens at all — the model decides, a human doesn't force it.** Nothing in this repo
+**Why this happens at all - the model decides, a human doesn't force it.** Nothing in this repo
 maintains a fixed list of "risky goals that need a human." The agent's own system prompt
 (`agent/discovery.py::_system_prompt`) tells it: if completing the goal requires a state-changing,
 hard-to-reverse action, stop and call `escalate` instead of taking that step yourself. Whether any
 given goal actually triggers this is the model's live judgment call, made fresh each run against
-what it's about to do — not something decided in advance by a human or a config file. A human's
+what it's about to do - not something decided in advance by a human or a config file. A human's
 only role is what happens *after* that: reviewing the specific pending action and deciding
 Approve or Decline. (`risk_level: risky` on a compiled capability is inferred *afterward*, from
-whether this happened during discovery (`_infer_risk_level`) — never the other way around.)
+whether this happened during discovery (`_infer_risk_level`) - never the other way around.)
 
 To watch this yourself, in one terminal, with the console opening automatically:
 
@@ -584,7 +591,7 @@ python scripts/run_discovery.py `
 
 </details>
 
-No `--headless` here on purpose — watch the real browser window reach the confirmation page, then
+No `--headless` here on purpose - watch the real browser window reach the confirmation page, then
 watch your own browser pop open the operator console the moment it actually escalates. Log in
 with the credentials printed in your terminal (or your own `OPERATOR_USERNAME`/`OPERATOR_PASSWORD`
 if you set them), read the real reason and screenshot, and click Approve or Decline. Prefer two
@@ -598,15 +605,15 @@ browser, real separate operator process, real HTTP calls, zero manual clicking) 
 
 ### Teach it something it's never seen
 
-`capabilities/` currently has 5 files — the assignment requires 2. Two of the extra three
+`capabilities/` currently has 5 files - the assignment requires 2. Two of the extra three
 (`dispute_transaction`, `update_member_address`) exist specifically because this exact "make it
 learn something new" question came up during review, and both were proven live rather than just
 described: point discovery at a real app feature with **zero** prior capability, on a goal never
-seen before, and watch it build one from scratch — both runs escalated on the model's own
+seen before, and watch it build one from scratch - both runs escalated on the model's own
 judgment and surfaced a real bug along the way (see `REPORT.md` §3).
 
-To get a genuinely blank slate yourself — not just a capability_id you personally haven't typed
-yet — delete its compiled artifact first, then discover it fresh:
+To get a genuinely blank slate yourself - not just a capability_id you personally haven't typed
+yet - delete its compiled artifact first, then discover it fresh:
 
 ```bash
 rm capabilities/dispute_transaction.v1.json    # or update_member_address.v1.json
@@ -635,45 +642,45 @@ Two things worth watching for, both real and both verified live twice now (once 
 
 1. **It may escalate on its own.** Submitting a form that changes a real record is exactly the
    "state-changing, hard-to-reverse action" the system prompt tells the model to stop and confirm
-   before taking — both `dispute_transaction` and `update_member_address` did, unprompted, on
+   before taking - both `dispute_transaction` and `update_member_address` did, unprompted, on
    their first-ever run. If it does, follow the "Testing human-in-the-loop escalation yourself" steps above
-   to approve or decline it — no `--auto-approve-escalation` needed if you want to do that part
+   to approve or decline it - no `--auto-approve-escalation` needed if you want to do that part
    yourself.
 2. **A capability discovered this way that *did* escalate gets compiled `risk_level: risky`
-   automatically** (`_infer_risk_level` — no capability needs to be hand-listed for this), so
+   automatically** (`_infer_risk_level` - no capability needs to be hand-listed for this), so
    replaying it back will refuse without `--confirm`, same as `open_subaccount`.
 
 One honest limit to know before replaying `update_member_address`: parameter detection only
-generalizes the `member_id` — replaying it against a different member re-targets *that* member
+generalizes the `member_id` - replaying it against a different member re-targets *that* member
 correctly, but writes back the same address values recorded during discovery, not new ones. It's
 "apply this recorded change to someone else," not "make up a new value per member."
 
-### A fuller menu — other goals worth trying, and what to expect
+### A fuller menu - other goals worth trying, and what to expect
 
-Not an exhaustive list — the point is the system takes arbitrary goal text, not a fixed menu — but
+Not an exhaustive list - the point is the system takes arbitrary goal text, not a fixed menu - but
 these cover genuinely different things to watch for, each verified live at least once:
 
 - **A business outcome reached cold, no capability guiding it.** Point discovery straight at an
   edge-case member instead of the happy path, e.g. `--goal "Look up member 99999 and read their
   current savings balance."` with `--capability-id lookup_member_balance` (use a throwaway
   `--capability-id` if you don't want to touch the real file). The model has no declared
-  `expected_outcomes` to lean on here — that mechanism is replay-only — so this is its own
+  `expected_outcomes` to lean on here - that mechanism is replay-only - so this is its own
   from-scratch reasoning: it reads the "restricted" page and correctly finishes with
   `status=business_outcome`, `business_outcome_code=PERMISSION_DENIED`, same as a not-found member
   ID produces `MEMBER_NOT_FOUND`.
-- **A goal combining two existing capabilities' steps in one run** — e.g. "Look up member 12345's
+- **A goal combining two existing capabilities' steps in one run** - e.g. "Look up member 12345's
   balance, then find their most recent transaction." Untested territory: the compiler declares
   business outcomes per-capability from a single `capability_id`, so a merged run may compile
   oddly or need two separate discovery calls. Worth trying specifically *because* it's untested.
-- **A goal that needs a non-default `<select>` option** — e.g. "Open a Vacation Club sub-account
+- **A goal that needs a non-default `<select>` option** - e.g. "Open a Vacation Club sub-account
   for member 45678 with a $25 opening deposit, and complete the account creation." (the default
-  is Christmas Club). This now works — the `type` tool falls back to `select_option` for a
+  is Christmas Club). This now works - the `type` tool falls back to `select_option` for a
   `<select>` element, and the model can see every option's label via the accessibility tree, not
   just the current selection.
 
 ### Everything the mock app can learn, in one place
 
-Every goal type demonstrated above, gathered into one table — `--capability-id` is what to pass,
+Every goal type demonstrated above, gathered into one table - `--capability-id` is what to pass,
 `safe` capabilities never need `--confirm` on replay, `risky` ones always do:
 
 | What it does | `--capability-id` | Risk | Member IDs worth trying | What you'll see |
@@ -684,7 +691,7 @@ Every goal type demonstrated above, gathered into one table — `--capability-id
 | File a transaction dispute | `dispute_transaction` | risky | any member with transaction history | escalates on its own; `rm` the `.json` first for a genuinely blank-slate test |
 | Update a mailing address | `update_member_address` | risky | any member | escalates on its own; same blank-slate note as above |
 
-**To repeat any of this cleanly**, reset the mock bank back to its original seed data — this
+**To repeat any of this cleanly**, reset the mock bank back to its original seed data - this
 clears anything a previous run changed (a new sub-account, a disputed transaction, a changed
 address) without needing to restart the Flask app itself:
 
@@ -708,11 +715,11 @@ regardless of what you tried before.
 
 ## 4. Evidence
 
-**Start with [`evidence/README.md`](evidence/README.md)** — a short curated index pointing at one
+**Start with [`evidence/README.md`](evidence/README.md)** - a short curated index pointing at one
 traceable discovery → artifact → replay example plus one of each exceptional-state replay, rather
 than the raw 87-file list below.
 
-`/evidence/` holds the real artifacts from every run made while building and testing this — 18
+`/evidence/` holds the real artifacts from every run made while building and testing this - 18
 discovery transcripts, 27 replay results (success / business outcomes / an injected hard failure, across
 all 5 capabilities), 14 real escalations with screenshots, the fully-automated escalation demo
 sequence, a captured guardrail-violation transcript, and two real Claude tool-use transcripts from
@@ -738,13 +745,13 @@ evidence/         real run output (see above)
 ## 6. Stretch goal: agent-facing capability interface
 
 `capabilities/*.json` exposed as a catalog an AI agent can discover and invoke by name with typed
-args — full design reasoning, including a real bug the first live run found, in `REPORT.md` §8.
+args - full design reasoning, including a real bug the first live run found, in `REPORT.md` §8.
 
 ```bash
-# terminal 1 — the mock app, same as any other demo
+# terminal 1 - the mock app, same as any other demo
 cd app && python3 -c "import models; models.init_db(); models.seed()" && python3 app.py
 
-# terminal 2 — a real Claude API call discovers the catalog and invokes a capability by name
+# terminal 2 - a real Claude API call discovers the catalog and invokes a capability by name
 source .venv/bin/activate
 set -a; source .env; set +a
 python3 scripts/demo_agent_capability_interface.py
@@ -770,7 +777,7 @@ python scripts/demo_agent_capability_interface.py
 
 </details>
 
-Asks Claude "What's the current balance for member 23456?" with the tool catalog attached —
+Asks Claude "What's the current balance for member 23456?" with the tool catalog attached -
 watch it choose `lookup_member_balance`, call it with `{"member_id": "23456"}`, get back a real
 result from the deterministic replay engine (no LLM in that path), and answer correctly. Saves
 the full transcript to `evidence/agent_capability_interface_demo_*.json`.

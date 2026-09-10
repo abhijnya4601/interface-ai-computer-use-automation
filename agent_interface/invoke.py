@@ -1,6 +1,6 @@
 """
 The actual invocation surface behind the catalog: given a capability_id an agent chose and the
-typed args it supplied, run the real, deterministic replay engine and return a Result — no LLM
+typed args it supplied, run the real, deterministic replay engine and return a Result - no LLM
 call in this path, same as any other replay.
 """
 from __future__ import annotations

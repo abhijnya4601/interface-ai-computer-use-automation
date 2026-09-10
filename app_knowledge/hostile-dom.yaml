@@ -1,0 +1,72 @@
+# Curated domain knowledge for the `hostile-dom` target (app2/ - div-soup markup + the
+# ?inject= fault switch). Same shape as mock-core-banking.yaml: a reviewer promotes the
+# discovery agent's proposals into here; everything below is `provenance: curated`.
+#
+# The two shipped capabilities (capabilities/hostile_check_balance.v1.json,
+# capabilities/hostile_move_funds.v1.json) are hand-authored and carry these branches inline
+# already; this file is what a *discovery* run against the hostile app inherits.
+
+app_name: hostile-dom
+
+expected_outcomes:
+  hostile_check_balance:
+    - match: {action_type: type, role: textbox, name: Member ID or name}
+      condition: "page contains 'Service temporarily unavailable'"
+      classification: recoverable
+      code: SERVICE_UNAVAILABLE
+      handling: >-
+        the entry navigation landed on the declared maintenance page (503, ?inject=maintenance);
+        a known transient state - stop cleanly as recoverable, not a broken locator
+    - match: {action_type: click, role: link, name: open}
+      condition: "page contains 'No matching member.'"
+      classification: business_outcome
+      code: MEMBER_NOT_FOUND
+      handling: search returned no row for this member_id; there is no 'open' link
+    - match: {action_type: extract}
+      condition: "page contains 'This account is restricted'"
+      classification: business_outcome
+      code: PERMISSION_DENIED
+      handling: member exists but the account is locked; no balance is shown
+
+  hostile_move_funds:
+    - match: {action_type: click, role: button, name: Move funds}
+      condition: "page contains 'This account is restricted'"
+      classification: business_outcome
+      code: PERMISSION_DENIED
+      handling: account is locked; the move-funds flow is not reachable
+    - match: {action_type: click, role: button, name: Confirm transfer}
+      condition: "page contains 'Service temporarily unavailable'"
+      classification: recoverable
+      code: SERVICE_UNAVAILABLE
+      handling: the confirm POST hit the maintenance page; the transfer did not commit
+
+extract_contracts:
+  hostile_check_balance:
+    current_balance:
+      pattern: '\$[\d,]+\.\d{2}'
+      placeholders: ["--", "N/A", "Not available"]
+      reason: >-
+        a balance renders as a currency amount ($1,842.30). An empty value in the status span
+        means the page loaded and the element is present, but the datum behind it did not
+        resolve - data_unavailable, not a broken locator (this is exactly what ?inject=blank
+        simulates)
+  hostile_move_funds:
+    reference:
+      pattern: 'TR-\d+'
+      placeholders: ["--"]
+      reason: a completed transfer shows a reference like TR-1234; an empty value means the confirmation page rendered without committing
+
+capabilities:
+  hostile_check_balance:
+    risk_level: safe
+    checkpoint: {type: element_present, locator: {role: status, name: Current balance}, expected: present}
+    verify_scenarios:
+      - {params: {member_id: "12345"}, expect: success}
+      - {params: {member_id: "88888"}, expect: business_outcome, code: MEMBER_NOT_FOUND}
+      - {params: {member_id: "99999"}, expect: business_outcome, code: PERMISSION_DENIED}
+      - {params: {member_id: "77777"}, expect: data_unavailable}
+  hostile_move_funds:
+    risk_level: risky
+    checkpoint: {type: element_present, locator: {role: status, name: Transfer reference}, expected: present}
+    verify_scenarios:
+      - {params: {member_id: "99999", amount: "$5.00", destination: "ACME-2"}, expect: business_outcome, code: PERMISSION_DENIED}

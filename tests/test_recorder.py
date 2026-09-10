@@ -1,7 +1,7 @@
 """
 Offline unit tests for agent/recorder.py's 3-tier locator builder and parameter detection.
 Uses minimal fake Playwright-shaped objects (just .get_by_role(...).count() and .frames /
-.main_frame) so the tier-selection logic can be exercised without a real browser — including
+.main_frame) so the tier-selection logic can be exercised without a real browser - including
 tier 2 and tier 3, which this project's real app never actually triggers (every role+name pair
 in app/templates/*.html is deliberately unique), so these are the only real proof those branches
 work at all.

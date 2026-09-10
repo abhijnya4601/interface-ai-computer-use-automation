@@ -1,7 +1,7 @@
 """
 Retry with exponential backoff + full jitter, for the genuinely transient failures the system
 currently has no answer for: a flaky network on an LLM call, a slow page, a transient 5xx from
-the target app. Deliberately NOT for anything replay decides deterministically — a
+the target app. Deliberately NOT for anything replay decides deterministically - a
 `business_outcome` or `data_unavailable` is a real answer, never retried.
 
     from common.retry import retry_call

@@ -1,5 +1,5 @@
 """
-The web console's HTTP surface — auth gate, /run validation, /stream sentinel, /resume, /stop,
+The web console's HTTP surface - auth gate, /run validation, /stream sentinel, /resume, /stop,
 and the LiveRun hook. The actual browser run is stubbed; there's no Playwright here.
 """
 import json
@@ -123,6 +123,69 @@ def test_run_ask_starts_and_forwards_request_and_provider(client, monkeypatch):
     assert seen["kind"] == "ask"
     assert seen["kw"]["request"] == "look up member 12345"
     assert seen["kw"]["provider"] == "anthropic"
+    # ask can fall back to discovery, so it needs the target + app name like discovery does
+    assert seen["kw"]["target_url"].endswith("/search")
+    assert seen["kw"]["app_name"] == "mock-core-banking"
+
+
+def test_ask_tool_list_includes_the_discover_escape_hatch():
+    from agent_interface.catalog import build_tool_catalog
+    from webconsole.runner import _DISCOVER_TOOL
+    names = [t["name"] for t in build_tool_catalog()] + [_DISCOVER_TOOL["name"]]
+    assert "discover_new_capability" in names
+    assert "lookup_member_balance" in names
+
+
+# ---- second target + fault injection --------------------------------------------------------
+
+def test_catalog_tags_each_capability_with_its_app(client):
+    caps = client.get(f"/catalog?key={KEY}").get_json()["capabilities"]
+    by_id = {c["id"]: c for c in caps}
+    assert by_id["lookup_member_balance"]["app"] == "mock-core-banking"
+    assert by_id["hostile_check_balance"]["app"] == "hostile-dom"
+
+
+def test_run_rejects_inject_on_a_target_that_does_not_support_it(client):
+    r = _post(client, {"mode": "replay", "target": "mock-core-banking",
+                       "capability": "capabilities/lookup_member_balance.v1.json",
+                       "inject": "maintenance"})
+    assert r.status_code == 400
+
+
+def test_run_rejects_an_unknown_inject_kind(client):
+    r = _post(client, {"mode": "replay", "target": "hostile-dom",
+                       "capability": "capabilities/hostile_check_balance.v1.json",
+                       "inject": "rm-rf"})
+    assert r.status_code == 400
+
+
+def test_run_replay_forwards_inject_for_the_hostile_target(client, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(runner, "start", lambda kind, **kw: seen.update(kw) or type("R", (), {"id": "x"})())
+    r = _post(client, {"mode": "replay", "target": "hostile-dom",
+                       "capability": "capabilities/hostile_check_balance.v1.json",
+                       "params": {"member_id": "12345"}, "inject": "blank"})
+    assert r.status_code == 200
+    assert seen["inject"] == "blank"
+
+
+def test_run_ask_appends_inject_to_the_target_url(client, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(runner, "start", lambda kind, **kw: seen.update(kw) or type("R", (), {"id": "x"})())
+    r = _post(client, {"mode": "ask", "target": "hostile-dom", "request": "check balance for 12345",
+                       "api_key": "sk-ant-x", "inject": "maintenance"})
+    assert r.status_code == 200
+    assert seen["target_url"].endswith("/find?inject=maintenance")
+
+
+def test_hostile_capabilities_are_present_and_target_the_hostile_app():
+    from artifact.schema import Capability
+    for cid, risk in [("hostile_check_balance", "safe"), ("hostile_move_funds", "risky")]:
+        p = runner.REPO / f"capabilities/{cid}.v1.json"
+        cap = Capability.model_validate_json(p.read_text())
+        assert cap.target.app_name == "hostile-dom"
+        assert cap.risk_level == risk
+        assert cap.steps[0].action_type == "navigate"  # inject is appended here
 
 
 # ---- /runs (History) ------------------------------------------------------------------------
@@ -327,3 +390,21 @@ def test_liverun_hook_drops_the_bulky_accessibility_tree():
     ev = run.events.get_nowait()
     assert ev["type"] == "agent"
     assert "accessibility_tree" not in ev["entry"]
+
+
+def test_redacted_outputs_masks_and_emits_a_report_event():
+    run = runner.LiveRun()
+    safe = run._redacted_outputs({"contact_email": "jane.doe@example.com", "member_id": "12345"})
+    # gray-area PII tokenised for the evidence sink; the bare id is left intact (flagged)
+    assert "jane.doe@example.com" not in str(safe)
+    assert safe["member_id"] == "12345"
+    ev = run.events.get_nowait()
+    assert ev["type"] == "agent" and ev["entry"]["type"] == "redaction"
+    assert ev["entry"]["sink"] == "evidence"
+    assert "backend" in ev["entry"]
+
+
+def test_redacted_outputs_emits_nothing_when_there_is_nothing_to_redact():
+    run = runner.LiveRun()
+    run._redacted_outputs({"balance": "1234.56", "status": "open"})
+    assert run.events.empty()

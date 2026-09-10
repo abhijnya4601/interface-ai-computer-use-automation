@@ -1,5 +1,5 @@
 # Common tasks. `make setup` once, then `make test` / `make app` / `make lint`.
-.PHONY: setup test lint smoke app operator console seed patch-check metrics docker-up docker-test clean
+.PHONY: setup test lint smoke app app2 operator console seed patch-check metrics docker-up docker-test clean
 
 PY ?= python
 
@@ -13,7 +13,7 @@ test:
 lint:
 	$(PY) -m ruff check .
 
-# Live replay smoke test (incl. the data_unavailable path) — needs the app running.
+# Live replay smoke test (incl. the data_unavailable path) - needs the app running.
 smoke:
 	$(PY) scripts/smoke_test_replay.py
 
@@ -23,11 +23,16 @@ seed:
 app: seed
 	cd app && $(PY) app.py
 
+# Second target: the hostile-DOM app (:5051) with the ?inject= fault switch.
+app2:
+	cd app2 && $(PY) app.py
+
 operator:
 	$(PY) escalation/operator_page.py
 
-# Link-gated live console (needs the mock app on :5050). Prints a share URL with the access key.
-# Set ANTHROPIC_API_KEY to enable Discover mode; Replay works without it.
+# Link-gated live console. Needs the mock app on :5050 (make app); start the hostile-DOM
+# target too (make app2) to use that option + fault injection. Prints a share URL with the key.
+# Set ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY to enable Chatbot + Discover.
 console:
 	$(PY) -m webconsole.server
 

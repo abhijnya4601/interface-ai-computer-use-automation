@@ -1,6 +1,6 @@
 """
 The lease is the entire "who's in control" model: exactly one of {automation, human} at any
-time, plus whatever context explains why it's currently that way. Deliberately this small —
+time, plus whatever context explains why it's currently that way. Deliberately this small -
 see escalation/controller.py's docstring for why a file-backed lease is the right amount of
 infrastructure here.
 """

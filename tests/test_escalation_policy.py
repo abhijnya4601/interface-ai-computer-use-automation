@@ -61,7 +61,7 @@ def test_first_matching_rule_wins():
 
 
 def test_a_rule_that_needs_a_context_key_absent_in_discovery_just_does_not_match():
-    # discovery has no capability_id / risk_level / params — a replay-shaped rule must not fire
+    # discovery has no capability_id / risk_level / params - a replay-shaped rule must not fire
     rules = [{"id": "r", "when": {"capability_id": "open_subaccount", "risk_level": "risky"},
               "then": "block"}]
     disc_ctx = {"capability_id": None, "risk_level": None, "target_app": None,

@@ -1,7 +1,7 @@
 # One image for the whole demo: the mock bank app, the operator console, the test suite, and
 # the discovery/replay CLIs. Plain python base + `playwright install` rather than the
 # mcr.microsoft.com/playwright image, so the browser always matches whatever requirements.txt
-# resolves — no image-tag/pip-version coupling for a reviewer to get wrong.
+# resolves - no image-tag/pip-version coupling for a reviewer to get wrong.
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -12,7 +12,7 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # System deps for Chromium come from `playwright install --with-deps`. Browsers land in
-# PLAYWRIGHT_BROWSERS_PATH (a shared, absolute path) — not ~/.cache — so the non-root `runner`
+# PLAYWRIGHT_BROWSERS_PATH (a shared, absolute path) - not ~/.cache - so the non-root `runner`
 # user below finds them at runtime instead of looking under /home/runner and failing.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \

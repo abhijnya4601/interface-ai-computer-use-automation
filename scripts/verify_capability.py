@@ -34,7 +34,7 @@ def main() -> int:
 
     record = verify_capability(capability)
     if not record.scenarios:
-        print("no verify_scenarios in app_knowledge — nothing to check")
+        print("no verify_scenarios in app_knowledge - nothing to check")
         return 1
 
     for row in record.scenarios:
@@ -49,7 +49,7 @@ def main() -> int:
         save_capability(updated, path=path)
         print(f"written to {path}")
     else:
-        print("(dry run — pass --write to persist the VerificationRecord)")
+        print("(dry run - pass --write to persist the VerificationRecord)")
         print(json.dumps(record.model_dump(), indent=2, default=str))
 
     return 0 if record.all_passed else 2

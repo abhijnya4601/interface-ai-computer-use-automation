@@ -1,5 +1,5 @@
 # `docker compose up bank operator` brings up the mock bank (:5050) and the escalation
-# operator console (:5001) — the whole target surface for a discovery or replay run, with no
+# operator console (:5001) - the whole target surface for a discovery or replay run, with no
 # local Python/Playwright setup. `docker compose run --rm tests` runs the suite.
 #
 #   docker compose up --build bank operator      # the app + operator console
@@ -27,15 +27,32 @@ services:
       retries: 15
       start_period: 5s
 
+  # Second target: the hostile-DOM app (:5051) with the ?inject= fault switch (app2/).
+  hostile:
+    build: .
+    image: live-console-demo
+    working_dir: /app/app2
+    command: python app.py
+    ports:
+      - "5051:5051"
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:5051/health').read()"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+      start_period: 3s
+
   # Link-gated live console: pick a target + params, hit Run, watch the console and the
   # browser side by side.  http://localhost:5055/?key=<CONSOLE_ACCESS_KEY>
-  #   docker compose up --build bank console
+  #   docker compose up --build bank hostile console
   console:
     build: .
     image: live-console-demo
     command: python -m webconsole.server
     environment:
       TARGET_BASE: http://bank:5050
+      HOSTILE_BASE: http://hostile:5051
       CONSOLE_ACCESS_KEY: ${CONSOLE_ACCESS_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       PORT: "5055"
@@ -43,6 +60,8 @@ services:
       - "5055:5055"
     depends_on:
       bank:
+        condition: service_healthy
+      hostile:
         condition: service_healthy
     volumes:
       - escalation-state:/app/escalation/state

@@ -2,14 +2,14 @@
 Multi-tenant capability reuse via **base + per-tenant patch** (REPORT §4), made concrete.
 
 Most tenants running the same vendor product replay the base `Capability` unmodified. A tenant
-whose instance differs — a rebrand, a renamed field, one extra confirmation step — gets a small
+whose instance differs - a rebrand, a renamed field, one extra confirmation step - gets a small
 patch applied over the base at load time, instead of a full separate artifact per tenant.
 
     base = Capability.model_validate_json(Path("capabilities/lookup_member_balance.v1.json").read_text())
     acme = apply_patch(base, json.loads(Path("capabilities/tenants/acme.patch.json").read_text()))
 
 A patch is a partial `Capability`-shaped dict. Top-level keys deep-merge onto the base;
-`steps` is special — keyed by `step_id`, each value merges into that one step:
+`steps` is special - keyed by `step_id`, each value merges into that one step:
 
     {
       "tenant": "acme",
@@ -22,7 +22,7 @@ A patch is a partial `Capability`-shaped dict. Top-level keys deep-merge onto th
     }
 
 Drift detection reuses the replay tier log (REPORT §3): a tier-2/3 spike for one tenant means
-either the base needs updating or that tenant needs a (bigger) patch — without touching the
+either the base needs updating or that tenant needs a (bigger) patch - without touching the
 others.
 """
 from __future__ import annotations
@@ -75,7 +75,7 @@ def apply_patch(base: Capability, patch: dict) -> Capability:
         ]
 
     patched = Capability.model_validate(data)
-    # a patched capability is a fresh artifact for that tenant — it hasn't been verified against
+    # a patched capability is a fresh artifact for that tenant - it hasn't been verified against
     # that tenant's instance yet.
     return patched.model_copy(update={
         "lifecycle": "draft",

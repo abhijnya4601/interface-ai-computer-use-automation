@@ -3,12 +3,12 @@ Escalation & handoff controller.
 
 Playwright must be launched with a persistent, non-headless context (see
 scripts/run_discovery.py) so a human operator can take over the exact SAME live browser window
-the automation was driving — this is what makes the "same live session" requirement literal
+the automation was driving - this is what makes the "same live session" requirement literal
 rather than simulated. This module implements the lease flip (automation -> human -> automation)
 and blocks the calling discovery/replay loop until a human signals resume via the operator page.
 
 Design: a small pair of files on disk (the lease itself, and a resume signal) polled at a short
-interval — deliberately the least infrastructure that lets two separate local processes (the
+interval - deliberately the least infrastructure that lets two separate local processes (the
 automation loop, and escalation/operator_page.py's Flask app) coordinate on one piece of shared
 state, per the assignment's explicit "don't build scaling infrastructure" guidance. A queue or a
 socket would solve the same problem with more moving parts and nothing gained at this scale.
@@ -70,7 +70,7 @@ def _inject_pause_banner(page, reason: str) -> None:
                     + 'background:#973524;color:#fff;padding:10px 16px;'
                     + 'font:600 14px system-ui,sans-serif;text-align:center;'
                     + 'box-shadow:0 2px 6px rgba(0,0,0,.35);';
-                banner.textContent = '⏸ PAUSED — awaiting human approval — ' + reasonText;
+                banner.textContent = '⏸ PAUSED - awaiting human approval - ' + reasonText;
                 document.body.prepend(banner);
             }""",
             [_BANNER_ID, reason],
@@ -98,7 +98,7 @@ def trigger_escalation(
 ) -> Lease:
     """
     Flips the lease to "human", captures a screenshot + context (current step, current URL, why
-    it stopped), writes both to /evidence/, and BLOCKS — polling the resume-signal file — until
+    it stopped), writes both to /evidence/, and BLOCKS - polling the resume-signal file - until
     a human resumes via the operator page (or, in tests, by calling signal_resume directly).
     Returns the fresh lease once resumed.
     """
@@ -150,13 +150,13 @@ def trigger_escalation(
 def resume() -> Lease:
     """
     Flips the lease back to "automation" and clears the resume signal. Deliberately does NOT
-    re-observe the page itself — callers (discovery.py / replay/engine.py) must call
+    re-observe the page itself - callers (discovery.py / replay/engine.py) must call
     perception.build_observation() again after resume() returns, rather than reusing whatever
     they had cached before escalation, since the human may have changed the page state.
 
     The resume signal's `decision` and `human_actions_summary` (what the operator actually
     chose/did) are carried forward into the fresh lease's context, even though `state` is back
-    to "automation" — this is the caller's only way to learn what the human decided, since the
+    to "automation" - this is the caller's only way to learn what the human decided, since the
     lease is the one piece of shared state both sides read. Without this, a resumed discovery
     loop has no way to tell "approved, proceed" apart from "declined, don't" and would have to
     guess.
@@ -185,9 +185,9 @@ def resume() -> Lease:
 def signal_resume(human_actions_summary: str = "", decision: str | None = None) -> None:
     """
     Called by the operator page (Phase 7) when a human clicks Resume. `decision` is one of
-    "approved" (go ahead with whatever the agent was about to do), "declined" (don't — the
+    "approved" (go ahead with whatever the agent was about to do), "declined" (don't - the
     agent should stop or find another path), or None (plain "I fixed something manually,
-    continue" — the dead-end-recovery case, where approve/decline doesn't apply).
+    continue" - the dead-end-recovery case, where approve/decline doesn't apply).
     """
     STATE_DIR.mkdir(exist_ok=True)
     RESUME_SIGNAL_PATH.write_text(

@@ -6,7 +6,7 @@ a dispute. The caller passes a stable `idempotency_key` for the business operati
 completed risky replay under that key is recorded here, and any later replay with the same key
 returns that recorded outcome instead of touching the target again.
 
-Safe capabilities are read-only, so they're never ledgered — replaying a balance lookup twice
+Safe capabilities are read-only, so they're never ledgered - replaying a balance lookup twice
 is fine and shouldn't be blocked.
 
 Deliberately a JSONL file, not a database: same "no premature infrastructure" call as the rest
@@ -43,7 +43,7 @@ def lookup(key: str) -> dict | None:
 
 def record(key: str, capability_id: str, result_dump: dict) -> None:
     """Append a completed risky replay. Best-effort: a ledger write failing must not fail the
-    replay that already succeeded (but it does mean a retry could re-execute — logged loudly)."""
+    replay that already succeeded (but it does mean a retry could re-execute - logged loudly)."""
     if not key:
         return
     try:

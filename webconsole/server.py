@@ -5,10 +5,10 @@ console and a live view of the browser side by side.
     python -m webconsole.server            # http://localhost:5055/?key=<printed>
 
 Access: every request needs `?key=<CONSOLE_ACCESS_KEY>` once (then a cookie carries it). If the
-env var is unset a random key is generated and the share URL is printed — fail-secure, never
+env var is unset a random key is generated and the share URL is printed - fail-secure, never
 served open. Discovery mode needs ANTHROPIC_API_KEY in the server env; replay mode never does.
 
-Targets are limited to the approved non-prod app in guardrails/allowlist.yaml — pointing an LLM
+Targets are limited to the approved non-prod app in guardrails/allowlist.yaml - pointing an LLM
 at an arbitrary site is exactly what that allowlist exists to prevent.
 """
 from __future__ import annotations
@@ -31,6 +31,10 @@ app = Flask(__name__)
 SECRET = os.environ.get("CONSOLE_ACCESS_KEY") or secrets.token_urlsafe(9)
 _GENERATED = "CONSOLE_ACCESS_KEY" not in os.environ
 TARGET_BASE = os.environ.get("TARGET_BASE", "http://localhost:5050")
+HOSTILE_BASE = os.environ.get("HOSTILE_BASE", "http://localhost:5051")
+# ?inject=<kind> fault switch on the hostile-DOM target (app2/). Kept as an allowlist so a
+# viewer can't append arbitrary query strings to the entry navigation.
+INJECT_KINDS = ("", "maintenance", "slow", "blank")
 # Discover mode uses a key from the server env if present, else one the viewer pastes in the UI
 # (bring-your-own-key). The pasted key is passed straight to Anthropic and never stored or logged.
 # Discovery accepts a key for any of three providers (Anthropic / OpenAI / Google-Gemini),
@@ -42,9 +46,16 @@ ALLOW_BYO_KEY = os.environ.get("CONSOLE_ALLOW_BYO_KEY", "1") != "0"
 
 TARGETS = {
     "mock-core-banking": {
-        "label": "Mock core-banking app (legacy web, hostile markup)",
+        "label": "Mock core-banking app (legacy web, semantic HTML)",
         "app_name": "mock-core-banking",
         "entry": TARGET_BASE + "/search",
+        "supports_inject": False,
+    },
+    "hostile-dom": {
+        "label": "Hostile-DOM app (div soup, ARIA roles kept) - fault injection",
+        "app_name": "hostile-dom",
+        "entry": HOSTILE_BASE + "/find",
+        "supports_inject": True,
     },
 }
 
@@ -91,7 +102,7 @@ def index():
 
 @app.route("/catalog")
 def catalog():
-    """The current capability list — the replay dropdown refreshes from this after a discovery
+    """The current capability list - the replay dropdown refreshes from this after a discovery
     run so a just-discovered capability is immediately replayable without a page reload."""
     return jsonify(runner.catalog())
 
@@ -134,7 +145,7 @@ def _resolve_model_key(body: dict):
                                    "(sk-) or Google (AIza) API key"), 400)
     api_key = byo or next((os.environ[k] for k in _SERVER_KEY_ENVS if os.environ.get(k)), None)
     if not api_key:
-        return None, None, (jsonify(error="this needs an API key — paste an Anthropic, OpenAI or "
+        return None, None, (jsonify(error="this needs an API key - paste an Anthropic, OpenAI or "
                                     "Google key in the field, or set one on the server"), 400)
     return api_key, provider, None
 
@@ -146,6 +157,11 @@ def run():
     target = TARGETS.get(body.get("target", "mock-core-banking"))
     if target is None:
         return jsonify(error="unknown target"), 400
+    # fault injection - only on a target that supports it, and only a known kind
+    inject = (body.get("inject") or "").strip()
+    if inject and (not target["supports_inject"] or inject not in INJECT_KINDS):
+        return jsonify(error="unknown or unsupported inject kind"), 400
+    entry = target["entry"] + (f"?inject={inject}" if inject else "")
     try:
         if mode == "replay":
             cap_path = body.get("capability", "")
@@ -157,7 +173,7 @@ def run():
                              capability_path=str(runner.REPO / cap_path),
                              params={k: str(v) for k, v in params.items() if v not in (None, "")},
                              overrides={k: str(v) for k, v in overrides.items() if v not in (None, "")},
-                             confirm=bool(body.get("confirm")))
+                             confirm=bool(body.get("confirm")), inject=inject)
         elif mode == "discovery":
             goal = (body.get("goal") or "").strip()
             if not goal:
@@ -166,7 +182,7 @@ def run():
             if err:
                 return err
             r = runner.start("discovery",
-                             goal=goal, target_url=target["entry"],
+                             goal=goal, target_url=entry,
                              capability_id=(body.get("capability_id") or "discovered").strip(),
                              app_name=target["app_name"], api_key=api_key, provider=provider)
         elif mode == "ask":
@@ -176,7 +192,8 @@ def run():
             api_key, provider, err = _resolve_model_key(body)
             if err:
                 return err
-            r = runner.start("ask", request=req, api_key=api_key, provider=provider)
+            r = runner.start("ask", request=req, api_key=api_key, provider=provider,
+                             target_url=entry, app_name=target["app_name"])
         else:
             return jsonify(error="mode must be 'replay', 'discovery' or 'ask'"), 400
     except RuntimeError as exc:
@@ -239,7 +256,7 @@ def stop():
 def main():
     if _GENERATED:
         print("\n" + "=" * 68)
-        print("  live console — no CONSOLE_ACCESS_KEY set, generated one for this run:")
+        print("  live console - no CONSOLE_ACCESS_KEY set, generated one for this run:")
         print(f"    http://localhost:5055/?key={SECRET}")
         print("  share that link; anyone with it can drive a run. Set CONSOLE_ACCESS_KEY")
         print("  to a stable value to keep the link constant across restarts.")

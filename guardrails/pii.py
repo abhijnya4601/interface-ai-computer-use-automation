@@ -1,12 +1,12 @@
 """
-Gray-area PII handling — the layer above `policy.redact`'s two hard passes (secret-shaped keys,
+Gray-area PII handling - the layer above `policy.redact`'s two hard passes (secret-shaped keys,
 SSN/card-number value shapes).
 
 The gray area is everything that is *sometimes* fine and *sometimes* a leak: a customer name, a
 street address, an email, a phone number. A name legitimately belongs in a capability's declared
-outputs (redacting it there would break the system's whole purpose — see policy.py's docstring),
+outputs (redacting it there would break the system's whole purpose - see policy.py's docstring),
 but the same name must never be in a page observation shipped to a third-party LLM during
-discovery. So the decision can't be "redact names: yes/no" — it has to be keyed on where the
+discovery. So the decision can't be "redact names: yes/no" - it has to be keyed on where the
 data is going. That's what `sink` is:
 
   - "artifact"    : the compiled Capability on disk. Hard passes only; gray-area PASSES THROUGH
@@ -22,7 +22,7 @@ giving real NER for PERSON/LOCATION and confidence scores; otherwise a regex fal
 covers EMAIL_ADDRESS / PHONE_NUMBER / STREET_ADDRESS / US_ZIP but not PERSON (honest about the
 gap rather than pretending a regex finds names). Either way every run produces a
 `RedactionReport`: counts per entity type, the backend used, and anything found at low
-confidence (0.4-0.7) — flagged for human review instead of silently kept or silently dropped,
+confidence (0.4-0.7) - flagged for human review instead of silently kept or silently dropped,
 which is the whole point of calling it a "gray area."
 """
 from __future__ import annotations
@@ -103,7 +103,7 @@ def _load_presidio():
     try:
         return AnalyzerEngine()
     except Exception:
-        # presidio importable but its spaCy model isn't downloaded — treat as unavailable
+        # presidio importable but its spaCy model isn't downloaded - treat as unavailable
         return None
 
 
@@ -138,7 +138,7 @@ def _spans_presidio(text: str) -> list[tuple[int, int, str, float]]:
 
 
 def _spans_regex(text: str) -> list[tuple[int, int, str, float]]:
-    # ZIP and long-digit runs are deliberately NOT here — too ambiguous to touch in the
+    # ZIP and long-digit runs are deliberately NOT here - too ambiguous to touch in the
     # evidence sink; scrub_text adds them only for sink="llm_prompt".
     spans: list[tuple[int, int, str, float]] = []
     for m in _EMAIL_RE.finditer(text):
@@ -173,7 +173,7 @@ def scrub_text(
     spans = _spans_presidio(text) if _ANALYZER is not None else _spans_regex(text)
 
     # Ambiguous bare numerics (a lone 5-digit ZIP, a long digit run) are NOT masked, in any
-    # sink: a computer-use agent navigates by exactly these — masking "member 12345" would
+    # sink: a computer-use agent navigates by exactly these - masking "member 12345" would
     # break discovery. They're recorded on the report as "flagged, left intact" so a reviewer
     # can eyeball them and confirm the target really is a non-prod instance.
     if sink == "llm_prompt":
@@ -237,7 +237,7 @@ def append_review(report: RedactionReport, context: dict | None = None) -> None:
     """
     The low-confidence band (and anything flagged-not-masked) is only useful if something acts
     on it. Append those items to evidence/redaction_review.jsonl so a human (or a periodic job)
-    can work the queue: confirm a real leak was caught, or tune the detector. Never raises —
+    can work the queue: confirm a real leak was caught, or tune the detector. Never raises -
     a review-queue write failing must not fail the run that produced it.
     """
     if not report.low_confidence and not report.flagged_not_masked:

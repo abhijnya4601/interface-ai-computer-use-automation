@@ -1,29 +1,29 @@
 """
-Perception layer — turns whatever Playwright can tell us about the current page into the
+Perception layer - turns whatever Playwright can tell us about the current page into the
 small, LLM-friendly observation dict the discovery loop reasons over:
 
     {"url": ..., "accessibility_tree": {"role": ..., "name": ..., "value": ..., "children": [...]},
      "last_action_result": ...}
 
-Primary signal is the accessibility tree (role/name/value), not a screenshot or raw DOM/CSS —
+Primary signal is the accessibility tree (role/name/value), not a screenshot or raw DOM/CSS -
 this is what lets the same agent work against markup that has zero data-testid attributes,
 non-semantic class names, and nested-table layouts (see app/templates/*.html): none of that
 noise is visible in the accessibility tree, only the semantic role/name/value that a screen
 reader (or this agent) would see. Screenshots are reserved for failure evidence, not decision
-input — see escalation/controller.py and replay/engine.py's hard-failure path.
+input - see escalation/controller.py and replay/engine.py's hard-failure path.
 
-IMPORTANT — the build spec calls for
+IMPORTANT - the build spec calls for
 `page.accessibility.snapshot()`, but that API was removed from Playwright (tested directly
 against a real browser: `AttributeError: 'Page' object has no attribute 'accessibility'` on
 playwright==1.62.0). The supported replacement is `Locator.aria_snapshot()`, which returns a
-YAML-formatted tree instead of a nested dict, and — also verified directly, not assumed — does
+YAML-formatted tree instead of a nested dict, and - also verified directly, not assumed - does
 NOT reach across iframe boundaries when called on the top-level page. Both facts are baked into
 the design below:
   - `_parse_aria_snapshot` turns the YAML text into the same {role, name, value, children} shape
     the rest of the system (schema, tests, recorder) was designed around, so nothing downstream
     needs to know the upstream API changed.
   - `build_observation` separately snapshots every child frame (`page.frames[1:]`) and grafts
-    each one's tree onto a synthetic `role: "Iframe"` node (capitalized — signals "perception
+    each one's tree onto a synthetic `role: "Iframe"` node (capitalized - signals "perception
     stitched this together," since no real ARIA role is capitalized) in place of the leaf
     `iframe` node the top-level snapshot stops at.
 """
@@ -66,7 +66,7 @@ def _walk_yaml_node(node: Any) -> dict | None:
         # aria_snapshot only ever emits single-key dicts per node.
         (key, value), = node.items()
         if key.startswith("/"):
-            # metadata line, e.g. {"/url": "/member/12345"} nested under a link — not an
+            # metadata line, e.g. {"/url": "/member/12345"} nested under a link - not an
             # accessibility child, drop it. (See REPORT.md Cuts: link targets aren't surfaced
             # to the agent; it navigates by clicking, not by reading hrefs.)
             return None
@@ -106,7 +106,7 @@ def prune_accessibility_tree(raw_tree: dict, max_depth: int = 15) -> dict:
     """
     Pure function. Keeps only role/name/value/children, truncates depth, and drops
     empty/decorative nodes (no name, no value, no children, and a role that carries no
-    information on its own — generic wrapper divs the layout is full of). Never raises on
+    information on its own - generic wrapper divs the layout is full of). Never raises on
     missing/empty `children`.
     """
 

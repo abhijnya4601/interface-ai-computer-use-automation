@@ -4,7 +4,7 @@ to count time spent BLOCKED waiting for a human escalation decision against the 
 the agent's own working time. A human taking a few minutes to review and click Approve would
 make an otherwise-successful run report status=timeout the instant it resumed.
 
-This drives the real loop (real browser, real Flask app, real escalation/controller.py — only
+This drives the real loop (real browser, real Flask app, real escalation/controller.py - only
 the Anthropic client is faked, same pattern as smoke_test_discovery.py) with a deliberately
 short timeout_s, and an escalation wait that's engineered to exceed it, to prove human review
 time no longer burns the budget.

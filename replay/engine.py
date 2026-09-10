@@ -1,5 +1,5 @@
 """
-Replay engine (Phase 5) — the deterministic, no-LLM production execution path an AI agent
+Replay engine (Phase 5) - the deterministic, no-LLM production execution path an AI agent
 actually invokes. `replay(capability, params)` walks the capability's recorded Steps in order,
 resolves each target with the same 3-tier fallback the recorder logged (role_name -> structural
 -> text), and never calls an LLM or guesses anything: every branch it can take (business
@@ -8,17 +8,17 @@ artifact itself declared at compile time (from app_knowledge/<app>.yaml + agent 
 agent/compiler.py).
 
 `replay()` owns its own Playwright browser lifecycle rather than requiring a caller to hand it a
-live page — that's what makes it plausible as something an AI agent calls directly as a tool in
+live page - that's what makes it plausible as something an AI agent calls directly as a tool in
 production (see mcp_server/ for that surface), not something that needs a pre-existing browser
 session threaded through first. `headless=False` exists only for the Phase 7 demo where a
 replay hits a hard failure and a human needs to actually take over the same visible window.
 
 Result.status taxonomy (from artifact/schema.py, enforced here, not guessed):
-  - "success"            — the checkpoint verified; declared outputs are populated.
-  - "business_outcome"   — a step's declared expected_outcomes matched a `business_outcome`
-                            condition (e.g. "no such member"). NOT an error — a real, useful
+  - "success" - the checkpoint verified; declared outputs are populated.
+  - "business_outcome" - a step's declared expected_outcomes matched a `business_outcome`
+                            condition (e.g. "no such member"). NOT an error - a real, useful
                             answer the caller needs.
-  - "recoverable_handled" — a step's declared expected_outcomes matched a `recoverable`
+  - "recoverable_handled" - a step's declared expected_outcomes matched a `recoverable`
                             condition: a known, transient operational state (a session-timeout
                             page, a rate-limit notice) that isn't a business answer and isn't a
                             system break either. Like `business_outcome`, replay stops cleanly
@@ -30,20 +30,20 @@ Result.status taxonomy (from artifact/schema.py, enforced here, not guessed):
                             capabilities declare one, since this mock app's business logic is
                             fully deterministic and has no naturally-occurring transient state to
                             model -- exercised via `tests/test_replay.py` instead of live replay.
-  - "data_unavailable"   — replay reached the page and it was structurally intact, but the datum
+  - "data_unavailable" - replay reached the page and it was structurally intact, but the datum
                             a step exists to read is not actually present: an empty or
                             placeholder cell whose declared `extract_contract` it fails, a
                             `ready_when` data region that never populated within the wait budget,
                             or a declared `data_unavailable` page condition (a degraded-service
-                            banner). Distinct from `hard_failure` — nothing is broken, so
-                            investigating the automation won't help — and from `success` with a
+                            banner). Distinct from `hard_failure` - nothing is broken, so
+                            investigating the automation won't help - and from `success` with a
                             junk value. What it buys the caller: a status that says "the page is
-                            fine, the data isn't there right now" — retry later, read it from
+                            fine, the data isn't there right now" - retry later, read it from
                             another source, or tell its own user it's unavailable. This is the
                             "page access, no data access" case generalized: a first-class,
                             declared, deterministic outcome instead of a per-capability patch
                             each time an empty render slips through as success.
-  - "hard_failure"        — nothing declared explains what replay is seeing; stops immediately
+  - "hard_failure" - nothing declared explains what replay is seeing; stops immediately
                             with step id, expected vs. observed, and a screenshot reference.
 """
 from __future__ import annotations
@@ -95,7 +95,7 @@ def _locate_table_position(page, primary: dict):
     Resolve a table_position locator: find the table whose column headers match, then the
     row_index-th data row, then the column_index-th cell in it. Position-based rather than
     content-based, specifically because a data-table cell with no per-row label has nothing
-    stable to anchor on except its own value — which is exactly what changes between replays.
+    stable to anchor on except its own value - which is exactly what changes between replays.
     Returns a Locator or None.
     """
     headers = primary.get("table_headers") or []
@@ -189,7 +189,7 @@ def _await_ready(step: Step, page) -> bool:
     """
     If the step declares a `ready_when` marker ("page contains '<substring>'"), poll the live
     page until it appears or the step's timeout budget runs out. No marker declared -> ready
-    immediately. Returns False only when a marker was declared and never showed up — replay's
+    immediately. Returns False only when a marker was declared and never showed up - replay's
     signal that the page shell loaded but the data region behind it never populated, which is a
     `data_unavailable`, not a broken locator.
     """
@@ -219,7 +219,7 @@ def _validate_extracted(value, contract: ExtractContract) -> str | None:
     """
     text = (value or "").strip() if isinstance(value, str) else ("" if value is None else str(value).strip())
     if contract.nonempty and not text:
-        return "extracted value is empty — the element rendered but carried no data behind it"
+        return "extracted value is empty - the element rendered but carried no data behind it"
     if text and text in contract.placeholders:
         return f"extracted value {text!r} is a placeholder ({contract.placeholders}), not real data"
     if contract.pattern:
@@ -227,7 +227,7 @@ def _validate_extracted(value, contract: ExtractContract) -> str | None:
             if not re.fullmatch(contract.pattern, text):
                 return (
                     f"extracted value {text!r} does not match the declared data shape "
-                    f"{contract.pattern!r} — likely a placeholder or an unrendered field"
+                    f"{contract.pattern!r} - likely a placeholder or an unrendered field"
                 )
         except re.error:
             return None
@@ -238,7 +238,7 @@ def _check_expected_outcomes(step: Step, page) -> ExpectedOutcome | None:
     """
     Deterministically evaluate each declared condition against the live page's HTML. Every
     condition string this build's compiler emits is of the form "page contains '<substring>'";
-    replay checks the literal substring — it never interprets natural language or guesses.
+    replay checks the literal substring - it never interprets natural language or guesses.
     """
     try:
         content = page.content()
@@ -265,7 +265,7 @@ def _write_trace(run_id: str, capability: Capability, params: dict, trace: list[
     """
     Append-free JSONL run-log: one header line, then one line per executed step. This is the
     substrate for drift detection (the `tier` column) and latency tracking (the `ms` column)
-    without any extra infrastructure — `replay/metrics.py` aggregates a directory of these into
+    without any extra infrastructure - `replay/metrics.py` aggregates a directory of these into
     per-capability rates and p50/p95. Never raises: a failed evidence write must not fail a run.
     """
     try:
@@ -288,7 +288,7 @@ def _write_trace(run_id: str, capability: Capability, params: dict, trace: list[
 def _data_unavailable(page, run_id: str, step_id: str, detail: dict) -> Result:
     """
     The page was reachable and structurally intact, but the datum this step exists to read
-    isn't actually present. NOT `hard_failure` (nothing is broken — investigating won't help)
+    isn't actually present. NOT `hard_failure` (nothing is broken - investigating won't help)
     and NOT `success` with a junk value. A distinct status the caller can act on: retry later,
     fall back to another source, or surface "not available right now" to its own user.
     """
@@ -314,7 +314,7 @@ def _hard_failure(page, run_id: str, step_id: str, expected: str, observed: str)
 
 def _apply_wait_policy(page, step: Step):
     """
-    Retries are only applied for steps explicitly tagged `retry_on: transient_load` — replay
+    Retries are only applied for steps explicitly tagged `retry_on: transient_load` - replay
     does not blindly retry everything, only what the artifact declares as expected to sometimes
     need it.
     """
@@ -341,7 +341,7 @@ def _execute_step(step: Step, page, params: dict, tier_log: list, outputs: dict,
     failure), or None to continue to the next step.
 
     `overrides` maps a `step_id` to a literal value that replaces whatever a `type`/`select`
-    step recorded — this is how a replay runs with a different deposit amount, dispute reason,
+    step recorded - this is how a replay runs with a different deposit amount, dispute reason,
     address, etc. without re-discovering the capability."""
     overrides = overrides or {}
 
@@ -399,7 +399,7 @@ def _execute_step(step: Step, page, params: dict, tier_log: list, outputs: dict,
             elif step.action_type == "extract":
                 value = _extract_value(locator)
                 # _extract_value's last-resort fallback returns the locator's own text when the
-                # value cell is empty — for a label-anchored extract that surfaces the label
+                # value cell is empty - for a label-anchored extract that surfaces the label
                 # ("Savings Balance") as if it were the value. Read that as "no data" so the
                 # contract check reports an empty cell, not a mislabelled one.
                 label = (step.target.primary.get("name") or "").strip() if step.target else ""
@@ -416,14 +416,14 @@ def _execute_step(step: Step, page, params: dict, tier_log: list, outputs: dict,
 
         # Even a successful action can land on a page matching a declared business/recoverable
         # condition (e.g. a locked-member page renders successfully, it just shows msg-denied
-        # instead of the balance) — always check after acting, not only on failure. A declared
+        # instead of the balance) - always check after acting, not only on failure. A declared
         # condition is the most specific, human-authored signal, so it wins first.
         outcome = _check_expected_outcomes(step, page)
         if outcome and outcome.classification != "hard_failure":
             return _outcome_to_result(outcome, outputs)
 
         # Then, for an extract: confirm the value we actually pulled is real data, not a blank
-        # or placeholder cell. The locator resolved and the action "succeeded" — the page was
+        # or placeholder cell. The locator resolved and the action "succeeded" - the page was
         # there, the datum behind it was not. That's `data_unavailable`, not a silent success.
         if step.action_type == "extract" and step.extract_contract:
             reason = _validate_extracted(outputs.get(step.extract_as), step.extract_contract)
@@ -470,7 +470,7 @@ def _outcome_to_result(outcome: ExpectedOutcome, outputs: dict) -> Result:
         return Result(status="recoverable_handled", outputs=redact(outputs))
     if outcome.classification == "data_unavailable":
         # a known page string that means "the data isn't here right now" (a degraded-service
-        # banner, an empty-state panel) — declared the same way as any other outcome, routed to
+        # banner, an empty-state panel) - declared the same way as any other outcome, routed to
         # the distinct status the caller branches on.
         return Result(
             status="data_unavailable",
@@ -513,11 +513,11 @@ def _precheck(
     allow_escalation: bool = False,
 ) -> tuple[Result | None, bool]:
     """Cheap gates that run before any browser work: the risk-confirmation check and the
-    idempotency-ledger lookup. Returns `(short_circuit_result_or_None, ledgered)` — a non-None
+    idempotency-ledger lookup. Returns `(short_circuit_result_or_None, ledgered)` - a non-None
     Result means "don't launch a browser, return this."
 
     When `allow_escalation` is set (a live operator is available), a risky capability without
-    `confirm=True` is NOT refused here — the per-step escalation policy pauses it for a human
+    `confirm=True` is NOT refused here - the per-step escalation policy pauses it for a human
     instead. Without an operator (CLI, CI, tests) the old refusal stands."""
     if not allow_escalation:
         try:
@@ -548,7 +548,7 @@ def _run_on_page(
     the trace + checkpoint + idempotency-record; does NOT own the browser lifecycle, so it can
     run either on a per-call browser (`replay`) or a warm pooled context (`BrowserPool.run`).
 
-    `on_event(dict)` — if given, called as each step completes and once with the final result;
+    `on_event(dict)` - if given, called as each step completes and once with the final result;
     used by webconsole/ to stream a replay live. Never raises out of the loop.
 
     Before every state-changing step the escalation policy (escalation/policy.py) is consulted.
@@ -690,7 +690,7 @@ def replay(
     overrides: dict | None = None,
 ) -> Result:
     """Replay one capability, owning its own browser lifecycle. For a batch, prefer
-    `replay.parallel.replay_many` — it reuses one warm browser across runs. `on_event` streams
+    `replay.parallel.replay_many` - it reuses one warm browser across runs. `on_event` streams
     per-step + result dicts (see `_run_on_page`). `allow_escalation` = a live operator can
     approve a paused step (the web console sets this); without it a risky capability still needs
     `confirm=True` up front. `overrides` = {step_id: value} to replace recorded `type`/`select`
@@ -725,7 +725,7 @@ def replay(
 
 class BrowserPool:
     """One warm Chromium, many isolated contexts. Reuses the browser across replays so a batch
-    doesn't pay the ~0.5s `chromium.launch()` cost per run — each `run()` gets a fresh
+    doesn't pay the ~0.5s `chromium.launch()` cost per run - each `run()` gets a fresh
     `new_context()` (its own cookies / storage), then the context is closed and the browser
     stays up.
 

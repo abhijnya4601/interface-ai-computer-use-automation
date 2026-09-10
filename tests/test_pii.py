@@ -44,7 +44,7 @@ def test_street_address_is_detected_and_flagged_low_confidence():
 
 
 def test_bare_zip_is_flagged_not_masked_so_discovery_still_works():
-    # masking bare numerics would break a computer-use agent that navigates by IDs — a lone
+    # masking bare numerics would break a computer-use agent that navigates by IDs - a lone
     # 5-digit run is left intact in every sink, but recorded on the report for review.
     out_ev, _, _ = scrub_gray_area({"x": "Madison WI 53703"}, "evidence")
     assert out_ev["x"] == "Madison WI 53703"

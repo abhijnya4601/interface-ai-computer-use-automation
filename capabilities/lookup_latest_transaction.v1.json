@@ -62,7 +62,7 @@
             "text": "Search (ID / name)"
           }
         ],
-        "reasoning": "role='textbox' name='Search (ID / name)' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='textbox' name='Search (ID / name)' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": {
         "param_ref": "member_id"
@@ -94,7 +94,7 @@
             "text": "Go"
           }
         ],
-        "reasoning": "role='button' name='Go' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='button' name='Go' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": null,
@@ -124,7 +124,7 @@
             "text": "View"
           }
         ],
-        "reasoning": "role='link' name='View' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='link' name='View' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": null,
@@ -162,7 +162,7 @@
             "text": "View Transactions"
           }
         ],
-        "reasoning": "role='link' name='View Transactions' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> \u2014 see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
+        "reasoning": "role='link' name='View Transactions' resolves to exactly one element across the page and its frames. Backed by real semantic HTML (a real <button>, <label for>, or <th scope=row> - see app/templates), not any CSS class or test ID, so it survives markup/styling churn and only breaks if the visible label text or the element's semantic role itself changes."
       },
       "value": null,
       "extract_as": null,
@@ -207,7 +207,7 @@
             "text": "2026-08-15"
           }
         ],
-        "reasoning": "role='cell' name='2026-08-15' sits in a data table (columns ['Date', 'Description', 'Amount', 'Status', 'Actions']) with no per-row label \u2014 anchoring on the cell's own value would break the moment the underlying data changes, since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 0 ('Date')."
+        "reasoning": "role='cell' name='2026-08-15' sits in a data table (columns ['Date', 'Description', 'Amount', 'Status', 'Actions']) with no per-row label - anchoring on the cell's own value would break the moment the underlying data changes, since that value is exactly what's different on every replay. Addressed by position instead: row 0 (0-indexed among data rows), column 0 ('Date')."
       },
       "value": null,
       "extract_as": "most_recent_date",

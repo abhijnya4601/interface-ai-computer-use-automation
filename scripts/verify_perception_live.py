@@ -1,6 +1,6 @@
 """
-Phase 1 live check — the "verify the sensor before building the brain that reads it" gate.
-Launches a real Chromium against the real Flask app (both must be running — see README),
+Phase 1 live check - the "verify the sensor before building the brain that reads it" gate.
+Launches a real Chromium against the real Flask app (both must be running - see README),
 drives through the sub-account flow up to the iframe-based confirmation screen, and asserts the
 observation build_observation() produces actually contains what the discovery agent will need.
 
@@ -44,7 +44,7 @@ def main():
         page.get_by_label("Search (ID / name)").fill("12345")
         page.get_by_role("button", name="Go").click()
         page.wait_for_load_state("networkidle")
-        obs = build_observation(page, last_action_result="clicked 'Go' — page changed")
+        obs = build_observation(page, last_action_result="clicked 'Go' - page changed")
         print("\n=== observation: /search results ===")
         print(json.dumps(obs, indent=2)[:2000])
         tables_or_rows = _find_nodes_by_role(obs["accessibility_tree"], "table") + \
@@ -61,7 +61,7 @@ def main():
         page.get_by_role("button", name="Continue").click()
         page.wait_for_load_state("networkidle")
 
-        obs = build_observation(page, last_action_result="clicked 'Continue' — page changed")
+        obs = build_observation(page, last_action_result="clicked 'Continue' - page changed")
         print("\n=== observation: confirm_wrapper (with synthetic Iframe node) ===")
         print(json.dumps(obs, indent=2))
 

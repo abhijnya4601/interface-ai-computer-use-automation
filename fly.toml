@@ -1,4 +1,4 @@
-# Fly.io config for the live console. `fly launch --no-deploy` will offer to overwrite this —
+# Fly.io config for the live console. `fly launch --no-deploy` will offer to overwrite this -
 # keep it. Then:  fly secrets set CONSOLE_ACCESS_KEY=<pick-one>   (and optionally ANTHROPIC_API_KEY)
 # then:  fly volumes create console_data --size 1   &&   fly deploy
 # See DEPLOY.md.

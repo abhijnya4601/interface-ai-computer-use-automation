@@ -1,10 +1,10 @@
 """
-Offline tests for the operator console's authentication — the single most safety-critical
+Offline tests for the operator console's authentication - the single most safety-critical
 access point in the system (whoever can reach it can approve an irreversible financial action).
 Uses Flask's test client, no live server or browser needed.
 
 Credentials are set via env vars BEFORE importing escalation.operator_page, since the module
-generates a random password at import time if none is set (fail-secure default) — the test needs
+generates a random password at import time if none is set (fail-secure default) - the test needs
 a deterministic credential to exercise both the accept and reject paths.
 """
 import base64

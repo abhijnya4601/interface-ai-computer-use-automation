@@ -1,5 +1,5 @@
 """
-`verify_capability` — replay every declared branch of a capability against the live app and
+`verify_capability` - replay every declared branch of a capability against the live app and
 check each lands where the artifact says it should. Turns the manual "re-sweep the whole
 outcome matrix live after every change" discipline (REPORT §3) into a function with a stored
 result: a capability only earns `lifecycle="verified"` by carrying a `VerificationRecord` whose

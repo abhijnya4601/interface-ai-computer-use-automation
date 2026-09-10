@@ -1,13 +1,13 @@
 """
-Live integration smoke test for D18's operator console authentication — launches the real
+Live integration smoke test for D18's operator console authentication - launches the real
 escalation/operator_page.py as a real subprocess (exactly like run_discovery.py's
 --auto-approve-escalation does) and drives it over real HTTP, proving:
   1. an unauthenticated request is rejected (401), including /resume specifically
   2. a correctly-authenticated request succeeds
-  3. an unauthenticated /resume attempt does NOT flip the lease — the single most
+  3. an unauthenticated /resume attempt does NOT flip the lease - the single most
      safety-critical property this whole feature exists for
 
-No browser, no Anthropic API call needed — this only exercises the operator console + lease
+No browser, no Anthropic API call needed - this only exercises the operator console + lease
 mechanism, using escalation/controller.py directly to simulate an active escalation.
 
 Run: python scripts/smoke_test_operator_auth.py

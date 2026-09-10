@@ -1,5 +1,5 @@
 """
-agent/llm.py — provider detection, tool-schema translation, and the Turn shape the discovery
+agent/llm.py - provider detection, tool-schema translation, and the Turn shape the discovery
 loop depends on. The real provider calls need a key and a network, so those are not exercised
 here; the wiring that decides *which* provider and *how the tools are shaped* is.
 """

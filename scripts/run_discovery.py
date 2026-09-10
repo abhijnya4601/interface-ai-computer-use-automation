@@ -7,7 +7,7 @@ CLI entrypoint for a real discovery run:
         --capability-id lookup_member_balance
 
 Requires ANTHROPIC_API_KEY and the mock app running (see README). Launches Playwright with a
-PERSISTENT, non-headless context — not a throwaway one — because that same context is what a
+PERSISTENT, non-headless context - not a throwaway one - because that same context is what a
 human operator would take over during an escalation (see escalation/controller.py); running
 headless here would make the "same live session" requirement a lie. Pass --headless only for
 CI-style runs where no escalation/handoff demo is needed.
@@ -18,7 +18,7 @@ evidence/discovery_<run_id>.jsonl, redacted, regardless of outcome.
 
 --auto-approve-escalation starts the real escalation/operator_page.py console as a separate
 process and, if the run escalates, posts a real HTTP "Approve & Resume" on the operator's
-behalf after a short delay — this is what lets a capability whose goal requires a genuinely
+behalf after a short delay - this is what lets a capability whose goal requires a genuinely
 irreversible final step (e.g. open_subaccount actually submitting) get recorded by one real,
 unattended run instead of requiring someone to sit and click Resume by hand. Omit it for an
 interactive session where you'll operate the console yourself.
@@ -59,7 +59,7 @@ OPERATOR_BASE = "http://localhost:5001"
 def _resolve_checkpoint(app_name: str, capability_id: str, final_url: str, target_url: str) -> Checkpoint:
     """Curated checkpoint from app_knowledge/<app>.yaml if this capability has one; otherwise
     infer one from where the run ended up (below). Onboarding a new capability no longer needs a
-    Python dict entry — the reviewer adds it to the YAML."""
+    Python dict entry - the reviewer adds it to the YAML."""
     curated = app_knowledge.load(app_name).capability_config(capability_id).checkpoint
     if curated is not None:
         return curated
@@ -73,7 +73,7 @@ def _inferred_checkpoint(final_url: str, target_url: str) -> Checkpoint:
     the STARTING page, which is wrong for virtually every real capability). Uses the final URL's
     last non-empty path segment instead of the full URL, since `url_match` is a substring check
     and the full path usually contains a per-run ID (e.g. `/member/12345/transactions`) that
-    wouldn't match a differently-parameterized replay — the trailing route segment
+    wouldn't match a differently-parameterized replay - the trailing route segment
     (`transactions`) is what's actually stable across runs.
     """
     if final_url == target_url:
@@ -221,7 +221,7 @@ def main():
         threading.Thread(target=_open_console_watcher, args=(stop_event,), daemon=True).start()
     if args.auto_approve_escalation:
         # Generate the operator console's credential here and pass it to the subprocess via env
-        # — this process and the watcher thread below share it directly, no parsing needed.
+        # - this process and the watcher thread below share it directly, no parsing needed.
         operator_env = {
             **os.environ,
             "OPERATOR_USERNAME": "auto-approve-bot",
@@ -252,7 +252,7 @@ def main():
         print(f"tier log: {result.recorder.tier_log}")
         tu = result.token_usage
         # discovery is the ONLY LLM cost in the system (replay never calls a model). Rates are
-        # indicative — set them for your contract; the point is the number is visible per run.
+        # indicative - set them for your contract; the point is the number is visible per run.
         _in_rate, _out_rate = 3.0, 15.0  # $/Mtok, claude-sonnet ballpark
         est = tu["input"] / 1e6 * _in_rate + tu["output"] / 1e6 * _out_rate
         print(f"tokens: {tu['input']} in / {tu['output']} out  (~${est:.3f} at "
@@ -289,7 +289,7 @@ def main():
             unratified = capability.unratified_rules()
             if unratified:
                 print(f"NOTE: {len(unratified)} agent-proposed rule(s) need review before this "
-                      f"leaves 'draft' — run: python scripts/review_capability.py {saved_path}")
+                      f"leaves 'draft' - run: python scripts/review_capability.py {saved_path}")
                 for u in unratified:
                     print(f"  - {u}")
         else:
